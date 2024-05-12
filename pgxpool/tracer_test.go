@@ -14,8 +14,7 @@ import (
 type testTracer struct {
 	traceAcquireStart func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireStartData) context.Context
 	traceAcquireEnd   func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData)
-	traceReleaseStart func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseStartData) context.Context
-	traceReleaseEnd   func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseEndData)
+	traceRelease      func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData)
 }
 
 type ctxKey string
@@ -33,16 +32,9 @@ func (tt *testTracer) TraceAcquireEnd(ctx context.Context, pool *pgxpool.Pool, d
 	}
 }
 
-func (tt *testTracer) TraceReleaseStart(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseStartData) context.Context {
-	if tt.traceReleaseStart != nil {
-		return tt.traceReleaseStart(ctx, pool, data)
-	}
-	return ctx
-}
-
-func (tt *testTracer) TraceReleaseEnd(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseEndData) {
-	if tt.traceReleaseEnd != nil {
-		tt.traceReleaseEnd(ctx, pool, data)
+func (tt *testTracer) TraceRelease(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
+	if tt.traceRelease != nil {
+		tt.traceRelease(ctx, pool, data)
 	}
 }
 
@@ -124,24 +116,17 @@ func TestTraceRelease(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	traceReleaseStartCalled := false
-	tracer.traceReleaseStart = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseStartData) context.Context {
-		traceReleaseStartCalled = true
+	traceReleaseCalled := false
+	tracer.traceRelease = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
+		traceReleaseCalled = true
 		require.NotNil(t, pool)
 		require.NotNil(t, data.Conn)
-		return context.WithValue(ctx, ctxKey("fromTraceReleaseStart"), "foo")
+		require.Equal(t, "foo", ctx.Value(ctxKey("fromAcquire")))
 	}
 
-	traceReleaseEndCalled := false
-	tracer.traceReleaseEnd = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseEndData) {
-		traceReleaseEndCalled = true
-		require.Equal(t, "foo", ctx.Value(ctxKey("fromTraceReleaseStart")))
-		require.NotNil(t, pool)
-	}
-
+	ctx = context.WithValue(ctx, ctxKey("fromAcquire"), "foo")
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	c.Release()
-	require.True(t, traceReleaseStartCalled)
-	require.True(t, traceReleaseEndCalled)
+	require.True(t, traceReleaseCalled)
 }

@@ -28,10 +28,7 @@ func (c *Conn) Release() {
 	c.res = nil
 
 	if c.p.releaseTracer != nil {
-		ctx := c.p.releaseTracer.TraceReleaseStart(c.ctx, c.p, TraceReleaseStartData{Conn: conn})
-		defer func() {
-			c.p.releaseTracer.TraceReleaseEnd(ctx, c.p, TraceReleaseEndData{})
-		}()
+		c.p.releaseTracer.TraceRelease(c.ctx, c.p, TraceReleaseData{Conn: conn})
 	}
 
 	if conn.IsClosed() || conn.PgConn().IsBusy() || conn.PgConn().TxStatus() != 'I' {
