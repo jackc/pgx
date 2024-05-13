@@ -6,9 +6,11 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
@@ -222,5 +224,30 @@ func TestJSONCodecEncodeJSONMarshalerThatCanBeWrapped(t *testing.T) {
 		err := conn.QueryRow(context.Background(), "select $1::json", &ParentIssue1681{}).Scan(&jsonStr)
 		require.NoError(t, err)
 		require.Equal(t, `{"custom":"thing"}`, jsonStr)
+	})
+}
+
+func TestJSONCodecCustomMarshal(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB treats json as jsonb. This causes it to format differently than PostgreSQL.")
+
+	connTestRunner := defaultConnTestRunner
+	connTestRunner.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		conn.TypeMap().RegisterType(&pgtype.Type{
+			Name: "json", OID: pgtype.JSONOID, Codec: &pgtype.JSONCodec{
+				Marshal: func(v any) ([]byte, error) {
+					return []byte(`{"custom":"value"}`), nil
+				},
+				Unmarshal: func(data []byte, v any) error {
+					return json.Unmarshal([]byte(`{"custom":"value"}`), v)
+				},
+			}})
+	}
+
+	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
+		// There is no space between "custom" and "value" in json type.
+		{map[string]any{"something": "else"}, new(string), isExpectedEq(`{"custom":"value"}`)},
+		{[]byte(`{"something":"else"}`), new(map[string]any), func(v any) bool {
+			return reflect.DeepEqual(v, map[string]any{"custom": "value"})
+		}},
 	})
 }
