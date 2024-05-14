@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -933,19 +934,6 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 
 	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI"}
 
-	savedEnv := make(map[string]string)
-	for _, n := range pgEnvvars {
-		savedEnv[n] = os.Getenv(n)
-	}
-	defer func() {
-		for k, v := range savedEnv {
-			err := os.Setenv(k, v)
-			if err != nil {
-				t.Fatalf("Unable to restore environment: %v", err)
-			}
-		}
-	}()
-
 	tests := []struct {
 		name    string
 		envvars map[string]string
@@ -1021,8 +1009,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 
 		for k, v := range tt.envvars {
-			err := os.Setenv(k, v)
-			require.NoError(t, err)
+			t.Setenv(k, v)
 		}
 
 		config, err := pgconn.ParseConfig("")
@@ -1038,16 +1025,11 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	skipOnWindows(t)
 	t.Parallel()
 
-	tf, err := os.CreateTemp("", "")
+	tfName := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tfName, []byte("test1:5432:curlydb:curly:nyuknyuknyuk"), 0600)
 	require.NoError(t, err)
 
-	defer tf.Close()
-	defer os.Remove(tf.Name())
-
-	_, err = tf.Write([]byte("test1:5432:curlydb:curly:nyuknyuknyuk"))
-	require.NoError(t, err)
-
-	connString := fmt.Sprintf("postgres://curly@test1:5432/curlydb?sslmode=disable&passfile=%s", tf.Name())
+	connString := fmt.Sprintf("postgres://curly@test1:5432/curlydb?sslmode=disable&passfile=%s", tfName)
 	expected := &pgconn.Config{
 		User:          "curly",
 		Password:      "nyuknyuknyuk",
@@ -1068,13 +1050,9 @@ func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	skipOnWindows(t)
 	t.Parallel()
 
-	tf, err := os.CreateTemp("", "")
-	require.NoError(t, err)
+	tfName := filepath.Join(t.TempDir(), "config")
 
-	defer tf.Close()
-	defer os.Remove(tf.Name())
-
-	_, err = tf.Write([]byte(`
+	err := os.WriteFile(tfName, []byte(`
 [abc]
 host=abc.example.com
 port=9999
@@ -1086,7 +1064,7 @@ host = def.example.com
 dbname = defdb
 user = defuser
 application_name = spaced string
-`))
+`), 0600)
 	require.NoError(t, err)
 
 	defaultPort := getDefaultPort(t)
@@ -1098,7 +1076,7 @@ application_name = spaced string
 	}{
 		{
 			name:       "abc",
-			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tf.Name(), "abc"),
+			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tfName, "abc"),
 			config: &pgconn.Config{
 				Host:     "abc.example.com",
 				Database: "abcdb",
@@ -1120,7 +1098,7 @@ application_name = spaced string
 		},
 		{
 			name:       "def",
-			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tf.Name(), "def"),
+			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tfName, "def"),
 			config: &pgconn.Config{
 				Host:     "def.example.com",
 				Port:     defaultPort,
@@ -1142,7 +1120,7 @@ application_name = spaced string
 		},
 		{
 			name:       "conn string has precedence",
-			connString: fmt.Sprintf("postgres://other.example.com:7777/?servicefile=%s&service=%s&sslmode=disable", tf.Name(), "abc"),
+			connString: fmt.Sprintf("postgres://other.example.com:7777/?servicefile=%s&service=%s&sslmode=disable", tfName, "abc"),
 			config: &pgconn.Config{
 				Host:          "other.example.com",
 				Database:      "abcdb",
