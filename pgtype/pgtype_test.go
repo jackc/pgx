@@ -309,7 +309,7 @@ func TestPointerPointerStructScan(t *testing.T) {
 	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
 	err := plan.Scan([]byte("(1)"), &c)
 	require.NoError(t, err)
-	require.Equal(t, c.ID, 1)
+	require.Equal(t, 1, c.ID)
 }
 
 // https://github.com/jackc/pgx/issues/1263

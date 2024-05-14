@@ -64,6 +64,6 @@ create type enum_test as enum ('foo', 'bar', 'baz');`)
 		require.True(t, rows.Next())
 		values, err := rows.Values()
 		require.NoError(t, err)
-		require.Equal(t, values, []any{"foo"})
+		require.Equal(t, []any{"foo"}, values)
 	})
 }

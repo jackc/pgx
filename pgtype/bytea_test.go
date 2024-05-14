@@ -92,7 +92,7 @@ func TestPreallocBytes(t *testing.T) {
 
 		require.Len(t, buf, 2)
 		require.Equal(t, 4, cap(buf))
-		require.Equal(t, buf, []byte{1, 2})
+		require.Equal(t, []byte{1, 2}, buf)
 
 		require.Equal(t, []byte{1, 2, 7, 8}, origBuf)
 
@@ -112,7 +112,7 @@ func TestUndecodedBytes(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, buf, 4)
-		require.Equal(t, buf, []byte{0, 0, 0, 1})
+		require.Equal(t, []byte{0, 0, 0, 1}, buf)
 	})
 }
 
@@ -132,6 +132,6 @@ func TestByteaCodecDecodeDatabaseSQLValue(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, buf, 4)
-		require.Equal(t, buf, []byte{0xa1, 0xb2, 0xc3, 0xd4})
+		require.Equal(t, []byte{0xa1, 0xb2, 0xc3, 0xd4}, buf)
 	})
 }

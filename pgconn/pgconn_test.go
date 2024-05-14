@@ -2714,7 +2714,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, "a", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2722,7 +2722,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok = results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "b")
+	require.Equal(t, "b", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2730,7 +2730,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok = results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "c")
+	require.Equal(t, "c", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2784,7 +2784,7 @@ func TestPipelinePrepareError(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, "a", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2828,7 +2828,7 @@ func TestPipelinePrepareAndDeallocate(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, "a", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2965,7 +2965,7 @@ func TestPipelinePrepareQuery(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "msg")
+	require.Equal(t, "msg", string(sd.Fields[0].Name))
 	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -3427,9 +3427,9 @@ func TestSNISupport(t *testing.T) {
 			select {
 			case sniHost := <-serverSNINameChan:
 				if tt.sni_set {
-					require.Equal(t, sniHost, "localhost")
+					require.Equal(t, "localhost", sniHost)
 				} else {
-					require.Equal(t, sniHost, "")
+					require.Equal(t, "", sniHost)
 				}
 			case err = <-serverErrChan:
 				t.Fatalf("server failed with error: %+v", err)
