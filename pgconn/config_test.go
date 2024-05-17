@@ -1003,13 +1003,8 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		for _, n := range pgEnvvars {
-			err := os.Unsetenv(n)
-			require.NoError(t, err)
-		}
-
-		for k, v := range tt.envvars {
-			t.Setenv(k, v)
+		for _, env := range pgEnvvars {
+			t.Setenv(env, tt.envvars[env])
 		}
 
 		config, err := pgconn.ParseConfig("")
