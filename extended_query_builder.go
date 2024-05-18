@@ -198,6 +198,11 @@ func (eqb *ExtendedQueryBuilder) oidAndArgForQueryExecModeExec(m *pgtype.Map, ar
 		if err != nil {
 			return 0, nil, err
 		}
+
+		if v == nil {
+			return 0, nil, nil
+		}
+
 		if dt, ok := m.TypeForValue(v); ok {
 			return dt.OID, v, nil
 		}

@@ -14,9 +14,8 @@ import (
 // var valuerReflectType = reflect.TypeFor[driver.Valuer]()
 var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 
-// Is returns true if value is any type of nil except a pointer that directly implements driver.Valuer. e.g. nil,
-// []byte(nil), and a *T where T implements driver.Valuer get normalized to nil but a *T where *T implements
-// driver.Valuer does not.
+// Is returns true if value is any type of nil unless it implements driver.Valuer. *T is not considered to implement
+// driver.Valuer if it is only implemented by T.
 func Is(value any) bool {
 	if value == nil {
 		return true
@@ -30,14 +29,13 @@ func Is(value any) bool {
 			return false
 		}
 
-		if kind == reflect.Ptr {
-			if _, ok := value.(driver.Valuer); ok {
-				// The pointer will be considered to implement driver.Valuer even if it is actually implemented on the value.
-				// But we only want to consider it nil if it is implemented on the pointer. So check if what the pointer points
-				// to implements driver.Valuer.
-				if !refVal.Type().Elem().Implements(valuerReflectType) {
-					return false
-				}
+		if _, ok := value.(driver.Valuer); ok {
+			if kind == reflect.Ptr {
+				// The type assertion will succeed if driver.Valuer is implemented on T or *T. Check if it is implemented on T
+				// to see if it is not implemented on *T.
+				return refVal.Type().Elem().Implements(valuerReflectType)
+			} else {
+				return false
 			}
 		}
 
