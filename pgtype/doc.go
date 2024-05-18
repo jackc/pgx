@@ -139,6 +139,16 @@ Compatibility with database/sql
 pgtype also includes support for custom types implementing the database/sql.Scanner and database/sql/driver.Valuer
 interfaces.
 
+Encoding Typed Nils
+
+pgtype normalizes typed nils (e.g. []byte(nil)) into nil. nil is always encoded is the SQL NULL value without going
+through the Codec system. This means that Codecs and other encoding logic does not have to handle nil or *T(nil).
+
+However, database/sql compatibility requires Value to be called on a pointer that implements driver.Valuer. See
+https://github.com/golang/go/issues/8415 and
+https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870. Therefore, pointers that implement
+driver.Valuer are not normalized to nil.
+
 Child Records
 
 pgtype's support for arrays and composite records can be used to load records and their children in a single query.  See
