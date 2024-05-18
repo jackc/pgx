@@ -1,17 +1,47 @@
 package anynil
 
-import "reflect"
+import (
+	"database/sql/driver"
+	"reflect"
+)
 
-// Is returns true if value is any type of nil. e.g. nil or []byte(nil).
+// valuerReflectType is a reflect.Type for driver.Valuer. It has confusing syntax because reflect.TypeOf returns nil
+// when it's argument is a nil interface value. So we use a pointer to the interface and call Elem to get the actual
+// type. Yuck.
+//
+// This can be simplified in Go 1.22 with reflect.TypeFor.
+//
+// var valuerReflectType = reflect.TypeFor[driver.Valuer]()
+var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
+// Is returns true if value is any type of nil except a pointer that directly implements driver.Valuer. e.g. nil,
+// []byte(nil), and a *T where T implements driver.Valuer get normalized to nil but a *T where *T implements
+// driver.Valuer does not.
 func Is(value any) bool {
 	if value == nil {
 		return true
 	}
 
 	refVal := reflect.ValueOf(value)
-	switch refVal.Kind() {
+	kind := refVal.Kind()
+	switch kind {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
-		return refVal.IsNil()
+		if !refVal.IsNil() {
+			return false
+		}
+
+		if kind == reflect.Ptr {
+			if _, ok := value.(driver.Valuer); ok {
+				// The pointer will be considered to implement driver.Valuer even if it is actually implemented on the value.
+				// But we only want to consider it nil if it is implemented on the pointer. So check if what the pointer points
+				// to implements driver.Valuer.
+				if !refVal.Type().Elem().Implements(valuerReflectType) {
+					return false
+				}
+			}
+		}
+
+		return true
 	default:
 		return false
 	}
