@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 )
@@ -319,4 +320,51 @@ func (r *Range[T]) SetBoundTypes(lower, upper BoundType) error {
 	r.UpperType = upper
 	r.Valid = true
 	return nil
+}
+
+// Scan implements the database/sql Scanner interface.
+//
+// Range needs a *Map to decode the range elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Scanner interface does not have an argument that can be used to pass extra data to the Scan
+// method. To work around this limitation, Scan uses a default *Map. This means Scan may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (a *Range[T]) Scan(v any) error {
+	if v == nil {
+		*a = Range[T]{}
+		return nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	switch v := v.(type) {
+	case string:
+		return m.Scan(0, 0, []byte(v), a)
+	case []byte:
+		return m.Scan(0, 0, v, a)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// Value implements the database/sql/driver Valuer interface.
+//
+// Range needs a *Map to encode the range elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Valuer interface does not have an argument that can be used to pass extra data to the Value
+// method. To work around this limitation, Value uses a default *Map. This means Value may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (src Range[T]) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	buf, err := m.Encode(0, TextFormatCode, src, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), nil
 }

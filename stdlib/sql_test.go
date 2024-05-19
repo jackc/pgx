@@ -555,14 +555,12 @@ func TestPGTypeArray(t *testing.T) {
 	})
 }
 
-func TestConnQueryScanRange(t *testing.T) {
+func TestConnQueryPGTypeRange(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support int4range")
 
-		m := pgtype.NewMap()
-
 		var r pgtype.Range[pgtype.Int4]
-		err := db.QueryRow("select int4range(1, 5)").Scan(m.SQLScanner(&r))
+		err := db.QueryRow("select int4range(1, 5)").Scan(&r)
 		require.NoError(t, err)
 		assert.Equal(
 			t,
@@ -574,6 +572,15 @@ func TestConnQueryScanRange(t *testing.T) {
 				Valid:     true,
 			},
 			r)
+
+		var equal bool
+		err = db.QueryRow("select int4range(1, 5) = $1::int4range", r).Scan(&equal)
+		require.NoError(t, err)
+		require.Equal(t, true, equal)
+
+		err = db.QueryRow("select null::int4range").Scan(&r)
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Range[pgtype.Int4]{}, r)
 	})
 }
 
