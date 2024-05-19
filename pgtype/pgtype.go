@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"reflect"
 	"time"
+
+	"github.com/jackc/pgx/v5/internal/anynil"
 )
 
 // PostgreSQL oids for common types
@@ -1912,7 +1914,7 @@ func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) 
 // (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
 // written.
 func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBuf []byte, err error) {
-	if value == nil {
+	if anynil.Is(value) {
 		return nil, nil
 	}
 

@@ -3,7 +3,6 @@ package pgx
 import (
 	"fmt"
 
-	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -117,10 +116,6 @@ func (eqb *ExtendedQueryBuilder) reset() {
 }
 
 func (eqb *ExtendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uint32, formatCode int16, arg any) ([]byte, error) {
-	if anynil.Is(arg) {
-		return nil, nil
-	}
-
 	if eqb.paramValueBytes == nil {
 		eqb.paramValueBytes = make([]byte, 0, 128)
 	}
