@@ -22,8 +22,6 @@ type ExtendedQueryBuilder struct {
 func (eqb *ExtendedQueryBuilder) Build(m *pgtype.Map, sd *pgconn.StatementDescription, args []any) error {
 	eqb.reset()
 
-	anynil.NormalizeSlice(args)
-
 	if sd == nil {
 		for i := range args {
 			err := eqb.appendParam(m, 0, pgtype.TextFormatCode, args[i])

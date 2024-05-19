@@ -44,13 +44,3 @@ func Is(value any) bool {
 		return false
 	}
 }
-
-// NormalizeSlice converts all typed nils (e.g. []byte(nil)) in s into untyped nils. Other values are unmodified. s is
-// mutated in place.
-func NormalizeSlice(s []any) {
-	for i := range s {
-		if Is(s[i]) {
-			s[i] = nil
-		}
-	}
-}
