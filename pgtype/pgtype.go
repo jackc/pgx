@@ -9,8 +9,6 @@ import (
 	"net/netip"
 	"reflect"
 	"time"
-
-	"github.com/jackc/pgx/v5/internal/anynil"
 )
 
 // PostgreSQL oids for common types
@@ -1914,8 +1912,17 @@ func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) 
 // (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
 // written.
 func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBuf []byte, err error) {
-	if anynil.Is(value) {
-		return nil, nil
+	if isNil, callNilDriverValuer := isNilDriverValuer(value); isNil {
+		if callNilDriverValuer {
+			newBuf, err = (&encodePlanDriverValuer{m: m, oid: oid, formatCode: formatCode}).Encode(value, buf)
+			if err != nil {
+				return nil, newEncodeError(value, m, oid, formatCode, err)
+			}
+
+			return newBuf, nil
+		} else {
+			return nil, nil
+		}
 	}
 
 	plan := m.PlanEncode(oid, formatCode, value)
@@ -1969,4 +1976,56 @@ func (w *sqlScannerWrapper) Scan(src any) error {
 	}
 
 	return w.m.Scan(t.OID, TextFormatCode, bufSrc, w.v)
+}
+
+// canBeNil returns true if value can be nil.
+func canBeNil(value any) bool {
+	refVal := reflect.ValueOf(value)
+	kind := refVal.Kind()
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return true
+	default:
+		return false
+	}
+}
+
+// valuerReflectType is a reflect.Type for driver.Valuer. It has confusing syntax because reflect.TypeOf returns nil
+// when it's argument is a nil interface value. So we use a pointer to the interface and call Elem to get the actual
+// type. Yuck.
+//
+// This can be simplified in Go 1.22 with reflect.TypeFor.
+//
+// var valuerReflectType = reflect.TypeFor[driver.Valuer]()
+var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
+// isNilDriverValuer returns true if value is any type of nil unless it implements driver.Valuer. *T is not considered to implement
+// driver.Valuer if it is only implemented by T.
+func isNilDriverValuer(value any) (isNil bool, callNilDriverValuer bool) {
+	if value == nil {
+		return true, false
+	}
+
+	refVal := reflect.ValueOf(value)
+	kind := refVal.Kind()
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		if !refVal.IsNil() {
+			return false, false
+		}
+
+		if _, ok := value.(driver.Valuer); ok {
+			if kind == reflect.Ptr {
+				// The type assertion will succeed if driver.Valuer is implemented on T or *T. Check if it is implemented on *T
+				// by checking if it is not implemented on *T.
+				return true, !refVal.Type().Elem().Implements(valuerReflectType)
+			} else {
+				return true, true
+			}
+		}
+
+		return true, false
+	default:
+		return false, false
+	}
 }
