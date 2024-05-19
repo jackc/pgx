@@ -589,6 +589,7 @@ func TestConnQueryPGTypeRange(t *testing.T) {
 func TestConnQueryPGTypeMultirange(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support int4range")
+		skipPostgreSQLVersionLessThan(t, db, 14)
 
 		var r pgtype.Multirange[pgtype.Range[pgtype.Int4]]
 		err := db.QueryRow("select int4multirange(int4range(1, 5), int4range(7,9))").Scan(&r)
