@@ -530,6 +530,8 @@ func TestPGTypeFlatArray(t *testing.T) {
 
 func TestPGTypeArray(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support nested arrays")
+
 		var matrix pgtype.Array[int64]
 
 		err := db.QueryRow("select '{{1,2,3},{4,5,6}}'::bigint[]").Scan(&matrix)
