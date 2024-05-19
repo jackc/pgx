@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -419,6 +420,53 @@ func (a Array[T]) ScanIndexType() any {
 	return new(T)
 }
 
+// Scan implements the database/sql Scanner interface.
+//
+// Array needs a *Map to decode the array elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Scanner interface does not have an argument that can be used to pass extra data to the Scan
+// method. To work around this limitation, Scan uses a default *Map. This means Scan may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (a *Array[T]) Scan(v any) error {
+	if v == nil {
+		*a = Array[T]{}
+		return nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	switch v := v.(type) {
+	case string:
+		return m.Scan(0, 0, []byte(v), a)
+	case []byte:
+		return m.Scan(0, 0, v, a)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// Value implements the database/sql/driver Valuer interface.
+//
+// Array needs a *Map to encode the array elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Valuer interface does not have an argument that can be used to pass extra data to the Value
+// method. To work around this limitation, Value uses a default *Map. This means Value may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (src Array[T]) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	buf, err := m.Encode(0, TextFormatCode, src, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), nil
+}
+
 // FlatArray implements the ArrayGetter and ArraySetter interfaces for any slice of T. It ignores PostgreSQL dimensions
 // and custom lower bounds. Use Array to preserve these.
 type FlatArray[T any] []T
@@ -457,4 +505,79 @@ func (a FlatArray[T]) ScanIndex(i int) any {
 
 func (a FlatArray[T]) ScanIndexType() any {
 	return new(T)
+}
+
+// Scan implements the database/sql Scanner interface.
+//
+// FlatArray needs a *Map to decode the array elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Scanner interface does not have an argument that can be used to pass extra data to the Scan
+// method. To work around this limitation, Scan uses a default *Map. This means Scan may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (a *FlatArray[T]) Scan(v any) error {
+	if v == nil {
+		*a = nil
+		return nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	switch v := v.(type) {
+	case string:
+		return m.Scan(0, 0, []byte(v), a)
+	case []byte:
+		return m.Scan(0, 0, v, a)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// Value implements the database/sql/driver Valuer interface.
+//
+// FlatArray needs a *Map to encode the array elements. Unfortunately, the the Go type system does not support attaching
+// data to a type and the Valuer interface does not have an argument that can be used to pass extra data to the Value
+// method. To work around this limitation, Value uses a default *Map. This means Value may only work properly with types
+// that are supported by a default *Map. from a Map or Codec.
+func (src FlatArray[T]) Value() (driver.Value, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	m := databaseSQLMapPool.Get().(*Map)
+	defer databaseSQLMapPool.Put(m)
+
+	buf, err := m.Encode(0, TextFormatCode, src, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), nil
+}
+
+// flatArrayForWrapper is FlatArray without the Scan and Value methods. The avoids a wrapped plan attempt always
+// "succeeding".
+type flatArrayForWrapper[T any] []T
+
+func (a flatArrayForWrapper[T]) Dimensions() []ArrayDimension {
+	return FlatArray[T](a).Dimensions()
+}
+
+func (a flatArrayForWrapper[T]) Index(i int) any {
+	return FlatArray[T](a).Index(i)
+}
+
+func (a flatArrayForWrapper[T]) IndexType() any {
+	return FlatArray[T](a).IndexType()
+}
+
+func (a *flatArrayForWrapper[T]) SetDimensions(dimensions []ArrayDimension) error {
+	return (*FlatArray[T])(a).SetDimensions(dimensions)
+}
+
+func (a flatArrayForWrapper[T]) ScanIndex(i int) any {
+	return FlatArray[T](a).ScanIndex(i)
+}
+
+func (a flatArrayForWrapper[T]) ScanIndexType() any {
+	return FlatArray[T](a).ScanIndexType()
 }

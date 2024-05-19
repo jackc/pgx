@@ -509,18 +509,49 @@ func TestConnQueryScanGoArray(t *testing.T) {
 	})
 }
 
-func TestConnQueryScanArray(t *testing.T) {
+func TestPGTypeFlatArray(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		m := pgtype.NewMap()
+		var names pgtype.FlatArray[string]
 
-		var a pgtype.Array[int64]
-		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		err := db.QueryRow("select array['John', 'Jane']::text[]").Scan(&names)
 		require.NoError(t, err)
-		assert.Equal(t, pgtype.Array[int64]{Elements: []int64{1, 2, 3}, Dims: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}}, Valid: true}, a)
+		require.Equal(t, pgtype.FlatArray[string]{"John", "Jane"}, names)
 
-		err = db.QueryRow("select null::bigint[]").Scan(m.SQLScanner(&a))
+		var n int
+		err = db.QueryRow("select cardinality($1::text[])", names).Scan(&n)
 		require.NoError(t, err)
-		assert.Equal(t, pgtype.Array[int64]{Elements: nil, Dims: nil, Valid: false}, a)
+		require.EqualValues(t, 2, n)
+
+		err = db.QueryRow("select null::text[]").Scan(&names)
+		require.NoError(t, err)
+		require.Nil(t, names)
+	})
+}
+
+func TestPGTypeArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		var matrix pgtype.Array[int64]
+
+		err := db.QueryRow("select '{{1,2,3},{4,5,6}}'::bigint[]").Scan(&matrix)
+		require.NoError(t, err)
+		require.Equal(t,
+			pgtype.Array[int64]{
+				Elements: []int64{1, 2, 3, 4, 5, 6},
+				Dims: []pgtype.ArrayDimension{
+					{Length: 2, LowerBound: 1},
+					{Length: 3, LowerBound: 1},
+				},
+				Valid: true},
+			matrix)
+
+		var equal bool
+		err = db.QueryRow("select '{{1,2,3},{4,5,6}}'::bigint[] = $1::bigint[]", matrix).Scan(&equal)
+		require.NoError(t, err)
+		require.Equal(t, true, equal)
+
+		err = db.QueryRow("select null::bigint[]").Scan(&matrix)
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: nil, Dims: nil, Valid: false}, matrix)
 	})
 }
 

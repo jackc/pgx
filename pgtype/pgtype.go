@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -122,6 +123,14 @@ const (
 	DatemultirangeArrayOID = 6155
 	Int8multirangeArrayOID = 6157
 )
+
+// databaseSQLMapPool is a sync.Pool that holds *Map instances used for implementing sql.Scanner and driver.Valuer on
+// types that need a *Map to encode and decode such as FlatArray[T].
+var databaseSQLMapPool = sync.Pool{
+	New: func() any {
+		return NewMap()
+	},
+}
 
 type InfinityModifier int8
 
@@ -932,19 +941,19 @@ func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextVa
 	// Avoid using reflect path for common types.
 	switch target := target.(type) {
 	case *[]int16:
-		return &wrapPtrSliceScanPlan[int16]{}, (*FlatArray[int16])(target), true
+		return &wrapPtrSliceScanPlan[int16]{}, (*flatArrayForWrapper[int16])(target), true
 	case *[]int32:
-		return &wrapPtrSliceScanPlan[int32]{}, (*FlatArray[int32])(target), true
+		return &wrapPtrSliceScanPlan[int32]{}, (*flatArrayForWrapper[int32])(target), true
 	case *[]int64:
-		return &wrapPtrSliceScanPlan[int64]{}, (*FlatArray[int64])(target), true
+		return &wrapPtrSliceScanPlan[int64]{}, (*flatArrayForWrapper[int64])(target), true
 	case *[]float32:
-		return &wrapPtrSliceScanPlan[float32]{}, (*FlatArray[float32])(target), true
+		return &wrapPtrSliceScanPlan[float32]{}, (*flatArrayForWrapper[float32])(target), true
 	case *[]float64:
-		return &wrapPtrSliceScanPlan[float64]{}, (*FlatArray[float64])(target), true
+		return &wrapPtrSliceScanPlan[float64]{}, (*flatArrayForWrapper[float64])(target), true
 	case *[]string:
-		return &wrapPtrSliceScanPlan[string]{}, (*FlatArray[string])(target), true
+		return &wrapPtrSliceScanPlan[string]{}, (*flatArrayForWrapper[string])(target), true
 	case *[]time.Time:
-		return &wrapPtrSliceScanPlan[time.Time]{}, (*FlatArray[time.Time])(target), true
+		return &wrapPtrSliceScanPlan[time.Time]{}, (*flatArrayForWrapper[time.Time])(target), true
 	}
 
 	targetType := reflect.TypeOf(target)
@@ -968,7 +977,7 @@ type wrapPtrSliceScanPlan[T any] struct {
 func (plan *wrapPtrSliceScanPlan[T]) SetNext(next ScanPlan) { plan.next = next }
 
 func (plan *wrapPtrSliceScanPlan[T]) Scan(src []byte, target any) error {
-	return plan.next.Scan(src, (*FlatArray[T])(target.(*[]T)))
+	return plan.next.Scan(src, (*flatArrayForWrapper[T])(target.(*[]T)))
 }
 
 type wrapPtrSliceReflectScanPlan struct {
@@ -1773,19 +1782,19 @@ func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextVa
 	// Avoid using reflect path for common types.
 	switch value := value.(type) {
 	case []int16:
-		return &wrapSliceEncodePlan[int16]{}, (FlatArray[int16])(value), true
+		return &wrapSliceEncodePlan[int16]{}, (flatArrayForWrapper[int16])(value), true
 	case []int32:
-		return &wrapSliceEncodePlan[int32]{}, (FlatArray[int32])(value), true
+		return &wrapSliceEncodePlan[int32]{}, (flatArrayForWrapper[int32])(value), true
 	case []int64:
-		return &wrapSliceEncodePlan[int64]{}, (FlatArray[int64])(value), true
+		return &wrapSliceEncodePlan[int64]{}, (flatArrayForWrapper[int64])(value), true
 	case []float32:
-		return &wrapSliceEncodePlan[float32]{}, (FlatArray[float32])(value), true
+		return &wrapSliceEncodePlan[float32]{}, (flatArrayForWrapper[float32])(value), true
 	case []float64:
-		return &wrapSliceEncodePlan[float64]{}, (FlatArray[float64])(value), true
+		return &wrapSliceEncodePlan[float64]{}, (flatArrayForWrapper[float64])(value), true
 	case []string:
-		return &wrapSliceEncodePlan[string]{}, (FlatArray[string])(value), true
+		return &wrapSliceEncodePlan[string]{}, (flatArrayForWrapper[string])(value), true
 	case []time.Time:
-		return &wrapSliceEncodePlan[time.Time]{}, (FlatArray[time.Time])(value), true
+		return &wrapSliceEncodePlan[time.Time]{}, (flatArrayForWrapper[time.Time])(value), true
 	}
 
 	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Slice {
@@ -1805,7 +1814,7 @@ type wrapSliceEncodePlan[T any] struct {
 func (plan *wrapSliceEncodePlan[T]) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapSliceEncodePlan[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	return plan.next.Encode((FlatArray[T])(value.([]T)), buf)
+	return plan.next.Encode((flatArrayForWrapper[T])(value.([]T)), buf)
 }
 
 type wrapSliceEncodeReflectPlan struct {
