@@ -1,7 +1,6 @@
 package pgx
 
 import (
-	"database/sql/driver"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/internal/anynil"
@@ -26,7 +25,14 @@ func (eqb *ExtendedQueryBuilder) Build(m *pgtype.Map, sd *pgconn.StatementDescri
 	anynil.NormalizeSlice(args)
 
 	if sd == nil {
-		return eqb.appendParamsForQueryExecModeExec(m, args)
+		for i := range args {
+			err := eqb.appendParam(m, 0, pgtype.TextFormatCode, args[i])
+			if err != nil {
+				err = fmt.Errorf("failed to encode args[%d]: %w", i, err)
+				return err
+			}
+		}
+		return nil
 	}
 
 	if len(sd.ParamOIDs) != len(args) {
@@ -144,73 +150,4 @@ func (eqb *ExtendedQueryBuilder) chooseParameterFormatCode(m *pgtype.Map, oid ui
 	}
 
 	return m.FormatCodeForOID(oid)
-}
-
-// appendParamsForQueryExecModeExec appends the args to eqb.
-//
-// Parameters must be encoded in the text format because of differences in type conversion between timestamps and
-// dates. In QueryExecModeExec we don't know what the actual PostgreSQL type is. To determine the type we use the
-// Go type to OID type mapping registered by RegisterDefaultPgType. However, the Go time.Time represents both
-// PostgreSQL timestamp[tz] and date. To use the binary format we would need to also specify what the PostgreSQL
-// type OID is. But that would mean telling PostgreSQL that we have sent a timestamp[tz] when what is needed is a date.
-// This means that the value is converted from text to timestamp[tz] to date. This means it does a time zone conversion
-// before converting it to date. This means that dates can be shifted by one day. In text format without that double
-// type conversion it takes the date directly and ignores time zone (i.e. it works).
-//
-// Given that the whole point of QueryExecModeExec is to operate without having to know the PostgreSQL types there is
-// no way to safely use binary or to specify the parameter OIDs.
-func (eqb *ExtendedQueryBuilder) appendParamsForQueryExecModeExec(m *pgtype.Map, args []any) error {
-	for _, arg := range args {
-		oid, modArg, err := eqb.oidAndArgForQueryExecModeExec(m, arg)
-		if err != nil {
-			return err
-		}
-
-		err = eqb.appendParam(m, oid, pgtype.TextFormatCode, modArg)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (eqb *ExtendedQueryBuilder) oidAndArgForQueryExecModeExec(m *pgtype.Map, arg any) (uint32, any, error) {
-	if arg == nil {
-		return 0, arg, nil
-	}
-
-	if dt, ok := m.TypeForValue(arg); ok {
-		return dt.OID, arg, nil
-	}
-
-	if textValuer, ok := arg.(pgtype.TextValuer); ok {
-		tv, err := textValuer.TextValue()
-		if err != nil {
-			return 0, nil, err
-		}
-
-		return pgtype.TextOID, tv, nil
-	}
-
-	if dv, ok := arg.(driver.Valuer); ok {
-		v, err := dv.Value()
-		if err != nil {
-			return 0, nil, err
-		}
-
-		if v == nil {
-			return 0, nil, nil
-		}
-
-		if dt, ok := m.TypeForValue(v); ok {
-			return dt.OID, v, nil
-		}
-	}
-
-	if str, ok := arg.(fmt.Stringer); ok {
-		return pgtype.TextOID, str.String(), nil
-	}
-
-	return 0, nil, &unknownArgumentTypeQueryExecModeExecError{arg: arg}
 }
