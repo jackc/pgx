@@ -584,6 +584,44 @@ func TestConnQueryPGTypeRange(t *testing.T) {
 	})
 }
 
+func TestConnQueryPGTypeMultirange(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support int4range")
+
+		var r pgtype.Multirange[pgtype.Range[pgtype.Int4]]
+		err := db.QueryRow("select int4multirange(int4range(1, 5), int4range(7,9))").Scan(&r)
+		require.NoError(t, err)
+		assert.Equal(
+			t,
+			pgtype.Multirange[pgtype.Range[pgtype.Int4]]{
+				{
+					Lower:     pgtype.Int4{Int32: 1, Valid: true},
+					Upper:     pgtype.Int4{Int32: 5, Valid: true},
+					LowerType: pgtype.Inclusive,
+					UpperType: pgtype.Exclusive,
+					Valid:     true,
+				},
+				{
+					Lower:     pgtype.Int4{Int32: 7, Valid: true},
+					Upper:     pgtype.Int4{Int32: 9, Valid: true},
+					LowerType: pgtype.Inclusive,
+					UpperType: pgtype.Exclusive,
+					Valid:     true,
+				},
+			},
+			r)
+
+		var equal bool
+		err = db.QueryRow("select int4multirange(int4range(1, 5), int4range(7,9)) = $1::int4multirange", r).Scan(&equal)
+		require.NoError(t, err)
+		require.Equal(t, true, equal)
+
+		err = db.QueryRow("select null::int4multirange").Scan(&r)
+		require.NoError(t, err)
+		require.Nil(t, r)
+	})
+}
+
 // Test type that pgx would handle natively in binary, but since it is not a
 // database/sql native type should be passed through as a string
 func TestConnQueryRowPgxBinary(t *testing.T) {
