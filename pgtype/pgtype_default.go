@@ -13,6 +13,8 @@ var (
 	// defaultMap contains default mappings between PostgreSQL server types and Go type handling logic.
 	defaultMap         *Map
 	defaultMapInitOnce = sync.Once{}
+	// DefaultScanLocation allows to globally redefine default time zone for binary time format.
+	DefaultScanLocation *time.Location = nil
 )
 
 func initDefaultMap() {
@@ -83,7 +85,7 @@ func initDefaultMap() {
 	defaultMap.RegisterType(&Type{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
 	defaultMap.RegisterType(&Type{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
 	defaultMap.RegisterType(&Type{Name: "timestamp", OID: TimestampOID, Codec: &TimestampCodec{}})
-	defaultMap.RegisterType(&Type{Name: "timestamptz", OID: TimestamptzOID, Codec: &TimestamptzCodec{}})
+	defaultMap.RegisterType(&Type{Name: "timestamptz", OID: TimestamptzOID, Codec: &TimestamptzCodec{ScanLocation: DefaultScanLocation}})
 	defaultMap.RegisterType(&Type{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
 	defaultMap.RegisterType(&Type{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
 	defaultMap.RegisterType(&Type{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
