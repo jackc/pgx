@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/internal/sanitize"
 	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -755,7 +754,6 @@ optionLoop:
 	}
 
 	c.eqb.reset()
-	anynil.NormalizeSlice(args)
 	rows := c.getRows(ctx, sql, args)
 
 	var err error
