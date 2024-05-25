@@ -1,3 +1,22 @@
+# 5.6.0 (May 25, 2024)
+
+* Add StrictNamedArgs (Tomas Zahradnicek)
+* Add support for macaddr8 type (Carlos Pérez-Aradros Herce)
+* Add SeverityUnlocalized field to PgError / Notice
+* Performance optimization of RowToStructByPos/Name (Zach Olstein)
+* Allow customizing context canceled behavior for pgconn
+* Add ScanLocation to pgtype.Timestamp[tz]Codec
+* Add custom data to pgconn.PgConn
+* Fix ResultReader.Read() to handle nil values
+* Do not encode interval microseconds when they are 0 (Carlos Pérez-Aradros Herce)
+* pgconn.SafeToRetry checks for wrapped errors (tjasko)
+* Failed connection attempts include all errors
+* Optimize LargeObject.Read (Mitar)
+* Add tracing for connection acquire and release from pool (ngavinsir)
+* Fix encode driver.Valuer not called when nil
+* Add support for custom JSON marshal and unmarshal (Mitar)
+* Use Go default keepalive for TCP connections (Hans-Joachim Kliemeck)
+
 # 5.5.5 (March 9, 2024)
 
 Use spaces instead of parentheses for SQL sanitization.
