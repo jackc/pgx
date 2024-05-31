@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntervalCodec(t *testing.T) {
@@ -135,4 +136,23 @@ func TestIntervalCodec(t *testing.T) {
 		{pgtype.Interval{}, new(pgtype.Interval), isExpectedEq(pgtype.Interval{})},
 		{nil, new(pgtype.Interval), isExpectedEq(pgtype.Interval{})},
 	})
+}
+
+func TestIntervalTextEncode(t *testing.T) {
+	m := pgtype.NewMap()
+
+	successfulTests := []struct {
+		source pgtype.Interval
+		result string
+	}{
+		{source: pgtype.Interval{Months: 2, Days: 1, Microseconds: 0, Valid: true}, result: "2 mon 1 day 00:00:00"},
+		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 0, Valid: true}, result: "00:00:00"},
+		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 6 * 60 * 1000000, Valid: true}, result: "00:06:00"},
+		{source: pgtype.Interval{Months: 0, Days: 1, Microseconds: 6*60*1000000 + 30, Valid: true}, result: "1 day 00:06:00.000030"},
+	}
+	for i, tt := range successfulTests {
+		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.source, nil)
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, tt.result, string(buf), "%d", i)
+	}
 }
