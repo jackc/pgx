@@ -296,7 +296,12 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 //	# Example URL
 //	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
-	connConfig, err := pgx.ParseConfig(connString)
+	return ParseConfigWithOptions(connString, pgx.ParseConfigOptions{})
+}
+
+// ParseConfigWithOptions is the same as ParseConfig, but allows additional options to be provided.
+func ParseConfigWithOptions(connString string, options pgx.ParseConfigOptions) (*Config, error) {
+	connConfig, err := pgx.ParseConfigWithOptions(connString, options)
 	if err != nil {
 		return nil, err
 	}
