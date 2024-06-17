@@ -156,7 +156,7 @@ type derivedTypeInfo struct {
 // or indirectly required to complete the registration.
 // The result of this call can be passed into RegisterTypes to complete the process.
 func LoadTypes(ctx context.Context, c *Conn, typeNames []string) ([]*pgtype.Type, error) {
-	m := c.TypeMap().Copy()
+	m := c.TypeMap()
 	if typeNames == nil || len(typeNames) == 0 {
 		return nil, fmt.Errorf("No type names were supplied.")
 	}

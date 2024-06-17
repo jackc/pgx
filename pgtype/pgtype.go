@@ -214,13 +214,13 @@ type Map struct {
 	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
 }
 
-// Copy returns a new Map containing the same registered types.
-func (m *Map) Copy() *Map {
-	newMap := NewMap()
+// Types() returns the non-default types which were registered
+func (m *Map) Types() []*Type {
+	result := make([]*Type, 0, len(m.oidToType))
 	for _, type_ := range m.oidToType {
-		newMap.RegisterType(type_)
+		result = append(result, type_)
 	}
-	return newMap
+	return result
 }
 
 func NewMap() *Map {
