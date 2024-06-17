@@ -44,6 +44,12 @@ type ConnConfig struct {
 
 	// automatically call LoadTypes with these values
 	AutoLoadTypes []string
+
+	// TypeRegistrationMap is used to register types which require special operations.
+	// The type name is the key, the value is a function which will be called for each
+	// connection, providing the OID of that type name for that connection.
+	// The function will manipulate conn.TypeMap() in some way.
+	TypeRegistrationMap map[string]CustomRegistrationFunction
 }
 
 // ParseConfigOptions contains options that control how a config is built such as getsslpassword.

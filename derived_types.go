@@ -10,6 +10,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// CustomRegistrationFunction is capable of registering whatever is necessary for
+// a custom type. It is provided with the backend's OID for this type.
+type CustomRegistrationFunction func(ctx context.Context, m *pgtype.Map, oid uint32) error
+
 /*
 buildLoadDerivedTypesSQL generates the correct query for retrieving type information.
 
@@ -253,4 +257,30 @@ func serverVersion(c *Conn) (int64, error) {
 		return 0, fmt.Errorf("postgres version parsing failed: %w", err)
 	}
 	return serverVersion, nil
+}
+
+func fetchOidMapForCustomRegistration(ctx context.Context, conn *Conn) (map[string]uint32, error) {
+	sql := `
+SELECT oid, typname
+FROM pg_type
+WHERE typname = ANY($1)`
+	result := make(map[string]uint32)
+	typeNames := make([]string, 0, len(conn.config.TypeRegistrationMap))
+	for typeName := range conn.config.TypeRegistrationMap {
+		typeNames = append(typeNames, typeName)
+	}
+	rows, err := conn.Query(ctx, sql, typeNames)
+	if err != nil {
+		return nil, fmt.Errorf("While collecting OIDs for custom registrations: %w", err)
+	}
+	defer rows.Close()
+	var typeName string
+	var oid uint32
+	for rows.Next() {
+		if err := rows.Scan(&typeName, &oid); err != nil {
+			return nil, fmt.Errorf("While scanning a row for custom registrations: %w", err)
+		}
+		result[typeName] = oid
+	}
+	return result, nil
 }
