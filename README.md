@@ -82,6 +82,10 @@ The pgx interface is recommended when:
 
 It is also possible to use the `database/sql` interface and convert a connection to the lower-level pgx interface as needed.
 
+## API documentation
+
+Full go doc style documentation for the package can be viewed online without installing this package by using the GoDev site here: https://pkg.go.dev/github.com/jackc/pgx/v4
+
 ## Testing
 
 See CONTRIBUTING.md for setup instructions.
