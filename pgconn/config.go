@@ -654,6 +654,36 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 
 	tlsConfig := &tls.Config{}
 
+	if sslrootcert != "" {
+		var caCertPool *x509.CertPool
+
+		if sslrootcert == "system" {
+			var err error
+
+			caCertPool, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, fmt.Errorf("unable to load system certificate pool: %w", err)
+			}
+
+			sslmode = "verify-full"
+		} else {
+			caCertPool = x509.NewCertPool()
+
+			caPath := sslrootcert
+			caCert, err := os.ReadFile(caPath)
+			if err != nil {
+				return nil, fmt.Errorf("unable to read CA file: %w", err)
+			}
+
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				return nil, errors.New("unable to add CA to cert pool")
+			}
+		}
+
+		tlsConfig.RootCAs = caCertPool
+		tlsConfig.ClientCAs = caCertPool
+	}
+
 	switch sslmode {
 	case "disable":
 		return []*tls.Config{nil}, nil
@@ -709,23 +739,6 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		tlsConfig.ServerName = host
 	default:
 		return nil, errors.New("sslmode is invalid")
-	}
-
-	if sslrootcert != "" {
-		caCertPool := x509.NewCertPool()
-
-		caPath := sslrootcert
-		caCert, err := os.ReadFile(caPath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read CA file: %w", err)
-		}
-
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("unable to add CA to cert pool")
-		}
-
-		tlsConfig.RootCAs = caCertPool
-		tlsConfig.ClientCAs = caCertPool
 	}
 
 	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
