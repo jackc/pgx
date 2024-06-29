@@ -80,10 +80,8 @@ func (src Date) MarshalJSON() ([]byte, error) {
 	switch src.InfinityModifier {
 	case Finite:
 		s = src.Time.Format("2006-01-02")
-	case Infinity:
-		s = "infinity"
-	case NegativeInfinity:
-		s = "-infinity"
+	case Infinity, NegativeInfinity:
+		s = src.InfinityModifier.String()
 	}
 
 	return json.Marshal(s)
@@ -213,10 +211,8 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 		if bc {
 			buf = append(buf, " BC"...)
 		}
-	case Infinity:
-		buf = append(buf, "infinity"...)
-	case NegativeInfinity:
-		buf = append(buf, "-infinity"...)
+	case Infinity, NegativeInfinity:
+		buf = append(buf, date.InfinityModifier.String()...)
 	}
 
 	return buf, nil

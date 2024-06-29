@@ -127,6 +127,16 @@ func TestIntervalCodec(t *testing.T) {
 			new(pgtype.Interval),
 			isExpectedEq(pgtype.Interval{Months: -13, Valid: true}),
 		},
+		{
+			"infinity",
+			new(pgtype.Interval),
+			isExpectedEq(pgtype.Interval{InfinityModifier: pgtype.Infinity, Valid: true}),
+		},
+		{
+			"-infinity",
+			new(pgtype.Interval),
+			isExpectedEq(pgtype.Interval{InfinityModifier: pgtype.NegativeInfinity, Valid: true}),
+		},
 		{time.Hour, new(time.Duration), isExpectedEq(time.Hour)},
 		{
 			pgtype.Interval{Months: 1, Days: 1, Valid: true},
@@ -149,6 +159,8 @@ func TestIntervalTextEncode(t *testing.T) {
 		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 0, Valid: true}, result: "00:00:00"},
 		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 6 * 60 * 1000000, Valid: true}, result: "00:06:00"},
 		{source: pgtype.Interval{Months: 0, Days: 1, Microseconds: 6*60*1000000 + 30, Valid: true}, result: "1 day 00:06:00.000030"},
+		{source: pgtype.Interval{InfinityModifier: pgtype.Infinity, Valid: true}, result: "infinity"},
+		{source: pgtype.Interval{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "-infinity"},
 	}
 	for i, tt := range successfulTests {
 		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.source, nil)
