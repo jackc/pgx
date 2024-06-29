@@ -41,11 +41,22 @@ type ConnConfig struct {
 	DefaultQueryExecMode QueryExecMode
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+
+	// automatically call LoadTypes with these values
+	AutoLoadTypes []string
+
+	// TypeRegistrationMap is used to register types which require special operations.
+	// The type name is the key, the value is a function which will be called for each
+	// connection, providing the OID of that type name for that connection.
+	// The function will manipulate conn.TypeMap() in some way.
+	TypeRegistrationMap map[string]CustomRegistrationFunction
 }
 
 // ParseConfigOptions contains options that control how a config is built such as getsslpassword.
 type ParseConfigOptions struct {
 	pgconn.ParseConfigOptions
+
+	AutoLoadTypes []string
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -107,8 +118,10 @@ var (
 	ErrTooManyRows = errors.New("too many rows in result set")
 )
 
-var errDisabledStatementCache = fmt.Errorf("cannot use QueryExecModeCacheStatement with disabled statement cache")
-var errDisabledDescriptionCache = fmt.Errorf("cannot use QueryExecModeCacheDescribe with disabled description cache")
+var (
+	errDisabledStatementCache   = fmt.Errorf("cannot use QueryExecModeCacheStatement with disabled statement cache")
+	errDisabledDescriptionCache = fmt.Errorf("cannot use QueryExecModeCacheDescribe with disabled description cache")
+)
 
 // Connect establishes a connection with a PostgreSQL server with a connection string. See
 // pgconn.Connect for details.
@@ -194,6 +207,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		DescriptionCacheCapacity: descriptionCacheCapacity,
 		DefaultQueryExecMode:     defaultQueryExecMode,
 		connString:               connString,
+		AutoLoadTypes:            options.AutoLoadTypes,
 	}
 
 	return connConfig, nil
@@ -269,6 +283,14 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 
 	if c.config.DescriptionCacheCapacity > 0 {
 		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
+	}
+
+	if c.config.AutoLoadTypes != nil {
+		if types, err := LoadTypes(ctx, c, c.config.AutoLoadTypes); err == nil {
+			c.TypeMap().RegisterTypes(types)
+		} else {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -843,7 +865,6 @@ func (c *Conn) getStatementDescription(
 	mode QueryExecMode,
 	sql string,
 ) (sd *pgconn.StatementDescription, err error) {
-
 	switch mode {
 	case QueryExecModeCacheStatement:
 		if c.statementCache == nil {

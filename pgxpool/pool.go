@@ -12,14 +12,17 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/puddle/v2"
 )
 
-var defaultMaxConns = int32(4)
-var defaultMinConns = int32(0)
-var defaultMaxConnLifetime = time.Hour
-var defaultMaxConnIdleTime = time.Minute * 30
-var defaultHealthCheckPeriod = time.Minute
+var (
+	defaultMaxConns          = int32(4)
+	defaultMinConns          = int32(0)
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = time.Minute * 30
+	defaultHealthCheckPeriod = time.Minute
+)
 
 type connResource struct {
 	conn       *pgx.Conn
@@ -100,6 +103,10 @@ type Pool struct {
 
 	closeOnce sync.Once
 	closeChan chan struct{}
+
+	reuseTypeMap  bool
+	autoLoadTypes []*pgtype.Type
+	autoLoadMutex *sync.Mutex
 }
 
 // Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
@@ -147,6 +154,13 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
+	// ReuseTypeMaps, if enabled, will reuse the typemap information being used by AutoLoadTypes.
+	// This removes the need to query the database each time a new connection is created;
+	// only RegisterTypes will need to be called for each new connection.
+	// In some situations, where OID mapping can differ between pg servers in the pool, perhaps due
+	// to certain replication strategies, this should be left disabled.
+	ReuseTypeMaps bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -185,6 +199,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		config:                config,
 		beforeConnect:         config.BeforeConnect,
 		afterConnect:          config.AfterConnect,
+		reuseTypeMap:          config.ReuseTypeMaps,
 		beforeAcquire:         config.BeforeAcquire,
 		afterRelease:          config.AfterRelease,
 		beforeClose:           config.BeforeClose,
@@ -196,6 +211,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		healthCheckPeriod:     config.HealthCheckPeriod,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
+		autoLoadMutex:         new(sync.Mutex),
 	}
 
 	if t, ok := config.ConnConfig.Tracer.(AcquireTracer); ok {
@@ -223,8 +239,12 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 						return nil, err
 					}
 				}
-
-				conn, err := pgx.ConnectConfig(ctx, connConfig)
+				var conn *pgx.Conn
+				if p.reuseTypeMap {
+					conn, err = p.ConnectConfigReusingTypeMap(ctx, connConfig)
+				} else {
+					conn, err = pgx.ConnectConfig(ctx, connConfig)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -278,6 +298,29 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	return p, nil
 }
 
+func (p *Pool) ConnectConfigReusingTypeMap(ctx context.Context, connConfig *pgx.ConnConfig) (*pgx.Conn, error) {
+	if connConfig.AutoLoadTypes == nil || len(connConfig.AutoLoadTypes) == 0 {
+		return pgx.ConnectConfig(ctx, connConfig)
+	}
+	if p.autoLoadTypes == nil {
+		p.autoLoadMutex.Lock()
+		defer p.autoLoadMutex.Unlock()
+		if p.autoLoadTypes == nil {
+			conn, err := pgx.ConnectConfig(ctx, connConfig)
+			if err == nil {
+				p.autoLoadTypes = conn.TypeMap().Types()
+			}
+			return conn, err
+		}
+	}
+	connConfig.AutoLoadTypes = nil
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
+	if err == nil {
+		conn.TypeMap().RegisterTypes(p.autoLoadTypes)
+	}
+	return conn, err
+}
+
 // ParseConfig builds a Config from connString. It parses connString with the same behavior as [pgx.ParseConfig] with the
 // addition of the following variables:
 //
@@ -296,7 +339,12 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 //	# Example URL
 //	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
-	connConfig, err := pgx.ParseConfig(connString)
+	return ParseConfigWithOptions(connString, pgx.ParseConfigOptions{})
+}
+
+// ParseConfigWithOptions is the same as ParseConfig, but allows additional options to be provided.
+func ParseConfigWithOptions(connString string, options pgx.ParseConfigOptions) (*Config, error) {
+	connConfig, err := pgx.ParseConfigWithOptions(connString, options)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +530,6 @@ func (p *Pool) checkMinConns() error {
 func (p *Pool) createIdleResources(parentCtx context.Context, targetResources int) error {
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
-
 	errs := make(chan error, targetResources)
 
 	for i := 0; i < targetResources; i++ {
@@ -495,7 +542,6 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 			errs <- err
 		}()
 	}
-
 	var firstError error
 	for i := 0; i < targetResources; i++ {
 		err := <-errs

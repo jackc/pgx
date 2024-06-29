@@ -214,6 +214,15 @@ type Map struct {
 	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
 }
 
+// Types() returns the non-default types which were registered
+func (m *Map) Types() []*Type {
+	result := make([]*Type, 0, len(m.oidToType))
+	for _, type_ := range m.oidToType {
+		result = append(result, type_)
+	}
+	return result
+}
+
 func NewMap() *Map {
 	defaultMapInitOnce.Do(initDefaultMap)
 
@@ -245,6 +254,13 @@ func NewMap() *Map {
 			TryWrapPtrMultiDimSliceScanPlan,
 			TryWrapPtrArrayScanPlan,
 		},
+	}
+}
+
+// RegisterTypes registers multiple data types in the sequence they are provided.
+func (m *Map) RegisterTypes(types []*Type) {
+	for _, t := range types {
+		m.RegisterType(t)
 	}
 }
 

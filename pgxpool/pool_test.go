@@ -261,6 +261,35 @@ func TestPoolBeforeConnect(t *testing.T) {
 	assert.EqualValues(t, "pgx", str)
 }
 
+func TestAutoLoadTypes(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	controllerConn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(ctx)
+	pgxtest.SkipCockroachDB(t, controllerConn, "Server does not support autoloading of uint64")
+	db1, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer db1.Close()
+	db1.Exec(ctx, "DROP DOMAIN IF EXISTS autoload_uint64; CREATE DOMAIN autoload_uint64 as numeric(20,0)")
+	defer db1.Exec(ctx, "DROP DOMAIN autoload_uint64")
+
+	config.ConnConfig.AutoLoadTypes = []string{"autoload_uint64"}
+	db2, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+
+	var n uint64
+	err = db2.QueryRow(ctx, "select 12::autoload_uint64").Scan(&n)
+	require.NoError(t, err)
+	assert.EqualValues(t, uint64(12), n)
+}
+
 func TestPoolAfterConnect(t *testing.T) {
 	t.Parallel()
 
@@ -676,7 +705,6 @@ func TestPoolQuery(t *testing.T) {
 	stats = pool.Stat()
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
-
 }
 
 func TestPoolQueryRow(t *testing.T) {
@@ -1104,7 +1132,6 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	}
 
 	t.Fatal("did not reach min pool size")
-
 }
 
 func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
