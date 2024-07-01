@@ -214,6 +214,15 @@ type Map struct {
 	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
 }
 
+// Copy returns a new Map containing the same registered types.
+func (m *Map) Copy() *Map {
+	newMap := NewMap()
+	for _, type_ := range m.oidToType {
+		newMap.RegisterType(type_)
+	}
+	return newMap
+}
+
 func NewMap() *Map {
 	defaultMapInitOnce.Do(initDefaultMap)
 
@@ -245,6 +254,13 @@ func NewMap() *Map {
 			TryWrapPtrMultiDimSliceScanPlan,
 			TryWrapPtrArrayScanPlan,
 		},
+	}
+}
+
+// RegisterTypes registers multiple data types in the sequence they are provided.
+func (m *Map) RegisterTypes(types []*Type) {
+	for _, t := range types {
+		m.RegisterType(t)
 	}
 }
 
