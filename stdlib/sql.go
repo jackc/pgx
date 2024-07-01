@@ -75,6 +75,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -98,7 +99,7 @@ func init() {
 
 	// if pgx driver was already registered by different pgx major version then we
 	// skip registration under the default name.
-	if !contains(sql.Drivers(), "pgx") {
+	if !slices.Contains(sql.Drivers(), "pgx") {
 		sql.Register("pgx", pgxDriver)
 	}
 	sql.Register("pgx/v5", pgxDriver)
@@ -118,17 +119,6 @@ func init() {
 		pgtype.TimestamptzOID: 1,
 		pgtype.XIDOID:         1,
 	}
-}
-
-// TODO replace by slices.Contains when experimental package will be merged to stdlib
-// https://pkg.go.dev/golang.org/x/exp/slices#Contains
-func contains(list []string, y string) bool {
-	for _, x := range list {
-		if x == y {
-			return true
-		}
-	}
-	return false
 }
 
 // OptionOpenDB options for configuring the driver when opening a new db pool.
