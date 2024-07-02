@@ -1356,9 +1356,11 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			// the goroutine. So instead check pgConn.bufferingReceiveErr which will have been set by the signalMessage. If an
 			// error is found then forcibly close the connection without sending the Terminate message.
 			if err := pgConn.bufferingReceiveErr; err != nil {
-				pgConn.status = connStatusClosed
-				pgConn.conn.Close()
-				close(pgConn.cleanupDone)
+				if pgConn.status != connStatusClosed {
+					pgConn.status = connStatusClosed
+					pgConn.conn.Close()
+					close(pgConn.cleanupDone)
+				}
 				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
 			msg, _ := pgConn.receiveMessage()
