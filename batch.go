@@ -60,9 +60,13 @@ type Batch struct {
 	QueuedQueries []*QueuedQuery
 }
 
-// Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement.
-// The only pgx option argument that is supported is QueryRewriter. Queries are executed using the
-// connection's DefaultQueryExecMode.
+// Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement. The only pgx option
+// argument that is supported is QueryRewriter. Queries are executed using the connection's DefaultQueryExecMode.
+//
+// While query can contain multiple statements if the connection's DefaultQueryExecMode is QueryModeSimple, this should
+// be avoided. QueuedQuery.Fn must not be set as it will only be called for the first query. That is, QueuedQuery.Query,
+// QueuedQuery.QueryRow, and QueuedQuery.Exec must not be called. In addition, any error messages or tracing that
+// include the current query may reference the wrong query.
 func (b *Batch) Queue(query string, arguments ...any) *QueuedQuery {
 	qq := &QueuedQuery{
 		SQL:       query,
