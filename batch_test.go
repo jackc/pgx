@@ -290,6 +290,45 @@ func TestConnSendBatchMany(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1801#issuecomment-2203784178
+func TestConnSendBatchReadResultsWhenNothingQueued(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		br := conn.SendBatch(ctx, batch)
+		commandTag, err := br.Exec()
+		require.Equal(t, "", commandTag.String())
+		require.EqualError(t, err, "no more results in batch")
+		err = br.Close()
+		require.NoError(t, err)
+	})
+}
+
+func TestConnSendBatchReadMoreResultsThanQueriesSent(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("select 1")
+		br := conn.SendBatch(ctx, batch)
+		commandTag, err := br.Exec()
+		require.Equal(t, "SELECT 1", commandTag.String())
+		require.NoError(t, err)
+		commandTag, err = br.Exec()
+		require.Equal(t, "", commandTag.String())
+		require.EqualError(t, err, "no more results in batch")
+		err = br.Close()
+		require.NoError(t, err)
+	})
+}
+
 func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 	t.Parallel()
 

@@ -128,7 +128,7 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 	if !br.mrr.NextResult() {
 		err := br.mrr.Close()
 		if err == nil {
-			err = errors.New("no result")
+			err = errors.New("no more results in batch")
 		}
 		if br.conn.batchTracer != nil {
 			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
@@ -180,7 +180,7 @@ func (br *batchResults) Query() (Rows, error) {
 	if !br.mrr.NextResult() {
 		rows.err = br.mrr.Close()
 		if rows.err == nil {
-			rows.err = errors.New("no result")
+			rows.err = errors.New("no more results in batch")
 		}
 		rows.closed = true
 
@@ -287,7 +287,10 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 		return pgconn.CommandTag{}, br.err
 	}
 
-	query, arguments, _ := br.nextQueryAndArgs()
+	query, arguments, err := br.nextQueryAndArgs()
+	if err != nil {
+		return pgconn.CommandTag{}, err
+	}
 
 	results, err := br.pipeline.GetResults()
 	if err != nil {
@@ -330,9 +333,9 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 		return &baseRows{err: br.err, closed: true}, br.err
 	}
 
-	query, arguments, ok := br.nextQueryAndArgs()
-	if !ok {
-		query = "batch query"
+	query, arguments, err := br.nextQueryAndArgs()
+	if err != nil {
+		return &baseRows{err: err, closed: true}, err
 	}
 
 	rows := br.conn.getRows(br.ctx, query, arguments)
@@ -421,13 +424,16 @@ func (br *pipelineBatchResults) earlyError() error {
 	return br.err
 }
 
-func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
-	if br.b != nil && br.qqIdx < len(br.b.QueuedQueries) {
-		bi := br.b.QueuedQueries[br.qqIdx]
-		query = bi.SQL
-		args = bi.Arguments
-		ok = true
-		br.qqIdx++
+func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, err error) {
+	if br.b == nil {
+		return "", nil, errors.New("no reference to batch")
 	}
-	return
+
+	if br.qqIdx >= len(br.b.QueuedQueries) {
+		return "", nil, errors.New("no more results in batch")
+	}
+
+	bi := br.b.QueuedQueries[br.qqIdx]
+	br.qqIdx++
+	return bi.SQL, bi.Arguments, nil
 }
