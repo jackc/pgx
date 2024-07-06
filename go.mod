@@ -6,7 +6,8 @@ require (
 	github.com/jackc/pgpassfile v1.0.0
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
 	github.com/jackc/puddle/v2 v2.2.1
-	github.com/stretchr/testify v1.8.1
+	github.com/pashagolub/pgxmock/v3 v3.4.0
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/text v0.14.0
 )
