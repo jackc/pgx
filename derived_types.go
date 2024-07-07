@@ -235,7 +235,9 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		if type_ != nil {
 			m.RegisterType(type_)
 			if ti.NspName != "" {
-				m.RegisterType(&pgtype.Type{Name: ti.NspName + "." + type_.Name, OID: type_.OID, Codec: type_.Codec})
+				nspType := &pgtype.Type{Name: ti.NspName + "." + type_.Name, OID: type_.OID, Codec: type_.Codec}
+				m.RegisterType(nspType)
+				result = append(result, nspType)
 			}
 			result = append(result, type_)
 		}
