@@ -28,10 +28,13 @@ create type dt_test as (
 		defer conn.Exec(ctx, "drop type dt_test")
 
 		dtypes, err := conn.LoadTypes(ctx, []string{"dt_test"})
-		require.Len(t, dtypes, 3)
-		require.Equal(t, dtypes[0].Name, "dt_uint64")
-		require.Equal(t, dtypes[1].Name, "_dt_uint64")
-		require.Equal(t, dtypes[2].Name, "dt_test")
+		require.Len(t, dtypes, 6)
+		require.Equal(t, dtypes[0].Name, "public.dt_uint64")
+		require.Equal(t, dtypes[1].Name, "dt_uint64")
+		require.Equal(t, dtypes[2].Name, "public._dt_uint64")
+		require.Equal(t, dtypes[3].Name, "_dt_uint64")
+		require.Equal(t, dtypes[4].Name, "public.dt_test")
+		require.Equal(t, dtypes[5].Name, "dt_test")
 		require.NoError(t, err)
 		conn.TypeMap().RegisterTypes(dtypes)
 
