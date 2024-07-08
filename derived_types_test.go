@@ -29,9 +29,12 @@ create type dtype_test as (
 
 		types, err := conn.LoadTypes(ctx, []string{"dtype_test"})
 		require.NoError(t, err)
-		require.Len(t, types, 3)
-		require.Equal(t, types[0].Name, "anotheruint64")
-		require.Equal(t, types[1].Name, "_anotheruint64")
-		require.Equal(t, types[2].Name, "dtype_test")
+		require.Len(t, types, 6)
+		require.Equal(t, types[0].Name, "public.anotheruint64")
+		require.Equal(t, types[1].Name, "anotheruint64")
+		require.Equal(t, types[2].Name, "public._anotheruint64")
+		require.Equal(t, types[3].Name, "_anotheruint64")
+		require.Equal(t, types[4].Name, "public.dtype_test")
+		require.Equal(t, types[5].Name, "dtype_test")
 	})
 }
