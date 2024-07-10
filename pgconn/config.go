@@ -467,14 +467,17 @@ func parseEnvSettings() map[string]string {
 func parseURLSettings(connString string) (map[string]string, error) {
 	settings := make(map[string]string)
 
-	url, err := url.Parse(connString)
+	parsedURL, err := url.Parse(connString)
 	if err != nil {
-		return nil, err
+		if urlErr := new(url.Error); errors.As(err, &urlErr) {
+			return nil, urlErr.Err
+		}
+		return nil, errors.New("failed to parse URL")
 	}
 
-	if url.User != nil {
-		settings["user"] = url.User.Username()
-		if password, present := url.User.Password(); present {
+	if parsedURL.User != nil {
+		settings["user"] = parsedURL.User.Username()
+		if password, present := parsedURL.User.Password(); present {
 			settings["password"] = password
 		}
 	}
@@ -482,7 +485,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
 	var hosts []string
 	var ports []string
-	for _, host := range strings.Split(url.Host, ",") {
+	for _, host := range strings.Split(parsedURL.Host, ",") {
 		if host == "" {
 			continue
 		}
@@ -508,7 +511,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		settings["port"] = strings.Join(ports, ",")
 	}
 
-	database := strings.TrimLeft(url.Path, "/")
+	database := strings.TrimLeft(parsedURL.Path, "/")
 	if database != "" {
 		settings["database"] = database
 	}
@@ -517,7 +520,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		"dbname": "database",
 	}
 
-	for k, v := range url.Query() {
+	for k, v := range parsedURL.Query() {
 		if k2, present := nameMap[k]; present {
 			k = k2
 		}
