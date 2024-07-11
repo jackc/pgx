@@ -37,7 +37,7 @@ func (c *JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Enco
 	//
 	// https://github.com/jackc/pgx/issues/1430
 	//
-	// Check for driver.Valuer must come before json.Marshaler so that it is guaranteed to beused
+	// Check for driver.Valuer must come before json.Marshaler so that it is guaranteed to be used
 	// when both are implemented https://github.com/jackc/pgx/issues/1805
 	case driver.Valuer:
 		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
@@ -175,13 +175,6 @@ func (scanPlanJSONToByteSlice) Scan(src []byte, dst any) error {
 	*dstBuf = make([]byte, len(src))
 	copy(*dstBuf, src)
 	return nil
-}
-
-type scanPlanJSONToBytesScanner struct{}
-
-func (scanPlanJSONToBytesScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BytesScanner)
-	return scanner.ScanBytes(src)
 }
 
 type scanPlanJSONToJSONUnmarshal struct {
