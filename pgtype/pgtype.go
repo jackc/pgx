@@ -26,6 +26,8 @@ const (
 	XIDOID                 = 28
 	CIDOID                 = 29
 	JSONOID                = 114
+	XMLOID                 = 142
+	XMLArrayOID            = 143
 	JSONArrayOID           = 199
 	PointOID               = 600
 	LsegOID                = 601
