@@ -105,3 +105,113 @@ type TraceConnectEndData struct {
 	Conn *Conn
 	Err  error
 }
+
+type MultiTracer struct {
+	queryTracers    []QueryTracer
+	batchTracers    []BatchTracer
+	copyFromTracers []CopyFromTracer
+	prepareTracers  []PrepareTracer
+	connectTracers  []ConnectTracer
+}
+
+func NewMultiTracer(tracers ...QueryTracer) *MultiTracer {
+	var t MultiTracer
+
+	for _, tracer := range tracers {
+		t.queryTracers = append(t.queryTracers, tracer)
+
+		if batchTracer, ok := tracer.(BatchTracer); ok {
+			t.batchTracers = append(t.batchTracers, batchTracer)
+		}
+
+		if copyFromTracer, ok := tracer.(CopyFromTracer); ok {
+			t.copyFromTracers = append(t.copyFromTracers, copyFromTracer)
+		}
+
+		if prepareTracer, ok := tracer.(PrepareTracer); ok {
+			t.prepareTracers = append(t.prepareTracers, prepareTracer)
+		}
+
+		if connectTracer, ok := tracer.(ConnectTracer); ok {
+			t.connectTracers = append(t.connectTracers, connectTracer)
+		}
+	}
+
+	return &t
+}
+
+func (t *MultiTracer) TraceQueryStart(ctx context.Context, conn *Conn, data TraceQueryStartData) context.Context {
+	for _, tracer := range t.queryTracers {
+		ctx = tracer.TraceQueryStart(ctx, conn, data)
+	}
+
+	return ctx
+}
+
+func (t *MultiTracer) TraceQueryEnd(ctx context.Context, conn *Conn, data TraceQueryEndData) {
+	for _, tracer := range t.queryTracers {
+		tracer.TraceQueryEnd(ctx, conn, data)
+	}
+}
+
+func (t *MultiTracer) TraceBatchStart(ctx context.Context, conn *Conn, data TraceBatchStartData) context.Context {
+	for _, tracer := range t.batchTracers {
+		ctx = tracer.TraceBatchStart(ctx, conn, data)
+	}
+
+	return ctx
+}
+
+func (t *MultiTracer) TraceBatchQuery(ctx context.Context, conn *Conn, data TraceBatchQueryData) {
+	for _, tracer := range t.batchTracers {
+		tracer.TraceBatchQuery(ctx, conn, data)
+	}
+}
+
+func (t *MultiTracer) TraceBatchEnd(ctx context.Context, conn *Conn, data TraceBatchEndData) {
+	for _, tracer := range t.batchTracers {
+		tracer.TraceBatchEnd(ctx, conn, data)
+	}
+}
+
+func (t *MultiTracer) TraceCopyFromStart(ctx context.Context, conn *Conn, data TraceCopyFromStartData) context.Context {
+	for _, tracer := range t.copyFromTracers {
+		ctx = tracer.TraceCopyFromStart(ctx, conn, data)
+	}
+
+	return ctx
+}
+
+func (t *MultiTracer) TraceCopyFromEnd(ctx context.Context, conn *Conn, data TraceCopyFromEndData) {
+	for _, tracer := range t.copyFromTracers {
+		tracer.TraceCopyFromEnd(ctx, conn, data)
+	}
+}
+
+func (t *MultiTracer) TracePrepareStart(ctx context.Context, conn *Conn, data TracePrepareStartData) context.Context {
+	for _, tracer := range t.prepareTracers {
+		ctx = tracer.TracePrepareStart(ctx, conn, data)
+	}
+
+	return ctx
+}
+
+func (t *MultiTracer) TracePrepareEnd(ctx context.Context, conn *Conn, data TracePrepareEndData) {
+	for _, tracer := range t.prepareTracers {
+		tracer.TracePrepareEnd(ctx, conn, data)
+	}
+}
+
+func (t *MultiTracer) TraceConnectStart(ctx context.Context, data TraceConnectStartData) context.Context {
+	for _, tracer := range t.connectTracers {
+		ctx = tracer.TraceConnectStart(ctx, data)
+	}
+
+	return ctx
+}
+
+func (t *MultiTracer) TraceConnectEnd(ctx context.Context, data TraceConnectEndData) {
+	for _, tracer := range t.connectTracers {
+		tracer.TraceConnectEnd(ctx, data)
+	}
+}
