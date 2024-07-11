@@ -795,6 +795,16 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+			case pgtype.XMLOID:
+				var d []byte
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d, nil
+				}
 			default:
 				var d string
 				scanPlan := m.PlanScan(dataTypeOID, format, &d)
