@@ -3,41 +3,36 @@ package pgtype
 import (
 	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"reflect"
 )
 
-type JSONCodec struct {
+type XMLCodec struct {
 	Marshal   func(v any) ([]byte, error)
 	Unmarshal func(data []byte, v any) error
 }
 
-func (*JSONCodec) FormatSupported(format int16) bool {
+func (*XMLCodec) FormatSupported(format int16) bool {
 	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (*JSONCodec) PreferredFormat() int16 {
+func (*XMLCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c *JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
+func (c *XMLCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch value.(type) {
 	case string:
-		return encodePlanJSONCodecEitherFormatString{}
+		return encodePlanXMLCodecEitherFormatString{}
 	case []byte:
-		return encodePlanJSONCodecEitherFormatByteSlice{}
-
-	// Handle json.RawMessage specifically because if it is run through json.Marshal it may be mutated.
-	// e.g. `{"foo": "bar"}` -> `{"foo":"bar"}`.
-	case json.RawMessage:
-		return encodePlanJSONCodecEitherFormatJSONRawMessage{}
+		return encodePlanXMLCodecEitherFormatByteSlice{}
 
 	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
 	//
 	// https://github.com/jackc/pgx/issues/1430
 	//
-	// Check for driver.Valuer must come before json.Marshaler so that it is guaranteed to be used
+	// Check for driver.Valuer must come before xml.Marshaler so that it is guaranteed to be used
 	// when both are implemented https://github.com/jackc/pgx/issues/1805
 	case driver.Valuer:
 		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
@@ -46,8 +41,8 @@ func (c *JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Enco
 	// marshalled.
 	//
 	// https://github.com/jackc/pgx/issues/1681
-	case json.Marshaler:
-		return &encodePlanJSONCodecEitherFormatMarshal{
+	case xml.Marshaler:
+		return &encodePlanXMLCodecEitherFormatMarshal{
 			marshal: c.Marshal,
 		}
 	}
@@ -66,58 +61,46 @@ func (c *JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Enco
 		}
 	}
 
-	return &encodePlanJSONCodecEitherFormatMarshal{
+	return &encodePlanXMLCodecEitherFormatMarshal{
 		marshal: c.Marshal,
 	}
 }
 
-type encodePlanJSONCodecEitherFormatString struct{}
+type encodePlanXMLCodecEitherFormatString struct{}
 
-func (encodePlanJSONCodecEitherFormatString) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	jsonString := value.(string)
-	buf = append(buf, jsonString...)
+func (encodePlanXMLCodecEitherFormatString) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	xmlString := value.(string)
+	buf = append(buf, xmlString...)
 	return buf, nil
 }
 
-type encodePlanJSONCodecEitherFormatByteSlice struct{}
+type encodePlanXMLCodecEitherFormatByteSlice struct{}
 
-func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	jsonBytes := value.([]byte)
-	if jsonBytes == nil {
+func (encodePlanXMLCodecEitherFormatByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	xmlBytes := value.([]byte)
+	if xmlBytes == nil {
 		return nil, nil
 	}
 
-	buf = append(buf, jsonBytes...)
+	buf = append(buf, xmlBytes...)
 	return buf, nil
 }
 
-type encodePlanJSONCodecEitherFormatJSONRawMessage struct{}
-
-func (encodePlanJSONCodecEitherFormatJSONRawMessage) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	jsonBytes := value.(json.RawMessage)
-	if jsonBytes == nil {
-		return nil, nil
-	}
-
-	buf = append(buf, jsonBytes...)
-	return buf, nil
-}
-
-type encodePlanJSONCodecEitherFormatMarshal struct {
+type encodePlanXMLCodecEitherFormatMarshal struct {
 	marshal func(v any) ([]byte, error)
 }
 
-func (e *encodePlanJSONCodecEitherFormatMarshal) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	jsonBytes, err := e.marshal(value)
+func (e *encodePlanXMLCodecEitherFormatMarshal) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	xmlBytes, err := e.marshal(value)
 	if err != nil {
 		return nil, err
 	}
 
-	buf = append(buf, jsonBytes...)
+	buf = append(buf, xmlBytes...)
 	return buf, nil
 }
 
-func (c *JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
+func (c *XMLCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch target.(type) {
 	case *string:
 		return scanPlanAnyToString{}
@@ -139,33 +122,25 @@ func (c *JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 		}
 
 	case *[]byte:
-		return scanPlanJSONToByteSlice{}
+		return scanPlanXMLToByteSlice{}
 	case BytesScanner:
 		return scanPlanBinaryBytesToBytesScanner{}
 
-	// Cannot rely on sql.Scanner being handled later because scanPlanJSONToJSONUnmarshal will take precedence.
+	// Cannot rely on sql.Scanner being handled later because scanPlanXMLToXMLUnmarshal will take precedence.
 	//
 	// https://github.com/jackc/pgx/issues/1418
 	case sql.Scanner:
 		return &scanPlanSQLScanner{formatCode: format}
 	}
 
-	return &scanPlanJSONToJSONUnmarshal{
+	return &scanPlanXMLToXMLUnmarshal{
 		unmarshal: c.Unmarshal,
 	}
 }
 
-type scanPlanAnyToString struct{}
+type scanPlanXMLToByteSlice struct{}
 
-func (scanPlanAnyToString) Scan(src []byte, dst any) error {
-	p := dst.(*string)
-	*p = string(src)
-	return nil
-}
-
-type scanPlanJSONToByteSlice struct{}
-
-func (scanPlanJSONToByteSlice) Scan(src []byte, dst any) error {
+func (scanPlanXMLToByteSlice) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -177,17 +152,17 @@ func (scanPlanJSONToByteSlice) Scan(src []byte, dst any) error {
 	return nil
 }
 
-type scanPlanJSONToJSONUnmarshal struct {
+type scanPlanXMLToXMLUnmarshal struct {
 	unmarshal func(data []byte, v any) error
 }
 
-func (s *scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
+func (s *scanPlanXMLToXMLUnmarshal) Scan(src []byte, dst any) error {
 	if src == nil {
 		dstValue := reflect.ValueOf(dst)
 		if dstValue.Kind() == reflect.Ptr {
 			el := dstValue.Elem()
 			switch el.Kind() {
-			case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface:
+			case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface, reflect.Struct:
 				el.Set(reflect.Zero(el.Type()))
 				return nil
 			}
@@ -202,7 +177,7 @@ func (s *scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 	return s.unmarshal(src, dst)
 }
 
-func (c *JSONCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c *XMLCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -212,7 +187,7 @@ func (c *JSONCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	return dstBuf, nil
 }
 
-func (c *JSONCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
+func (c *XMLCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
