@@ -2,7 +2,6 @@ package pgx
 
 import (
 	"context"
-
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -107,33 +106,33 @@ type TraceConnectEndData struct {
 }
 
 type MultiTracer struct {
-	queryTracers    []QueryTracer
-	batchTracers    []BatchTracer
-	copyFromTracers []CopyFromTracer
-	prepareTracers  []PrepareTracer
-	connectTracers  []ConnectTracer
+	QueryTracers    []QueryTracer
+	BatchTracers    []BatchTracer
+	CopyFromTracers []CopyFromTracer
+	PrepareTracers  []PrepareTracer
+	ConnectTracers  []ConnectTracer
 }
 
 func NewMultiTracer(tracers ...QueryTracer) *MultiTracer {
 	var t MultiTracer
 
 	for _, tracer := range tracers {
-		t.queryTracers = append(t.queryTracers, tracer)
+		t.QueryTracers = append(t.QueryTracers, tracer)
 
 		if batchTracer, ok := tracer.(BatchTracer); ok {
-			t.batchTracers = append(t.batchTracers, batchTracer)
+			t.BatchTracers = append(t.BatchTracers, batchTracer)
 		}
 
 		if copyFromTracer, ok := tracer.(CopyFromTracer); ok {
-			t.copyFromTracers = append(t.copyFromTracers, copyFromTracer)
+			t.CopyFromTracers = append(t.CopyFromTracers, copyFromTracer)
 		}
 
 		if prepareTracer, ok := tracer.(PrepareTracer); ok {
-			t.prepareTracers = append(t.prepareTracers, prepareTracer)
+			t.PrepareTracers = append(t.PrepareTracers, prepareTracer)
 		}
 
 		if connectTracer, ok := tracer.(ConnectTracer); ok {
-			t.connectTracers = append(t.connectTracers, connectTracer)
+			t.ConnectTracers = append(t.ConnectTracers, connectTracer)
 		}
 	}
 
@@ -141,7 +140,7 @@ func NewMultiTracer(tracers ...QueryTracer) *MultiTracer {
 }
 
 func (t *MultiTracer) TraceQueryStart(ctx context.Context, conn *Conn, data TraceQueryStartData) context.Context {
-	for _, tracer := range t.queryTracers {
+	for _, tracer := range t.QueryTracers {
 		ctx = tracer.TraceQueryStart(ctx, conn, data)
 	}
 
@@ -149,13 +148,13 @@ func (t *MultiTracer) TraceQueryStart(ctx context.Context, conn *Conn, data Trac
 }
 
 func (t *MultiTracer) TraceQueryEnd(ctx context.Context, conn *Conn, data TraceQueryEndData) {
-	for _, tracer := range t.queryTracers {
+	for _, tracer := range t.QueryTracers {
 		tracer.TraceQueryEnd(ctx, conn, data)
 	}
 }
 
 func (t *MultiTracer) TraceBatchStart(ctx context.Context, conn *Conn, data TraceBatchStartData) context.Context {
-	for _, tracer := range t.batchTracers {
+	for _, tracer := range t.BatchTracers {
 		ctx = tracer.TraceBatchStart(ctx, conn, data)
 	}
 
@@ -163,19 +162,19 @@ func (t *MultiTracer) TraceBatchStart(ctx context.Context, conn *Conn, data Trac
 }
 
 func (t *MultiTracer) TraceBatchQuery(ctx context.Context, conn *Conn, data TraceBatchQueryData) {
-	for _, tracer := range t.batchTracers {
+	for _, tracer := range t.BatchTracers {
 		tracer.TraceBatchQuery(ctx, conn, data)
 	}
 }
 
 func (t *MultiTracer) TraceBatchEnd(ctx context.Context, conn *Conn, data TraceBatchEndData) {
-	for _, tracer := range t.batchTracers {
+	for _, tracer := range t.BatchTracers {
 		tracer.TraceBatchEnd(ctx, conn, data)
 	}
 }
 
 func (t *MultiTracer) TraceCopyFromStart(ctx context.Context, conn *Conn, data TraceCopyFromStartData) context.Context {
-	for _, tracer := range t.copyFromTracers {
+	for _, tracer := range t.CopyFromTracers {
 		ctx = tracer.TraceCopyFromStart(ctx, conn, data)
 	}
 
@@ -183,13 +182,13 @@ func (t *MultiTracer) TraceCopyFromStart(ctx context.Context, conn *Conn, data T
 }
 
 func (t *MultiTracer) TraceCopyFromEnd(ctx context.Context, conn *Conn, data TraceCopyFromEndData) {
-	for _, tracer := range t.copyFromTracers {
+	for _, tracer := range t.CopyFromTracers {
 		tracer.TraceCopyFromEnd(ctx, conn, data)
 	}
 }
 
 func (t *MultiTracer) TracePrepareStart(ctx context.Context, conn *Conn, data TracePrepareStartData) context.Context {
-	for _, tracer := range t.prepareTracers {
+	for _, tracer := range t.PrepareTracers {
 		ctx = tracer.TracePrepareStart(ctx, conn, data)
 	}
 
@@ -197,13 +196,13 @@ func (t *MultiTracer) TracePrepareStart(ctx context.Context, conn *Conn, data Tr
 }
 
 func (t *MultiTracer) TracePrepareEnd(ctx context.Context, conn *Conn, data TracePrepareEndData) {
-	for _, tracer := range t.prepareTracers {
+	for _, tracer := range t.PrepareTracers {
 		tracer.TracePrepareEnd(ctx, conn, data)
 	}
 }
 
 func (t *MultiTracer) TraceConnectStart(ctx context.Context, data TraceConnectStartData) context.Context {
-	for _, tracer := range t.connectTracers {
+	for _, tracer := range t.ConnectTracers {
 		ctx = tracer.TraceConnectStart(ctx, data)
 	}
 
@@ -211,7 +210,7 @@ func (t *MultiTracer) TraceConnectStart(ctx context.Context, data TraceConnectSt
 }
 
 func (t *MultiTracer) TraceConnectEnd(ctx context.Context, data TraceConnectEndData) {
-	for _, tracer := range t.connectTracers {
+	for _, tracer := range t.ConnectTracers {
 		tracer.TraceConnectEnd(ctx, data)
 	}
 }
