@@ -667,6 +667,41 @@ func TestRowToStructByName(t *testing.T) {
 	})
 }
 
+func TestRowToStructByNameDbTags(t *testing.T) {
+	type person struct {
+		Last             string `db:"last_name"`
+		First            string `db:"first_name"`
+		Age              int32  `db:"age"`
+		AccountID        string `db:"account_id"`
+		AnotherAccountID string `db:"account__id"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age, 'd5e49d3f' as account_id, '5e49d321' as account__id from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Equal(t, "John", slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+			assert.Equal(t, "5e49d321", slice[i].AnotherAccountID)
+		}
+
+		// check missing fields in a returned row
+		rows, _ = conn.Query(ctx, `select 'Smith' as last_name, n as age from generate_series(0, 9) n`)
+		_, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.ErrorContains(t, err, "cannot find field First in returned row")
+
+		// check missing field in a destination struct
+		rows, _ = conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age, 'd5e49d3f' as account_id, '5e49d321' as account__id, null as ignore from generate_series(0, 9) n`)
+		_, err = pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[person])
+		assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
+	})
+}
+
 func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 	type Name struct {
 		Last  string `db:"last_name"`
