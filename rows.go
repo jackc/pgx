@@ -797,7 +797,7 @@ func computeNamedStructFields(
 			if !dbTagPresent {
 				colName = sf.Name
 			}
-			fpos := fieldPosByName(fldDescs, colName)
+			fpos := fieldPosByName(fldDescs, colName, !dbTagPresent)
 			if fpos == -1 {
 				if missingField == "" {
 					missingField = colName
@@ -816,13 +816,18 @@ func computeNamedStructFields(
 
 const structTagKey = "db"
 
-func fieldPosByName(fldDescs []pgconn.FieldDescription, field string) (i int) {
+func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, replace bool) (i int) {
 	i = -1
+	if replace {
+		field = strings.ReplaceAll(field, "_", "")
+	}
 	for i, desc := range fldDescs {
 
 		// Snake case support.
-		field = strings.ReplaceAll(field, "_", "")
-		descName := strings.ReplaceAll(desc.Name, "_", "")
+		descName := desc.Name
+		if replace {
+			descName = strings.ReplaceAll(desc.Name, "_", "")
+		}
 
 		if strings.EqualFold(descName, field) {
 			return i

@@ -693,7 +693,7 @@ func TestRowToStructByNameDbTags(t *testing.T) {
 		// check missing fields in a returned row
 		rows, _ = conn.Query(ctx, `select 'Smith' as last_name, n as age from generate_series(0, 9) n`)
 		_, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
-		assert.ErrorContains(t, err, "cannot find field First in returned row")
+		assert.ErrorContains(t, err, "cannot find field first_name in returned row")
 
 		// check missing field in a destination struct
 		rows, _ = conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age, 'd5e49d3f' as account_id, '5e49d321' as account__id, null as ignore from generate_series(0, 9) n`)
