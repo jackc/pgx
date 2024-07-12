@@ -472,7 +472,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		if urlErr := new(url.Error); errors.As(err, &urlErr) {
 			return nil, urlErr.Err
 		}
-		return nil, errors.New("failed to parse URL")
+		return nil, err
 	}
 
 	if parsedURL.User != nil {
