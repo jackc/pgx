@@ -105,6 +105,8 @@ type TraceConnectEndData struct {
 	Err  error
 }
 
+// MultiTracer can combine several tracers into one.
+// You can use NewMultiTracer to automatically split tracers by interface.
 type MultiTracer struct {
 	QueryTracers    []QueryTracer
 	BatchTracers    []BatchTracer
@@ -113,6 +115,7 @@ type MultiTracer struct {
 	ConnectTracers  []ConnectTracer
 }
 
+// NewMultiTracer returns new MultiTracer from tracers with automatically split tracers by interface.
 func NewMultiTracer(tracers ...QueryTracer) *MultiTracer {
 	var t MultiTracer
 
