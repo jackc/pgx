@@ -19,6 +19,7 @@ type xmlStruct struct {
 }
 
 func TestXMLCodec(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB does not support XML.")
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "xml", []pgxtest.ValueRoundTripTest{
 		{nil, new(*xmlStruct), isExpectedEq((*xmlStruct)(nil))},
 		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
@@ -48,6 +49,7 @@ func TestXMLCodec(t *testing.T) {
 
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1221414648
 func TestXMLCodecUnmarshalSQLNull(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB does not support XML.")
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		// Byte arrays are nilified
 		slice := []byte{10, 4}
@@ -82,6 +84,7 @@ func TestXMLCodecUnmarshalSQLNull(t *testing.T) {
 }
 
 func TestXMLCodecPointerToPointerToString(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB does not support XML.")
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var s *string
 		err := conn.QueryRow(ctx, "select ''::xml").Scan(&s)
