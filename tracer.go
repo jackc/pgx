@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -103,117 +104,4 @@ type TraceConnectStartData struct {
 type TraceConnectEndData struct {
 	Conn *Conn
 	Err  error
-}
-
-// MultiTracer can combine several tracers into one.
-// You can use NewMultiTracer to automatically split tracers by interface.
-type MultiTracer struct {
-	QueryTracers    []QueryTracer
-	BatchTracers    []BatchTracer
-	CopyFromTracers []CopyFromTracer
-	PrepareTracers  []PrepareTracer
-	ConnectTracers  []ConnectTracer
-}
-
-// NewMultiTracer returns new MultiTracer from tracers with automatically split tracers by interface.
-func NewMultiTracer(tracers ...QueryTracer) *MultiTracer {
-	var t MultiTracer
-
-	for _, tracer := range tracers {
-		t.QueryTracers = append(t.QueryTracers, tracer)
-
-		if batchTracer, ok := tracer.(BatchTracer); ok {
-			t.BatchTracers = append(t.BatchTracers, batchTracer)
-		}
-
-		if copyFromTracer, ok := tracer.(CopyFromTracer); ok {
-			t.CopyFromTracers = append(t.CopyFromTracers, copyFromTracer)
-		}
-
-		if prepareTracer, ok := tracer.(PrepareTracer); ok {
-			t.PrepareTracers = append(t.PrepareTracers, prepareTracer)
-		}
-
-		if connectTracer, ok := tracer.(ConnectTracer); ok {
-			t.ConnectTracers = append(t.ConnectTracers, connectTracer)
-		}
-	}
-
-	return &t
-}
-
-func (t *MultiTracer) TraceQueryStart(ctx context.Context, conn *Conn, data TraceQueryStartData) context.Context {
-	for _, tracer := range t.QueryTracers {
-		ctx = tracer.TraceQueryStart(ctx, conn, data)
-	}
-
-	return ctx
-}
-
-func (t *MultiTracer) TraceQueryEnd(ctx context.Context, conn *Conn, data TraceQueryEndData) {
-	for _, tracer := range t.QueryTracers {
-		tracer.TraceQueryEnd(ctx, conn, data)
-	}
-}
-
-func (t *MultiTracer) TraceBatchStart(ctx context.Context, conn *Conn, data TraceBatchStartData) context.Context {
-	for _, tracer := range t.BatchTracers {
-		ctx = tracer.TraceBatchStart(ctx, conn, data)
-	}
-
-	return ctx
-}
-
-func (t *MultiTracer) TraceBatchQuery(ctx context.Context, conn *Conn, data TraceBatchQueryData) {
-	for _, tracer := range t.BatchTracers {
-		tracer.TraceBatchQuery(ctx, conn, data)
-	}
-}
-
-func (t *MultiTracer) TraceBatchEnd(ctx context.Context, conn *Conn, data TraceBatchEndData) {
-	for _, tracer := range t.BatchTracers {
-		tracer.TraceBatchEnd(ctx, conn, data)
-	}
-}
-
-func (t *MultiTracer) TraceCopyFromStart(ctx context.Context, conn *Conn, data TraceCopyFromStartData) context.Context {
-	for _, tracer := range t.CopyFromTracers {
-		ctx = tracer.TraceCopyFromStart(ctx, conn, data)
-	}
-
-	return ctx
-}
-
-func (t *MultiTracer) TraceCopyFromEnd(ctx context.Context, conn *Conn, data TraceCopyFromEndData) {
-	for _, tracer := range t.CopyFromTracers {
-		tracer.TraceCopyFromEnd(ctx, conn, data)
-	}
-}
-
-func (t *MultiTracer) TracePrepareStart(ctx context.Context, conn *Conn, data TracePrepareStartData) context.Context {
-	for _, tracer := range t.PrepareTracers {
-		ctx = tracer.TracePrepareStart(ctx, conn, data)
-	}
-
-	return ctx
-}
-
-func (t *MultiTracer) TracePrepareEnd(ctx context.Context, conn *Conn, data TracePrepareEndData) {
-	for _, tracer := range t.PrepareTracers {
-		tracer.TracePrepareEnd(ctx, conn, data)
-	}
-}
-
-func (t *MultiTracer) TraceConnectStart(ctx context.Context, data TraceConnectStartData) context.Context {
-	for _, tracer := range t.ConnectTracers {
-		ctx = tracer.TraceConnectStart(ctx, data)
-	}
-
-	return ctx
-}
-
-func (t *MultiTracer) TraceConnectEnd(ctx context.Context, data TraceConnectEndData) {
-	for _, tracer := range t.ConnectTracers {
-		tracer.TraceConnectEnd(ctx, data)
-	}
 }
