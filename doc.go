@@ -175,7 +175,7 @@ notification is received or the context is canceled.
 
 Tracing and Logging
 
-pgx supports tracing by setting ConnConfig.Tracer.
+pgx supports tracing by setting ConnConfig.Tracer. To combine several tracers you can use the multitracer.Tracer.
 
 In addition, the tracelog package provides the TraceLog type which lets a traditional logger act as a Tracer.
 
