@@ -573,17 +573,24 @@ func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nex
 			elemValue = dstValue.Elem()
 		}
 		nextDstType := elemKindToPointerTypes[elemValue.Kind()]
-		if nextDstType == nil && elemValue.Kind() == reflect.Slice {
-			if elemValue.Type().Elem().Kind() == reflect.Uint8 {
-				var v *[]byte
-				nextDstType = reflect.TypeOf(v)
+		if nextDstType == nil {
+			if elemValue.Kind() == reflect.Slice {
+				if elemValue.Type().Elem().Kind() == reflect.Uint8 {
+					var v *[]byte
+					nextDstType = reflect.TypeOf(v)
+				}
+			}
+
+			// Get underlying type of any array.
+			// https://github.com/jackc/pgx/issues/2107
+			if elemValue.Kind() == reflect.Array {
+				nextDstType = reflect.PointerTo(reflect.ArrayOf(elemValue.Len(), elemValue.Type().Elem()))
 			}
 		}
 
 		if nextDstType != nil && dstValue.Type() != nextDstType && dstValue.CanConvert(nextDstType) {
 			return &underlyingTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
 		}
-
 	}
 
 	return nil, nil, false
@@ -1421,6 +1428,15 @@ func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextS
 	// https://github.com/jackc/pgx/issues/1763
 	if refValue.Type() != byteSliceType && refValue.Type().AssignableTo(byteSliceType) {
 		return &underlyingTypeEncodePlan{nextValueType: byteSliceType}, refValue.Convert(byteSliceType).Interface(), true
+	}
+
+	// Get underlying type of any array.
+	// https://github.com/jackc/pgx/issues/2107
+	if refValue.Kind() == reflect.Array {
+		underlyingArrayType := reflect.ArrayOf(refValue.Len(), refValue.Type().Elem())
+		if refValue.Type() != underlyingArrayType {
+			return &underlyingTypeEncodePlan{nextValueType: underlyingArrayType}, refValue.Convert(underlyingArrayType).Interface(), true
+		}
 	}
 
 	return nil, nil, false
