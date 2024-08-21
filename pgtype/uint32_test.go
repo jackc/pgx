@@ -17,5 +17,6 @@ func TestUint32Codec(t *testing.T) {
 		},
 		{pgtype.Uint32{}, new(pgtype.Uint32), isExpectedEq(pgtype.Uint32{})},
 		{nil, new(pgtype.Uint32), isExpectedEq(pgtype.Uint32{})},
+		{"1147", new(string), isExpectedEq("1147")},
 	})
 }
