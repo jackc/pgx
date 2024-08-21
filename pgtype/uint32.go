@@ -296,12 +296,7 @@ func (scanPlanBinaryTextToUint32Scanner) Scan(src []byte, dst any) error {
 		return s.ScanText(Text{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for uint32: %v", len(src))
-	}
-
 	n := uint64(binary.BigEndian.Uint32(src))
-
 	return s.ScanText(Text{String: strconv.FormatUint(n, 10), Valid: true})
 }
 
