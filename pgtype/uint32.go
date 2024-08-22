@@ -206,7 +206,7 @@ func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPl
 		case Uint32Scanner:
 			return scanPlanBinaryUint32ToUint32Scanner{}
 		case TextScanner:
-			return scanPlanBinaryTextToUint32Scanner{}
+			return scanPlanBinaryUint32ToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -284,9 +284,9 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst any) error {
 	return s.ScanUint32(Uint32{Uint32: n, Valid: true})
 }
 
-type scanPlanBinaryTextToUint32Scanner struct{}
+type scanPlanBinaryUint32ToTextScanner struct{}
 
-func (scanPlanBinaryTextToUint32Scanner) Scan(src []byte, dst any) error {
+func (scanPlanBinaryUint32ToTextScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
