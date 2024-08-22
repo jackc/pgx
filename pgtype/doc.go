@@ -53,6 +53,9 @@ similar fashion to database/sql. The second is to use a pointer to a pointer.
         return err
     }
 
+When using nullable pgtype types as parameters for queries, one has to remember
+to explicitly set their Valid field to true, otherwise the parameter's value will be NULL.
+
 JSON Support
 
 pgtype automatically marshals and unmarshals data from json and jsonb PostgreSQL types.
