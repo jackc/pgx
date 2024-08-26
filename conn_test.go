@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"os"
 	"strings"
 	"sync"
@@ -1407,4 +1408,14 @@ func TestConnDeallocateInvalidatedCachedStatementsInTransactionWithBatch(t *test
 	require.NoError(t, err)
 
 	ensureConnValid(t, conn)
+}
+
+func TestErrNoRows(t *testing.T) {
+	t.Parallel()
+
+	// ensure we preserve old error message
+	require.Equal(t, "no rows in result set", pgx.ErrNoRows.Error())
+
+	require.ErrorIs(t, pgx.ErrNoRows, sql.ErrNoRows, "pgx.ErrNowRows must match sql.ErrNoRows")
+	require.ErrorIs(t, pgx.ErrNoRows, pgx.ErrNoRows, "sql.ErrNowRows must match pgx.ErrNoRows")
 }

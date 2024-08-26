@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -102,10 +103,26 @@ func (ident Identifier) Sanitize() string {
 
 var (
 	// ErrNoRows occurs when rows are expected but none are returned.
-	ErrNoRows = errors.New("no rows in result set")
+	ErrNoRows = newProxyErr(sql.ErrNoRows, "no rows in result set")
 	// ErrTooManyRows occurs when more rows than expected are returned.
 	ErrTooManyRows = errors.New("too many rows in result set")
 )
+
+func newProxyErr(background error, msg string) error {
+	return &proxyError{
+		msg:        msg,
+		background: background,
+	}
+}
+
+type proxyError struct {
+	msg        string
+	background error
+}
+
+func (err *proxyError) Error() string { return err.msg }
+
+func (err *proxyError) Unwrap() error { return err.background }
 
 var (
 	errDisabledStatementCache   = fmt.Errorf("cannot use QueryExecModeCacheStatement with disabled statement cache")
