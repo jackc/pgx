@@ -1,3 +1,19 @@
+# 5.7.0 (September 2024)
+
+* Add support for sslrootcert=system (Yann Soubeyrand)
+* Add LoadTypes to load multiple types in a single SQL query (Nick Farrell)
+* Add XMLCodec supports encoding + scanning XML column type like json (nickcruess-soda)
+* Add MultiTrace (Stepan Rabotkin)
+* Add TraceLogConfig with customizable TimeKey (stringintech)
+* pgx.ErrNoRows wraps sql.ErrNoRows to aid in database/sql compatibility with native pgx functions (merlin)
+* Support scanning binary formatted uint32 into string / TextScanner (jennifersp)
+* Fix interval encoding to allow 0s and avoid extra spaces (Carlos Pérez-Aradros Herce)
+* Update pgservicefile - fixes panic when parsing invalid file
+* Better error message when reading past end of batch
+* Don't print url when url.Parse returns an error (Kevin Biju)
+* Fix snake case name normalization collision in RowToStructByName with db tag (nolandseigler)
+* Fix: Scan and encode types with underlying types of arrays
+
 # 5.6.0 (May 25, 2024)
 
 * Add StrictNamedArgs (Tomas Zahradnicek)
