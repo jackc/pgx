@@ -1,4 +1,10 @@
-# 5.7.0 (September 2024)
+# 5.7.1 (September 10, 2024)
+
+* Fix data race in tracelog.TraceLog
+* Update puddle to v2.2.2. This removes the import of nanotime via linkname.
+* Update golang.org/x/crypto and golang.org/x/text
+
+# 5.7.0 (September 7, 2024)
 
 * Add support for sslrootcert=system (Yann Soubeyrand)
 * Add LoadTypes to load multiple types in a single SQL query (Nick Farrell)
