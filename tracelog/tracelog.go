@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -129,19 +130,25 @@ func DefaultTraceLogConfig() *TraceLogConfig {
 	}
 }
 
-// TraceLog implements pgx.QueryTracer, pgx.BatchTracer, pgx.ConnectTracer, and pgx.CopyFromTracer. All fields are
-// required.
+// TraceLog implements pgx.QueryTracer, pgx.BatchTracer, pgx.ConnectTracer, and pgx.CopyFromTracer. Logger and LogLevel
+// are required. Config will be automatically initialized on first use if nil.
 type TraceLog struct {
 	Logger   Logger
 	LogLevel LogLevel
-	Config   *TraceLogConfig
+
+	Config           *TraceLogConfig
+	ensureConfigOnce sync.Once
 }
 
 // ensureConfig initializes the Config field with default values if it is nil.
 func (tl *TraceLog) ensureConfig() {
-	if tl.Config == nil {
-		tl.Config = DefaultTraceLogConfig()
-	}
+	tl.ensureConfigOnce.Do(
+		func() {
+			if tl.Config == nil {
+				tl.Config = DefaultTraceLogConfig()
+			}
+		},
+	)
 }
 
 type ctxKey int

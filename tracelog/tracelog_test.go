@@ -6,14 +6,17 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 var defaultConnTestRunner pgxtest.ConnTestRunner
@@ -35,18 +38,29 @@ type testLog struct {
 
 type testLogger struct {
 	logs []testLog
+
+	mux sync.Mutex
 }
 
 func (l *testLogger) Log(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]any) {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	data["ctxdata"] = ctx.Value("ctxdata")
 	l.logs = append(l.logs, testLog{lvl: level, msg: msg, data: data})
 }
 
 func (l *testLogger) Clear() {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	l.logs = l.logs[0:0]
 }
 
 func (l *testLogger) FilterByMsg(msg string) (res []testLog) {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	for _, log := range l.logs {
 		if log.msg == msg {
 			res = append(res, log)
@@ -456,4 +470,43 @@ func TestLogPrepare(t *testing.T) {
 		require.Equal(t, "Prepare", logger.logs[0].msg)
 		require.Equal(t, err, logger.logs[0].data["err"])
 	})
+}
+
+// https://github.com/jackc/pgx/pull/2120
+func TestConcurrentUsage(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	config.ConnConfig.Tracer = tracer
+
+	for i := 0; i < 50; i++ {
+		func() {
+			pool, err := pgxpool.NewWithConfig(ctx, config)
+			require.NoError(t, err)
+
+			defer pool.Close()
+
+			eg := errgroup.Group{}
+
+			for i := 0; i < 5; i++ {
+				eg.Go(func() error {
+					_, err := pool.Exec(ctx, `select 1`)
+					return err
+				})
+			}
+
+			err = eg.Wait()
+			require.NoError(t, err)
+		}()
+	}
 }
