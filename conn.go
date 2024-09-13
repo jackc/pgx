@@ -1126,46 +1126,63 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 
 	// Prepare any needed queries
 	if len(distinctNewQueries) > 0 {
-		for _, sd := range distinctNewQueries {
-			pipeline.SendPrepare(sd.Name, sd.SQL, nil)
-		}
+		err := func() (err error) {
+			for _, sd := range distinctNewQueries {
+				pipeline.SendPrepare(sd.Name, sd.SQL, nil)
+			}
 
-		err := pipeline.Sync()
-		if err != nil {
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
-		}
+			// Store all statements we are preparing into the cache. It's fine if it overflows because HandleInvalidated will
+			// clean them up later.
+			if sdCache != nil {
+				for _, sd := range distinctNewQueries {
+					sdCache.Put(sd)
+				}
+			}
 
-		for _, sd := range distinctNewQueries {
+			// If something goes wrong preparing the statements, we need to invalidate the cache entries we just added.
+			defer func() {
+				if err != nil && sdCache != nil {
+					for _, sd := range distinctNewQueries {
+						sdCache.Invalidate(sd.SQL)
+					}
+				}
+			}()
+
+			err = pipeline.Sync()
+			if err != nil {
+				return err
+			}
+
+			for _, sd := range distinctNewQueries {
+				results, err := pipeline.GetResults()
+				if err != nil {
+					return err
+				}
+
+				resultSD, ok := results.(*pgconn.StatementDescription)
+				if !ok {
+					return fmt.Errorf("expected statement description, got %T", results)
+				}
+
+				// Fill in the previously empty / pending statement descriptions.
+				sd.ParamOIDs = resultSD.ParamOIDs
+				sd.Fields = resultSD.Fields
+			}
+
 			results, err := pipeline.GetResults()
 			if err != nil {
-				return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
+				return err
 			}
 
-			resultSD, ok := results.(*pgconn.StatementDescription)
+			_, ok := results.(*pgconn.PipelineSync)
 			if !ok {
-				return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected statement description, got %T", results), closed: true}
+				return fmt.Errorf("expected sync, got %T", results)
 			}
 
-			// Fill in the previously empty / pending statement descriptions.
-			sd.ParamOIDs = resultSD.ParamOIDs
-			sd.Fields = resultSD.Fields
-		}
-
-		results, err := pipeline.GetResults()
+			return nil
+		}()
 		if err != nil {
 			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
-		}
-
-		_, ok := results.(*pgconn.PipelineSync)
-		if !ok {
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected sync, got %T", results), closed: true}
-		}
-	}
-
-	// Put all statements into the cache. It's fine if it overflows because HandleInvalidated will clean them up later.
-	if sdCache != nil {
-		for _, sd := range distinctNewQueries {
-			sdCache.Put(sd)
 		}
 	}
 
