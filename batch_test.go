@@ -1008,6 +1008,36 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	assert.False(t, rows.Next())
 }
 
+// https://github.com/jackc/pgx/issues/1847#issuecomment-2347858887
+func TestConnSendBatchErrorDoesNotLeaveOrphanedPreparedStatement(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server serial type is incompatible with test")
+
+		mustExec(t, conn, `create temporary table foo(col1 text primary key);`)
+
+		batch := &pgx.Batch{}
+		batch.Queue("select col1 from foo")
+		batch.Queue("select col1 from baz")
+		err := conn.SendBatch(ctx, batch).Close()
+		require.EqualError(t, err, `ERROR: relation "baz" does not exist (SQLSTATE 42P01)`)
+
+		mustExec(t, conn, `create temporary table baz(col1 text primary key);`)
+
+		// Since table baz now exists, the batch should succeed.
+
+		batch = &pgx.Batch{}
+		batch.Queue("select col1 from foo")
+		batch.Queue("select col1 from baz")
+		err = conn.SendBatch(ctx, batch).Close()
+		require.NoError(t, err)
+	})
+}
+
 func ExampleConn_SendBatch() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
