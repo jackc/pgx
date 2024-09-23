@@ -104,8 +104,8 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	case "-infinity":
 		*ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
-		// PostgreSQL uses ISO 8601 for to_json function and casting from a string to timestamptz
-		tim, err := time.Parse(time.RFC3339Nano, *s)
+		// PostgreSQL uses ISO 8601 wihout timezone for to_json function and casting from a string to timestampt
+		tim, err := time.Parse(time.RFC3339Nano, *s+"Z")
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,6 @@ func discardTimeZone(t time.Time) time.Time {
 }
 
 func (c *TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
