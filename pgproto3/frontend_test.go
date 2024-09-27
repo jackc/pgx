@@ -115,3 +115,21 @@ func TestErrorResponse(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 }
+
+func TestFrontendReceiveExceededMaxBodyLen(t *testing.T) {
+	t.Parallel()
+
+	client := &interruptReader{}
+	client.push([]byte{'D', 0, 0, 10, 10})
+
+	frontend := pgproto3.NewFrontend(client, nil)
+
+	// Set max body len to 5
+	frontend.SetMaxBodyLen(5)
+
+	// Receive regular msg
+	msg, err := frontend.Receive()
+	assert.Nil(t, msg)
+	var invalidBodyLenErr *pgproto3.ExceededMaxBodyLenErr
+	assert.ErrorAs(t, err, &invalidBodyLenErr)
+}
