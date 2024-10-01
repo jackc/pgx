@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,7 +79,7 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			case bool:
 				p = strconv.AppendBool(buf.AvailableBuffer(), arg)
 			case []byte:
-				p = []byte(QuoteBytes(arg))
+				p = quoteBytes(buf.AvailableBuffer(), arg)
 			case string:
 				p = []byte(QuoteString(arg))
 			case time.Time:
@@ -127,7 +128,19 @@ func QuoteString(str string) string {
 }
 
 func QuoteBytes(buf []byte) string {
-	return `'\x` + hex.EncodeToString(buf) + "'"
+	return string(quoteBytes(nil, buf))
+}
+
+func quoteBytes(dst, buf []byte) []byte {
+	dst = append(dst, `'\x`...)
+
+	n := hex.EncodedLen(len(buf))
+	p := slices.Grow(dst[len(dst):], n)[:n]
+	hex.Encode(p, buf)
+	dst = append(dst, p...)
+
+	dst = append(dst, `'`...)
+	return dst
 }
 
 type sqlLexer struct {
