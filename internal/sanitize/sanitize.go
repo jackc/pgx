@@ -26,11 +26,17 @@ type Query struct {
 // https://github.com/jackc/pgx/issues/1380
 const replacementcharacterwidth = 3
 
+const maxBufSize = 16384 // 16 Ki
+
 var bufPool = &pool[*bytes.Buffer]{
 	new: func() *bytes.Buffer {
 		return &bytes.Buffer{}
 	},
-	reset: (*bytes.Buffer).Reset,
+	reset: func(b *bytes.Buffer) bool {
+		n := b.Len()
+		b.Reset()
+		return n < maxBufSize
+	},
 }
 
 var null = []byte("null")
@@ -110,20 +116,23 @@ var sqlLexerPool = &pool[*sqlLexer]{
 	new: func() *sqlLexer {
 		return &sqlLexer{}
 	},
-	reset: func(sl *sqlLexer) {
+	reset: func(sl *sqlLexer) bool {
 		*sl = sqlLexer{}
+		return true
 	},
 }
 
 func (q *Query) init(sql string) {
 	parts := q.Parts[:0]
 	if parts == nil {
+		// dirty, but fast heuristic to preallocate for ~90% usecases
 		n := strings.Count(sql, "$") + strings.Count(sql, "--") + 1
 		parts = make([]Part, 0, n)
 	}
 
 	l := sqlLexerPool.get()
 	defer sqlLexerPool.put(l)
+
 	l.src = sql
 	l.stateFn = rawState
 	l.parts = parts
@@ -393,8 +402,10 @@ var queryPool = &pool[*Query]{
 	new: func() *Query {
 		return &Query{}
 	},
-	reset: func(q *Query) {
+	reset: func(q *Query) bool {
+		n := len(q.Parts)
 		q.Parts = q.Parts[:0]
+		return n < 64 // drop too large queries
 	},
 }
 
@@ -412,7 +423,7 @@ func SanitizeSQL(sql string, args ...any) (string, error) {
 type pool[E any] struct {
 	p     sync.Pool
 	new   func() E
-	reset func(E)
+	reset func(E) bool
 }
 
 func (pool *pool[E]) get() E {
@@ -425,6 +436,7 @@ func (pool *pool[E]) get() E {
 }
 
 func (p *pool[E]) put(v E) {
-	p.reset(v)
-	p.p.Put(v)
+	if p.reset(v) {
+		p.p.Put(v)
+	}
 }
