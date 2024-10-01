@@ -41,16 +41,19 @@ func putBuf(buf *bytes.Buffer) {
 	bufPool.Put(buf)
 }
 
+var null = []byte("null")
+
 func (q *Query) Sanitize(args ...any) (string, error) {
 	argUse := make([]bool, len(args))
 	buf := getBuf()
 	defer putBuf(buf)
+	var p []byte
 
 	for _, part := range q.Parts {
-		var str string
+		p = p[:0]
 		switch part := part.(type) {
 		case string:
-			str = part
+			buf.WriteString(part)
 		case int:
 			argIdx := part - 1
 
@@ -64,19 +67,19 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			arg := args[argIdx]
 			switch arg := arg.(type) {
 			case nil:
-				str = "null"
+				p = null
 			case int64:
-				str = strconv.FormatInt(arg, 10)
+				p = strconv.AppendInt(p, arg, 10)
 			case float64:
-				str = strconv.FormatFloat(arg, 'f', -1, 64)
+				p = strconv.AppendFloat(p, arg, 'f', -1, 64)
 			case bool:
-				str = strconv.FormatBool(arg)
+				p = strconv.AppendBool(p, arg)
 			case []byte:
-				str = QuoteBytes(arg)
+				p = []byte(QuoteBytes(arg))
 			case string:
-				str = QuoteString(arg)
+				p = []byte(QuoteString(arg))
 			case time.Time:
-				str = arg.Truncate(time.Microsecond).Format("'2006-01-02 15:04:05.999999999Z07:00:00'")
+				p = arg.Truncate(time.Microsecond).AppendFormat(p, "'2006-01-02 15:04:05.999999999Z07:00:00'")
 			default:
 				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}
@@ -84,11 +87,12 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 
 			// Prevent SQL injection via Line Comment Creation
 			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
-			str = " " + str + " "
+			buf.WriteByte(' ')
+			buf.Write(p)
+			buf.WriteByte(' ')
 		default:
 			return "", fmt.Errorf("invalid Part type: %T", part)
 		}
-		buf.WriteString(str)
 	}
 
 	for i, used := range argUse {
