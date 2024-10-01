@@ -81,7 +81,7 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			case []byte:
 				p = quoteBytes(buf.AvailableBuffer(), arg)
 			case string:
-				p = []byte(QuoteString(arg))
+				p = quoteString(buf.AvailableBuffer(), arg)
 			case time.Time:
 				p = arg.Truncate(time.Microsecond).
 					AppendFormat(buf.AvailableBuffer(), "'2006-01-02 15:04:05.999999999Z07:00:00'")
@@ -124,7 +124,34 @@ func NewQuery(sql string) (*Query, error) {
 }
 
 func QuoteString(str string) string {
-	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
+	return string(quoteString(nil, str))
+}
+
+func quoteString(dst []byte, str string) []byte {
+	const quote = "'"
+
+	n := strings.Count(str, quote)
+
+	dst = append(dst, quote...)
+
+	p := slices.Grow(dst[len(dst):], len(str)+2*n)
+
+	for len(str) > 0 {
+		i := strings.Index(str, quote)
+		if i < 0 {
+			p = append(p, str...)
+			break
+		}
+		p = append(p, str[:i]...)
+		p = append(p, "''"...)
+		str = str[i+1:]
+	}
+
+	dst = append(dst, p...)
+
+	dst = append(dst, quote...)
+
+	return dst
 }
 
 func QuoteBytes(buf []byte) string {
