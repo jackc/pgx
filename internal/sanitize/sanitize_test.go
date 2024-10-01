@@ -1,6 +1,7 @@
 package sanitize_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -226,4 +227,28 @@ func TestQuerySanitize(t *testing.T) {
 			t.Errorf("%d. expected error %v, got %v", i, tt.expected, err)
 		}
 	}
+}
+
+func TestQuoteBytes(t *testing.T) {
+	tc := func(name string, input []byte) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			got := sanitize.QuoteBytes(input)
+			want := oldQuoteBytes(input)
+
+			if got != want {
+				t.Errorf("got:  %s", got)
+				t.Fatalf("want: %s", want)
+			}
+		})
+	}
+
+	tc("nil", nil)
+	tc("empty", []byte{})
+	tc("text", []byte("abcd"))
+}
+
+func oldQuoteBytes(buf []byte) string {
+	return `'\x` + hex.EncodeToString(buf) + "'"
 }
