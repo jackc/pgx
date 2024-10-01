@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -24,9 +25,26 @@ type Query struct {
 // https://github.com/jackc/pgx/issues/1380
 const replacementcharacterwidth = 3
 
+var bufPool = &sync.Pool{}
+
+func getBuf() *bytes.Buffer {
+	buf, _ := bufPool.Get().(*bytes.Buffer)
+	if buf == nil {
+		buf = &bytes.Buffer{}
+	}
+
+	return buf
+}
+
+func putBuf(buf *bytes.Buffer) {
+	buf.Reset()
+	bufPool.Put(buf)
+}
+
 func (q *Query) Sanitize(args ...any) (string, error) {
 	argUse := make([]bool, len(args))
-	buf := &bytes.Buffer{}
+	buf := getBuf()
+	defer putBuf(buf)
 
 	for _, part := range q.Parts {
 		var str string
