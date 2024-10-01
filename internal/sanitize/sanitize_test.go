@@ -2,6 +2,7 @@ package sanitize_test
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 	"time"
 
@@ -227,6 +228,30 @@ func TestQuerySanitize(t *testing.T) {
 			t.Errorf("%d. expected error %v, got %v", i, tt.expected, err)
 		}
 	}
+}
+
+func TestQuoteString(t *testing.T) {
+	tc := func(name, input string) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			got := sanitize.QuoteString(input)
+			want := oldQuoteString(input)
+
+			if got != want {
+				t.Errorf("got:  %s", got)
+				t.Fatalf("want: %s", want)
+			}
+		})
+	}
+
+	tc("empty", "")
+	tc("text", "abcd")
+	tc("with quotes", `one's hat is always a cat`)
+}
+
+func oldQuoteString(str string) string {
+	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
 }
 
 func TestQuoteBytes(t *testing.T) {
