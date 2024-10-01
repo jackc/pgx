@@ -48,7 +48,7 @@ for i in "${!commits[@]}"; do
     # Benchmark data will go there
     bench_file="${benchmarks_dir}/${i}_${commit_message}.bench"
 
-    if ! go test -bench=. -count=25 >"$bench_file"; then
+    if ! go test -bench=. -count=10 >"$bench_file"; then
         echo "Benchmarking failed for commit $commit"
         exit 1
     fi
