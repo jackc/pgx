@@ -62,7 +62,11 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			if argIdx >= len(args) {
 				return "", fmt.Errorf("insufficient arguments")
 			}
+
+			// Prevent SQL injection via Line Comment Creation
+			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
 			buf.WriteByte(' ')
+
 			arg := args[argIdx]
 			switch arg := arg.(type) {
 			case nil:
@@ -78,15 +82,17 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			case string:
 				p = []byte(QuoteString(arg))
 			case time.Time:
-				p = arg.Truncate(time.Microsecond).AppendFormat(buf.AvailableBuffer(), "'2006-01-02 15:04:05.999999999Z07:00:00'")
+				p = arg.Truncate(time.Microsecond).
+					AppendFormat(buf.AvailableBuffer(), "'2006-01-02 15:04:05.999999999Z07:00:00'")
 			default:
 				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}
 			argUse[argIdx] = true
 
+			buf.Write(p)
+
 			// Prevent SQL injection via Line Comment Creation
 			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
-			buf.Write(p)
 			buf.WriteByte(' ')
 		default:
 			return "", fmt.Errorf("invalid Part type: %T", part)
