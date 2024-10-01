@@ -70,9 +70,9 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			case bool:
 				p = strconv.AppendBool(buf.AvailableBuffer(), arg)
 			case []byte:
-				p = quoteBytes(buf.AvailableBuffer(), arg)
+				p = QuoteBytes(buf.AvailableBuffer(), arg)
 			case string:
-				p = quoteString(buf.AvailableBuffer(), arg)
+				p = QuoteString(buf.AvailableBuffer(), arg)
 			case time.Time:
 				p = arg.Truncate(time.Microsecond).
 					AppendFormat(buf.AvailableBuffer(), "'2006-01-02 15:04:05.999999999Z07:00:00'")
@@ -135,11 +135,7 @@ func (q *Query) init(sql string) {
 	q.Parts = l.parts
 }
 
-func QuoteString(str string) string {
-	return string(quoteString(nil, str))
-}
-
-func quoteString(dst []byte, str string) []byte {
+func QuoteString(dst []byte, str string) []byte {
 	const quote = "'"
 
 	n := strings.Count(str, quote)
@@ -166,11 +162,7 @@ func quoteString(dst []byte, str string) []byte {
 	return dst
 }
 
-func QuoteBytes(buf []byte) string {
-	return string(quoteBytes(nil, buf))
-}
-
-func quoteBytes(dst, buf []byte) []byte {
+func QuoteBytes(dst, buf []byte) []byte {
 	dst = append(dst, `'\x`...)
 
 	n := hex.EncodedLen(len(buf))

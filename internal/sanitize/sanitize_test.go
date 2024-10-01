@@ -235,7 +235,7 @@ func TestQuoteString(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			got := sanitize.QuoteString(input)
+			got := string(sanitize.QuoteString(nil, input))
 			want := oldQuoteString(input)
 
 			if got != want {
@@ -259,7 +259,7 @@ func TestQuoteBytes(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			got := sanitize.QuoteBytes(input)
+			got := string(sanitize.QuoteBytes(nil, input))
 			want := oldQuoteBytes(input)
 
 			if got != want {
