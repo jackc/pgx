@@ -14,10 +14,10 @@ func FuzzQuoteString(f *testing.F) {
 	f.Add("select 'quoted $42', $1")
 
 	f.Fuzz(func(t *testing.T, input string) {
-		got := sanitize.QuoteString(input)
+		got := sanitize.QuoteString(nil, input)
 		want := oldQuoteString(input)
 
-		if want != got {
+		if want != string(got) {
 			t.Errorf("got  %q", got)
 			t.Fatalf("want %q", want)
 		}
@@ -32,10 +32,10 @@ func FuzzQuoteBytes(f *testing.F) {
 	f.Add([]byte("select 'quoted $42', $1"))
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		got := sanitize.QuoteBytes(input)
+		got := sanitize.QuoteBytes(nil, input)
 		want := oldQuoteBytes(input)
 
-		if want != got {
+		if want != string(got) {
 			t.Errorf("got  %q", got)
 			t.Fatalf("want %q", want)
 		}
