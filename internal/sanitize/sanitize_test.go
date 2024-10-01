@@ -250,6 +250,8 @@ func TestQuoteString(t *testing.T) {
 	tc("with quotes", `one's hat is always a cat`)
 }
 
+// This function was used before optimizations.
+// You should keep for testing purposes - we want to ensure there are no breaking changes.
 func oldQuoteString(str string) string {
 	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
 }
@@ -274,6 +276,8 @@ func TestQuoteBytes(t *testing.T) {
 	tc("text", []byte("abcd"))
 }
 
+// This function was used before optimizations.
+// You should keep for testing purposes - we want to ensure there are no breaking changes.
 func oldQuoteBytes(buf []byte) string {
 	return `'\x` + hex.EncodeToString(buf) + "'"
 }
