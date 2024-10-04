@@ -5,26 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"sync/atomic"
 )
-
-var (
-	// When using the PostgreSQL driver, it is impossible to set a limit using
-	// the structure method, however, sometimes it is necessary to set a limit
-	// for the safety of the application. A similar functionality
-	// has been made for client messages.
-	commonMaxBackendBodyLen atomic.Uint32
-)
-
-// SetCommonMaxBackendBodyLen sets the maximum length of a message body in octets.
-// If a message body exceeds this length, Receive will return an error.
-// This is useful for protecting against malicious clients that send
-// large messages with the intent of causing memory exhaustion.
-// The default value is 0.
-// If value is 0, then no maximum is enforced.
-func SetCommonMaxBackendBodyLen(value uint32) {
-	commonMaxBackendBodyLen.Store(value)
-}
 
 // Backend acts as a server for the PostgreSQL wire protocol version 3.
 type Backend struct {
@@ -205,10 +186,6 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		b.bodyLen = msgLength - 4
 		if b.maxBodyLen > 0 && b.bodyLen > b.maxBodyLen {
 			return nil, &ExceededMaxBodyLenErr{b.maxBodyLen, b.bodyLen}
-		}
-		commonMaxBodyLen := int(commonMaxBackendBodyLen.Load())
-		if commonMaxBodyLen > 0 && b.bodyLen > commonMaxBodyLen {
-			return nil, &ExceededMaxBodyLenErr{commonMaxBodyLen, b.bodyLen}
 		}
 		b.partialMsg = true
 	}
