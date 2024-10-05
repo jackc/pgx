@@ -9,6 +9,9 @@ import (
 )
 
 func TestUint64Codec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support xid8 (https://github.com/cockroachdb/cockroach/issues/36815)")
+	skipPostgreSQLVersionLessThan(t, 13)
+
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "xid8", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Uint64{Uint64: 1 << 36, Valid: true},
