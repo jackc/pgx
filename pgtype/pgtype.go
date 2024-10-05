@@ -29,6 +29,7 @@ const (
 	XMLOID                 = 142
 	XMLArrayOID            = 143
 	JSONArrayOID           = 199
+	XID8ArrayOID           = 271
 	PointOID               = 600
 	LsegOID                = 601
 	PathOID                = 602
@@ -117,6 +118,7 @@ const (
 	TstzmultirangeOID      = 4534
 	DatemultirangeOID      = 4535
 	Int8multirangeOID      = 4536
+	XID8OID                = 5069
 	Int4multirangeArrayOID = 6150
 	NummultirangeArrayOID  = 6151
 	TsmultirangeArrayOID   = 6152
