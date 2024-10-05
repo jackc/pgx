@@ -54,6 +54,7 @@ type Frontend struct {
 	portalSuspended                 PortalSuspended
 
 	bodyLen    int
+	maxBodyLen int // maxBodyLen is the maximum length of a message body in octets. If a message body exceeds this length, Receive will return an error.
 	msgType    byte
 	partialMsg bool
 	authType   uint32
@@ -317,6 +318,9 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 		}
 
 		f.bodyLen = msgLength - 4
+		if f.maxBodyLen > 0 && f.bodyLen > f.maxBodyLen {
+			return nil, &ExceededMaxBodyLenErr{f.maxBodyLen, f.bodyLen}
+		}
 		f.partialMsg = true
 	}
 
@@ -451,4 +455,14 @@ func (f *Frontend) GetAuthType() uint32 {
 
 func (f *Frontend) ReadBufferLen() int {
 	return f.cr.wp - f.cr.rp
+}
+
+// SetMaxBodyLen sets the maximum length of a message body in octets.
+// If a message body exceeds this length, Receive will return an error.
+// This is useful for protecting against a corrupted server that sends
+// messages with incorrect length, which can cause memory exhaustion.
+// The default value is 0.
+// If maxBodyLen is 0, then no maximum is enforced.
+func (f *Frontend) SetMaxBodyLen(maxBodyLen int) {
+	f.maxBodyLen = maxBodyLen
 }
