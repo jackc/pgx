@@ -39,9 +39,7 @@ type Backend struct {
 	terminate      Terminate
 
 	bodyLen    int
-	maxBodyLen int
-	// maxBodyLen is the maximum length of a message body in octets.
-	// If a message body exceeds this length, Receive will return an error.
+	maxBodyLen int // maxBodyLen is the maximum length of a message body in octets. If a message body exceeds this length, Receive will return an error.
 	msgType    byte
 	partialMsg bool
 	authType   uint32
