@@ -113,7 +113,7 @@ func (c *XMLCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPl
 		// https://github.com/jackc/pgx/issues/1691 -- ** anything else
 
 		if wrapperPlan, nextDst, ok := TryPointerPointerScanPlan(target); ok {
-			if nextPlan := m.planScan(oid, format, nextDst); nextPlan != nil {
+			if nextPlan := m.planScan(oid, format, nextDst, 0); nextPlan != nil {
 				if _, failed := nextPlan.(*scanPlanFail); !failed {
 					wrapperPlan.SetNext(nextPlan)
 					return wrapperPlan
