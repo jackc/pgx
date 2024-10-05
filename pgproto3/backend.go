@@ -175,7 +175,13 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		}
 
 		b.msgType = header[0]
-		b.bodyLen = int(binary.BigEndian.Uint32(header[1:])) - 4
+
+		msgLength := int(binary.BigEndian.Uint32(header[1:]))
+		if msgLength < 4 {
+			return nil, fmt.Errorf("invalid message length: %d", msgLength)
+		}
+
+		b.bodyLen = msgLength - 4
 		if b.maxBodyLen > 0 && b.bodyLen > b.maxBodyLen {
 			return nil, &ExceededMaxBodyLenErr{b.maxBodyLen, b.bodyLen}
 		}
@@ -282,9 +288,10 @@ func (b *Backend) SetAuthType(authType uint32) error {
 	return nil
 }
 
-// SetMaxBodyLen sets the maximum length of a message body in octets. If a message body exceeds this length, Receive will return
-// an error. This is useful for protecting against malicious clients that send large messages with the intent of
-// causing memory exhaustion.
+// SetMaxBodyLen sets the maximum length of a message body in octets.
+// If a message body exceeds this length, Receive will return an error.
+// This is useful for protecting against malicious clients that send
+// large messages with the intent of causing memory exhaustion.
 // The default value is 0.
 // If maxBodyLen is 0, then no maximum is enforced.
 func (b *Backend) SetMaxBodyLen(maxBodyLen int) {
