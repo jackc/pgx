@@ -63,6 +63,38 @@ func TestUUIDCodec(t *testing.T) {
 	})
 }
 
+func TestUUID_String(t *testing.T) {
+	tests := []struct {
+		name string
+		src  pgtype.UUID
+		want string
+	}{
+		{
+			name: "first",
+			src: pgtype.UUID{
+				Bytes: [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
+				Valid: true,
+			},
+			want: "1d485a7a-6d18-4599-8c6c-34425616887a",
+		},
+		{
+			name: "third",
+			src: pgtype.UUID{
+				Bytes: [16]byte{},
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.src.String()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MarshalJSON() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUUID_MarshalJSON(t *testing.T) {
 	tests := []struct {
 		name string
