@@ -96,6 +96,14 @@ func (src UUID) Value() (driver.Value, error) {
 	return encodeUUID(src.Bytes), nil
 }
 
+func (src UUID) String() string {
+	if !src.Valid {
+		return ""
+	}
+
+	return encodeUUID(src.Bytes)
+}
+
 func (src UUID) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
