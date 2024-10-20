@@ -1,6 +1,7 @@
 package sanitize_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/internal/sanitize"

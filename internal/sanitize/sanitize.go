@@ -151,7 +151,7 @@ func QuoteString(dst []byte, str string) []byte {
 
 	dst = append(dst, quote...)
 
-	p := slices.Grow(dst[len(dst):], len(str)+2*n)
+	p := slices.Grow(dst[len(dst):], 2*len(quote)+len(str)+2*n)
 
 	for len(str) > 0 {
 		i := strings.Index(str, quote)
