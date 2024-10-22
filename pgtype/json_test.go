@@ -63,6 +63,8 @@ func TestJSONCodec(t *testing.T) {
 
 		// Test driver.Valuer is used before json.Marshaler (https://github.com/jackc/pgx/issues/1805)
 		{Issue1805(7), new(Issue1805), isExpectedEq(Issue1805(7))},
+		// Test driver.Scanner is used before json.Unmarshaler (https://github.com/jackc/pgx/issues/2146)
+		{Issue2146(7), new(*Issue2146), isPtrExpectedEq(Issue2146(7))},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -107,6 +109,31 @@ func (i Issue1805) UnmarshalJSON(bytes []byte) error {
 
 func (i Issue1805) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("MarshalJSON called")
+}
+
+type Issue2146 int
+
+func (i *Issue2146) Scan(src any) error {
+	var source []byte
+	switch src.(type) {
+	case string:
+		source = []byte(src.(string))
+	case []byte:
+		source = src.([]byte)
+	default:
+		return errors.New("unknown source type")
+	}
+	var newI int
+	if err := json.Unmarshal(source, &newI); err != nil {
+		return err
+	}
+	*i = Issue2146(newI + 1)
+	return nil
+}
+
+func (i Issue2146) Value() (driver.Value, error) {
+	b, err := json.Marshal(int(i - 1))
+	return string(b), err
 }
 
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1221414648

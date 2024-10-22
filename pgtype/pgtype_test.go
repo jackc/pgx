@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"testing"
@@ -629,5 +630,12 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 func isExpectedEq(a any) func(any) bool {
 	return func(v any) bool {
 		return a == v
+	}
+}
+
+func isPtrExpectedEq(a any) func(any) bool {
+	return func(v any) bool {
+		val := reflect.ValueOf(v)
+		return a == val.Elem().Interface()
 	}
 }
