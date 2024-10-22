@@ -143,16 +143,32 @@ func (c *JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 	case BytesScanner:
 		return scanPlanBinaryBytesToBytesScanner{}
 
+	}
+
 	// Cannot rely on sql.Scanner being handled later because scanPlanJSONToJSONUnmarshal will take precedence.
 	//
 	// https://github.com/jackc/pgx/issues/1418
-	case sql.Scanner:
+	if isSQLScanner(target) {
 		return &scanPlanSQLScanner{formatCode: format}
 	}
 
 	return &scanPlanJSONToJSONUnmarshal{
 		unmarshal: c.Unmarshal,
 	}
+}
+
+// we need to check if the target is a pointer to a sql.Scanner (or any of the pointer ref tree implements a sql.Scanner).
+//
+// https://github.com/jackc/pgx/issues/2146
+func isSQLScanner(v any) bool {
+	val := reflect.ValueOf(v)
+	for val.Kind() == reflect.Ptr {
+		if _, ok := val.Interface().(sql.Scanner); ok {
+			return true
+		}
+		val = val.Elem()
+	}
+	return false
 }
 
 type scanPlanAnyToString struct{}
