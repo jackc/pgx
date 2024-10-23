@@ -122,15 +122,15 @@ type TimestampCodec struct {
 	ScanLocation *time.Location
 }
 
-func (*TimestampCodec) FormatSupported(format int16) bool {
+func (TimestampCodec) FormatSupported(format int16) bool {
 	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (*TimestampCodec) PreferredFormat() int16 {
+func (TimestampCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (*TimestampCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
+func (TimestampCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(TimestampValuer); !ok {
 		return nil
 	}
@@ -224,7 +224,7 @@ func discardTimeZone(t time.Time) time.Time {
 	return t
 }
 
-func (c *TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
+func (c TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -318,7 +318,7 @@ func (plan *scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) e
 	return scanner.ScanTimestamp(ts)
 }
 
-func (c *TimestampCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c TimestampCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -336,7 +336,7 @@ func (c *TimestampCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16
 	return ts.Time, nil
 }
 
-func (c *TimestampCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
+func (c TimestampCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
