@@ -650,21 +650,32 @@ const (
 	// registered with pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are
 	// unregistered or ambiguous. e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know
 	// the PostgreSQL type can use a map[string]string directly as an argument. This mode cannot.
+	//
+	// On rare occasions user defined types may behave differently when encoded in the text format instead of the binary
+	// format. For example, this could happen if a "type RomanNumeral int32" implements fmt.Stringer to format integers as
+	// Roman numerals (e.g. 7 is VII). The binary format would properly encode the integer 7 as the binary value for 7.
+	// But the text format would encode the integer 7 as the string "VII". As QueryExecModeExec uses the text format, it
+	// is possible that changing query mode from another mode to QueryExecModeExec could change the behavior of the query.
+	// This should not occur with types pgx supports directly and can be avoided by registering the types with
+	// pgtype.Map.RegisterDefaultPgType and implementing the appropriate type interfaces. In the cas of RomanNumeral, it
+	// should implement pgtype.Int64Valuer.
 	QueryExecModeExec
 
-	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments.
-	// Queries are executed in a single round trip. Type mappings can be registered with
-	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambiguous.
-	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
-	// a map[string]string directly as an argument. This mode cannot.
+	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments. Queries
+	// are executed in a single round trip. Type mappings can be registered with pgtype.Map.RegisterDefaultPgType. Queries
+	// will be rejected that have arguments that are unregistered or ambiguous. e.g. A map[string]string may have the
+	// PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use a map[string]string directly as an
+	// argument. This mode cannot.
 	//
-	// QueryExecModeSimpleProtocol should have the user application visible behavior as QueryExecModeExec with minor
-	// exceptions such as behavior when multiple result returning queries are erroneously sent in a single string.
+	// QueryExecModeSimpleProtocol should have the user application visible behavior as QueryExecModeExec. This includes
+	// the warning regarding differences in text format and binary format encoding with user defined types. There may be
+	// other minor exceptions such as behavior when multiple result returning queries are erroneously sent in a single
+	// string.
 	//
 	// QueryExecModeSimpleProtocol uses client side parameter interpolation. All values are quoted and escaped. Prefer
-	// QueryExecModeExec over QueryExecModeSimpleProtocol whenever possible. In general QueryExecModeSimpleProtocol
-	// should only be used if connecting to a proxy server, connection pool server, or non-PostgreSQL server that does
-	// not support the extended protocol.
+	// QueryExecModeExec over QueryExecModeSimpleProtocol whenever possible. In general QueryExecModeSimpleProtocol should
+	// only be used if connecting to a proxy server, connection pool server, or non-PostgreSQL server that does not
+	// support the extended protocol.
 	QueryExecModeSimpleProtocol
 )
 
