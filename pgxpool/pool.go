@@ -281,20 +281,20 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 // ParseConfig builds a Config from connString. It parses connString with the same behavior as [pgx.ParseConfig] with the
 // addition of the following variables:
 //
-//   - pool_max_conns: integer greater than 0
-//   - pool_min_conns: integer 0 or greater
-//   - pool_max_conn_lifetime: duration string
-//   - pool_max_conn_idle_time: duration string
-//   - pool_health_check_period: duration string
-//   - pool_max_conn_lifetime_jitter: duration string
+//   - pool_max_conns: integer greater than 0 (default 4)
+//   - pool_min_conns: integer 0 or greater (default 0)
+//   - pool_max_conn_lifetime: duration string (default 1 hour)
+//   - pool_max_conn_idle_time: duration string (default 30 minutes)
+//   - pool_health_check_period: duration string (default 1 minute)
+//   - pool_max_conn_lifetime_jitter: duration string (default 0)
 //
 // See Config for definitions of these arguments.
 //
 //	# Example Keyword/Value
-//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10 pool_max_conn_lifetime=1h30m
 //
 //	# Example URL
-//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
+//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10&pool_max_conn_lifetime=1h30m
 func ParseConfig(connString string) (*Config, error) {
 	connConfig, err := pgx.ParseConfig(connString)
 	if err != nil {
