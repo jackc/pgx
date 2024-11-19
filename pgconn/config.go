@@ -861,12 +861,12 @@ func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 // ValidateConnectTargetSessionAttrsReadWrite is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
 func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
-	result := pgConn.ExecParams(ctx, "show transaction_read_only", nil, nil, nil, nil).Read()
-	if result.Err != nil {
-		return result.Err
+	result, err := pgConn.Exec(ctx, "show transaction_read_only").ReadAll()
+	if err != nil {
+		return err
 	}
 
-	if string(result.Rows[0][0]) == "on" {
+	if string(result[0].Rows[0][0]) == "on" {
 		return errors.New("read only connection")
 	}
 
@@ -876,12 +876,12 @@ func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgC
 // ValidateConnectTargetSessionAttrsReadOnly is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-only.
 func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgConn) error {
-	result := pgConn.ExecParams(ctx, "show transaction_read_only", nil, nil, nil, nil).Read()
-	if result.Err != nil {
-		return result.Err
+	result, err := pgConn.Exec(ctx, "show transaction_read_only").ReadAll()
+	if err != nil {
+		return err
 	}
 
-	if string(result.Rows[0][0]) != "on" {
+	if string(result[0].Rows[0][0]) != "on" {
 		return errors.New("connection is not read only")
 	}
 
@@ -891,12 +891,12 @@ func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgCo
 // ValidateConnectTargetSessionAttrsStandby is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=standby.
 func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgConn) error {
-	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
-	if result.Err != nil {
-		return result.Err
+	result, err := pgConn.Exec(ctx, "select pg_is_in_recovery()").ReadAll()
+	if err != nil {
+		return err
 	}
 
-	if string(result.Rows[0][0]) != "t" {
+	if string(result[0].Rows[0][0]) != "t" {
 		return errors.New("server is not in hot standby mode")
 	}
 
@@ -906,12 +906,12 @@ func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgCon
 // ValidateConnectTargetSessionAttrsPrimary is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=primary.
 func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgConn) error {
-	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
-	if result.Err != nil {
-		return result.Err
+	result, err := pgConn.Exec(ctx, "select pg_is_in_recovery()").ReadAll()
+	if err != nil {
+		return err
 	}
 
-	if string(result.Rows[0][0]) == "t" {
+	if string(result[0].Rows[0][0]) == "t" {
 		return errors.New("server is in standby mode")
 	}
 
@@ -921,12 +921,12 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 // ValidateConnectTargetSessionAttrsPreferStandby is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=prefer-standby.
 func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn *PgConn) error {
-	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
-	if result.Err != nil {
-		return result.Err
+	result, err := pgConn.Exec(ctx, "select pg_is_in_recovery()").ReadAll()
+	if err != nil {
+		return err
 	}
 
-	if string(result.Rows[0][0]) != "t" {
+	if string(result[0].Rows[0][0]) != "t" {
 		return &NotPreferredError{err: errors.New("server is not in hot standby mode")}
 	}
 
