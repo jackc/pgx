@@ -107,7 +107,7 @@ func rawState(l *sqlLexer) stateFn {
 			return singleQuoteState
 		case '"':
 			return doubleQuoteState
-		case '@':
+		case '@', ':':
 			nextRune, _ := utf8.DecodeRuneInString(l.src[l.pos:])
 			if isLetter(nextRune) || nextRune == '_' {
 				if l.pos-l.start > 0 {
