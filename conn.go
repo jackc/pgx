@@ -915,6 +915,9 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 // SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
+//
+// Depending on the QueryExecMode, all queries may be prepared before any are executed. This means that creating a table
+// and using it in a subsequent query in the same batch can fail.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 	if c.batchTracer != nil {
 		ctx = c.batchTracer.TraceBatchStart(ctx, c, TraceBatchStartData{Batch: b})
