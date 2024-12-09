@@ -145,41 +145,59 @@ func (q *Query) init(sql string) {
 }
 
 func QuoteString(dst []byte, str string) []byte {
-	const quote = "'"
+	const quote = '\''
 
-	n := strings.Count(str, quote)
+	// Preallocate space for the worst case scenario
+	dst = slices.Grow(dst, len(str)*2+2)
 
-	dst = append(dst, quote...)
+	// Add opening quote
+	dst = append(dst, quote)
 
-	p := slices.Grow(dst[len(dst):], 2*len(quote)+len(str)+2*n)
-
-	for len(str) > 0 {
-		i := strings.Index(str, quote)
-		if i < 0 {
-			p = append(p, str...)
-			break
+	// Iterate through the string without allocating
+	for i := 0; i < len(str); i++ {
+		if str[i] == quote {
+			dst = append(dst, quote, quote)
+		} else {
+			dst = append(dst, str[i])
 		}
-		p = append(p, str[:i]...)
-		p = append(p, "''"...)
-		str = str[i+1:]
 	}
 
-	dst = append(dst, p...)
-
-	dst = append(dst, quote...)
+	// Add closing quote
+	dst = append(dst, quote)
 
 	return dst
 }
 
 func QuoteBytes(dst, buf []byte) []byte {
-	dst = append(dst, `'\x`...)
+	if len(buf) == 0 {
+		return append(dst, `'\x'`...)
+	}
 
-	n := hex.EncodedLen(len(buf))
-	p := slices.Grow(dst[len(dst):], n)[:n]
-	hex.Encode(p, buf)
-	dst = append(dst, p...)
+	// Calculate required length
+	requiredLen := 3 + hex.EncodedLen(len(buf)) + 1
 
-	dst = append(dst, `'`...)
+	// Ensure dst has enough capacity
+	if cap(dst)-len(dst) < requiredLen {
+		newDst := make([]byte, len(dst), len(dst)+requiredLen)
+		copy(newDst, dst)
+		dst = newDst
+	}
+
+	// Record original length and extend slice
+	origLen := len(dst)
+	dst = dst[:origLen+requiredLen]
+
+	// Add prefix
+	dst[origLen] = '\''
+	dst[origLen+1] = '\\'
+	dst[origLen+2] = 'x'
+
+	// Encode bytes directly into dst
+	hex.Encode(dst[origLen+3:len(dst)-1], buf)
+
+	// Add suffix
+	dst[len(dst)-1] = '\''
+
 	return dst
 }
 
