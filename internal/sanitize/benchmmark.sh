@@ -43,7 +43,7 @@ for i in "${!commits[@]}"; do
     }
 
     # Sanitized commmit message
-    commit_message=$(git log -1 --pretty=format:"%s" | tr ' ' '_')
+    commit_message=$(git log -1 --pretty=format:"%s" | tr -c '[:alnum:]-_' '_')
 
     # Benchmark data will go there
     bench_file="${benchmarks_dir}/${i}_${commit_message}.bench"
@@ -56,4 +56,5 @@ for i in "${!commits[@]}"; do
     bench_files+=("$bench_file")
 done
 
+# go install golang.org/x/perf/cmd/benchstat[@latest]
 benchstat "${bench_files[@]}"
