@@ -847,6 +847,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 	return nil
 }
 
+func (r *Rows) ScanColumn(index int, dest any) error {
+	m := r.conn.conn.TypeMap()
+	fd := r.rows.FieldDescriptions()[index]
+	return m.Scan(fd.DataTypeOID, fd.Format, r.rows.RawValues()[index], dest)
+}
+
 func valueToInterface(argsV []driver.Value) []any {
 	args := make([]any, 0, len(argsV))
 	for _, v := range argsV {
