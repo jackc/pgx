@@ -3003,6 +3003,70 @@ func TestPipelinePrepareQuery(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelinePrepareQueryWithFlush(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(ctx)
+	pipeline.SendPrepare("ps", "select $1::text as msg", nil)
+	pipeline.SendQueryPrepared(`ps`, [][]byte{[]byte("hello")}, nil, nil)
+	pipeline.SendQueryPrepared(`ps`, [][]byte{[]byte("goodbye")}, nil, nil)
+	pipeline.SendFlushRequest()
+	err = pipeline.Flush()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResultsNotCheckSync()
+	require.NoError(t, err)
+	sd, ok := results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, "msg", string(sd.Fields[0].Name))
+	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResultsNotCheckSync()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "hello", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResultsNotCheckSync()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "goodbye", string(readResult.Rows[0][0]))
+
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 
