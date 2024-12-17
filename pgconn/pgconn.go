@@ -2093,6 +2093,22 @@ func (p *Pipeline) SendQueryPrepared(stmtName string, paramValues [][]byte, para
 	p.conn.frontend.SendExecute(&pgproto3.Execute{})
 }
 
+// SendFlushRequest sends a request for the server to flush its output buffer.
+//
+// The server flushes its output buffer automatically as a result of Sync being called,
+// or on any request when not in pipeline mode; this function is useful to cause the server
+// to flush its output buffer in pipeline mode without establishing a synchronization point.
+// Note that the request is not itself flushed to the server automatically; use Flush if
+// necessary. This copies the behavior of libpq PQsendFlushRequest.
+func (p *Pipeline) SendFlushRequest() {
+	if p.closed {
+		return
+	}
+	p.pendingSync = true
+
+	p.conn.frontend.Send(&pgproto3.Flush{})
+}
+
 // Flush flushes the queued requests without establishing a synchronization point.
 func (p *Pipeline) Flush() error {
 	if p.closed {
@@ -2152,6 +2168,23 @@ func (p *Pipeline) GetResults() (results any, err error) {
 
 	if p.expectedReadyForQueryCount == 0 {
 		return nil, nil
+	}
+
+	return p.getResults()
+}
+
+// GetResultsNotCheckSync gets the next results. If results are present, results may be a *ResultReader, *StatementDescription,
+// or *PipelineSync. If an ErrorResponse is received from the server, results will be nil and err will be a *PgError.
+//
+// This method should be used only if the request was sent to the server via methods SendFlushRequest and Flush,
+// without using Sync. In this case, you need to identify on your own when all results are received and
+// there is no need to call the method anymore.
+func (p *Pipeline) GetResultsNotCheckSync() (results any, err error) {
+	if p.closed {
+		if p.err != nil {
+			return nil, p.err
+		}
+		return nil, errors.New("pipeline closed")
 	}
 
 	return p.getResults()
