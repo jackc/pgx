@@ -2103,8 +2103,9 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	)`).ReadAll()
 	require.NoError(t, err)
 
-	f, err := os.CreateTemp("", "*")
+	f, err := os.CreateTemp(t.TempDir(), "*")
 	require.NoError(t, err)
+	defer f.Close()
 
 	gw := gzip.NewWriter(f)
 
@@ -2135,12 +2136,6 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
 
 	err = gr.Close()
-	require.NoError(t, err)
-
-	err = f.Close()
-	require.NoError(t, err)
-
-	err = os.Remove(f.Name())
 	require.NoError(t, err)
 
 	result := pgConn.ExecParams(ctx, "select * from foo", nil, nil, nil, nil).Read()
