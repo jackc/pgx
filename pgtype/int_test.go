@@ -1,4 +1,5 @@
-// Do not edit. Generated from pgtype/int_test.go.erb
+// Code generated from pgtype/int_test.go.erb. DO NOT EDIT.
+
 package pgtype_test
 
 import (
