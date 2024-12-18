@@ -106,12 +106,12 @@ func main() {
 		panic(err)
 	}
 
-	writeEncryptedPrivateKey("pgx_sslcert.key", clientCertPrivKey, "certpw")
+	err = writeEncryptedPrivateKey("pgx_sslcert.key", clientCertPrivKey, "certpw")
 	if err != nil {
 		panic(err)
 	}
 
-	writeCertificate("pgx_sslcert.crt", clientBytes)
+	err = writeCertificate("pgx_sslcert.crt", clientBytes)
 	if err != nil {
 		panic(err)
 	}
