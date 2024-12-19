@@ -9,11 +9,30 @@ import (
 	"github.com/jackc/puddle/v2"
 )
 
+// Connection is an acquired connection from a Pool.
+//
+// Connection is an interface to allow tests to mock Pool.AcquireConnection.
+type Connection interface {
+	Release()
+	HijackConnection() pgx.Connection
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	Ping(ctx context.Context) error
+	Connection() pgx.Connection
+}
+
 // Conn is an acquired *pgx.Conn from a Pool.
 type Conn struct {
 	res *puddle.Resource[*connResource]
 	p   *Pool
 }
+
+var _ Connection = &Conn{}
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
@@ -83,6 +102,12 @@ func (c *Conn) Hijack() *pgx.Conn {
 	return conn
 }
 
+// HijackConnection assumes ownership of the connection from the pool. Caller is responsible for closing the connection.
+// HijackConnection will panic if called on an already released or hijacked connection.
+func (c *Conn) HijackConnection() pgx.Connection {
+	return c.Hijack()
+}
+
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	return c.Conn().Exec(ctx, sql, arguments...)
 }
@@ -119,6 +144,10 @@ func (c *Conn) Ping(ctx context.Context) error {
 
 func (c *Conn) Conn() *pgx.Conn {
 	return c.connResource().conn
+}
+
+func (c *Conn) Connection() pgx.Connection {
+	return c.Conn()
 }
 
 func (c *Conn) connResource() *connResource {

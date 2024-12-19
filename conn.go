@@ -62,6 +62,28 @@ func (cc *ConnConfig) Copy() *ConnConfig {
 // ConnString returns the connection string as parsed by pgx.ParseConfig into pgx.ConnConfig.
 func (cc *ConnConfig) ConnString() string { return cc.connString }
 
+// Connection is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage
+// access to multiple database connections from multiple goroutines.
+//
+// Connection is an interface to allow tests to mock Pool.AcquireConnection.
+type Connection interface {
+	Close(ctx context.Context) error
+	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
+	Deallocate(ctx context.Context, name string) error
+	DeallocateAll(ctx context.Context) error
+	WaitForNotification(ctx context.Context) (*pgconn.Notification, error)
+	IsClosed() bool
+	Ping(ctx context.Context) error
+	PgConn() *pgconn.PgConn
+	TypeMap() *pgtype.Map
+	Config() *ConnConfig
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) Row
+	SendBatch(ctx context.Context, b *Batch) (br BatchResults)
+	LoadType(ctx context.Context, typeName string) (*pgtype.Type, error)
+}
+
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
 // to multiple database connections from multiple goroutines.
 type Conn struct {
@@ -86,6 +108,8 @@ type Conn struct {
 	wbuf []byte
 	eqb  ExtendedQueryBuilder
 }
+
+var _ Connection = &Conn{}
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
 // multiple parts such as ["schema", "table"] or ["table", "column"].

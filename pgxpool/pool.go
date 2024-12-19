@@ -545,10 +545,28 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 	}
 }
 
+// AcquireConnection returns a Connection from the Pool.
+func (p *Pool) AcquireConnection(ctx context.Context) (c Connection, err error) {
+	return p.Acquire(ctx)
+}
+
 // AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
 // call of f. The return value is either an error acquiring the *Conn or the return value of f. The *Conn is
 // automatically released after the call of f.
 func (p *Pool) AcquireFunc(ctx context.Context, f func(*Conn) error) error {
+	conn, err := p.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	return f(conn)
+}
+
+// AcquireConnectionFunc acquires a Connection and calls f with that Connection. ctx will only affect the Acquire. It
+// has no effect on the call of f. The return value is either an error acquiring the Connection or the return value of
+// f. The Connection is automatically released after the call of f.
+func (p *Pool) AcquireConnectionFunc(ctx context.Context, f func(Connection) error) error {
 	conn, err := p.Acquire(ctx)
 	if err != nil {
 		return err
@@ -563,6 +581,23 @@ func (p *Pool) AcquireFunc(ctx context.Context, f func(*Conn) error) error {
 func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	resources := p.p.AcquireAllIdle()
 	conns := make([]*Conn, 0, len(resources))
+	for _, res := range resources {
+		cr := res.Value()
+		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
+			conns = append(conns, cr.getConn(p, res))
+		} else {
+			res.Destroy()
+		}
+	}
+
+	return conns
+}
+
+// AcquireAllIdleConnections atomically acquires all currently idle connections. Its intended use is for health check
+// and keep-alive functionality. It does not update pool statistics.
+func (p *Pool) AcquireAllIdleConnections(ctx context.Context) []Connection {
+	resources := p.p.AcquireAllIdle()
+	conns := make([]Connection, 0, len(resources))
 	for _, res := range resources {
 		cr := res.Value()
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
