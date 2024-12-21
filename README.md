@@ -84,7 +84,7 @@ It is also possible to use the `database/sql` interface and convert a connection
 
 ## Testing
 
-See CONTRIBUTING.md for setup instructions.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
 
 ## Architecture
 
@@ -126,7 +126,7 @@ pgerrcode contains constants for the PostgreSQL error codes.
 
 ## Adapters for 3rd Party Tracers
 
-* [https://github.com/jackhopner/pgx-xray-tracer](https://github.com/jackhopner/pgx-xray-tracer)
+* [github.com/jackhopner/pgx-xray-tracer](https://github.com/jackhopner/pgx-xray-tracer)
 
 ## Adapters for 3rd Party Loggers
 
@@ -156,7 +156,7 @@ Library for scanning data from a database into Go structs and more.
 A carefully designed SQL client for making using SQL easier,
 more productive, and less error-prone on Golang.
 
-### [https://github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
+### [github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
 
 Adds GSSAPI / Kerberos authentication support.
 
@@ -169,6 +169,6 @@ Explicit data mapping and scanning library for Go structs and slices.
 Type safe and flexible package for scanning database data into Go types.
 Supports, structs, maps, slices and custom mapping functions.
 
-### [https://github.com/z0ne-dev/mgx](https://github.com/z0ne-dev/mgx)
+### [github.com/z0ne-dev/mgx](https://github.com/z0ne-dev/mgx)
 
 Code first migration library for native pgx (no database/sql abstraction).
