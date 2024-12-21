@@ -48,6 +48,8 @@ type TxOptions struct {
 	// BeginQuery is the SQL query that will be executed to begin the transaction. This allows using non-standard syntax
 	// such as BEGIN PRIORITY HIGH with CockroachDB. If set this will override the other settings.
 	BeginQuery string
+	// CommitQuery is the SQL query that will be executed to commit the transaction.
+	CommitQuery string
 }
 
 var emptyTxOptions TxOptions
@@ -105,7 +107,10 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 		return nil, err
 	}
 
-	return &dbTx{conn: c}, nil
+	return &dbTx{
+		conn:        c,
+		commitQuery: txOptions.CommitQuery,
+	}, nil
 }
 
 // Tx represents a database transaction.
@@ -154,6 +159,7 @@ type dbTx struct {
 	conn         *Conn
 	savepointNum int64
 	closed       bool
+	commitQuery  string
 }
 
 // Begin starts a pseudo nested transaction implemented with a savepoint.
@@ -177,7 +183,12 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 		return ErrTxClosed
 	}
 
-	commandTag, err := tx.conn.Exec(ctx, "commit")
+	commandSQL := "commit"
+	if tx.commitQuery != "" {
+		commandSQL = tx.commitQuery
+	}
+
+	commandTag, err := tx.conn.Exec(ctx, commandSQL)
 	tx.closed = true
 	if err != nil {
 		if tx.conn.PgConn().TxStatus() != 'I' {
