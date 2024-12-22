@@ -3,7 +3,6 @@ package pgx
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -103,7 +102,7 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or
 		// a context timeout. In either case, the connection is possibly broken.
-		c.die(errors.New("failed to begin transaction"))
+		c.die()
 		return nil, err
 	}
 
@@ -216,7 +215,7 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 	tx.closed = true
 	if err != nil {
 		// A rollback failure leaves the connection in an undefined state
-		tx.conn.die(fmt.Errorf("rollback failed: %w", err))
+		tx.conn.die()
 		return err
 	}
 
