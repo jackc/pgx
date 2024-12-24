@@ -161,7 +161,7 @@ type derivedTypeInfo struct {
 // The result of this call can be passed into RegisterTypes to complete the process.
 func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Type, error) {
 	m := c.TypeMap()
-	if typeNames == nil || len(typeNames) == 0 {
+	if len(typeNames) == 0 {
 		return nil, fmt.Errorf("No type names were supplied.")
 	}
 
@@ -232,15 +232,15 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		default:
 			return nil, fmt.Errorf("Unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
 		}
-		if type_ != nil {
-			m.RegisterType(type_)
-			if ti.NspName != "" {
-				nspType := &pgtype.Type{Name: ti.NspName + "." + type_.Name, OID: type_.OID, Codec: type_.Codec}
-				m.RegisterType(nspType)
-				result = append(result, nspType)
-			}
-			result = append(result, type_)
+
+		// the type_ is imposible to be null
+		m.RegisterType(type_)
+		if ti.NspName != "" {
+			nspType := &pgtype.Type{Name: ti.NspName + "." + type_.Name, OID: type_.OID, Codec: type_.Codec}
+			m.RegisterType(nspType)
+			result = append(result, nspType)
 		}
+		result = append(result, type_)
 	}
 	return result, nil
 }
