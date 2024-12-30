@@ -161,6 +161,10 @@ func (c *JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 //
 // https://github.com/jackc/pgx/issues/2146
 func isSQLScanner(v any) bool {
+	if _, is := v.(sql.Scanner); is {
+		return true
+	}
+
 	val := reflect.ValueOf(v)
 	for val.Kind() == reflect.Ptr {
 		if _, ok := val.Interface().(sql.Scanner); ok {
@@ -212,7 +216,12 @@ func (s *scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	elem := reflect.ValueOf(dst).Elem()
+	v := reflect.ValueOf(dst)
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return fmt.Errorf("cannot scan into non-pointer or nil destinations %T", dst)
+	}
+
+	elem := v.Elem()
 	elem.Set(reflect.Zero(elem.Type()))
 
 	return s.unmarshal(src, dst)

@@ -415,6 +415,10 @@ func (plan *scanPlanSQLScanner) Scan(src []byte, dst any) error {
 
 // we don't know if the target is a sql.Scanner or a pointer on a sql.Scanner, so we need to check recursively
 func getSQLScanner(target any) sql.Scanner {
+	if sc, is := target.(sql.Scanner); is {
+		return sc
+	}
+
 	val := reflect.ValueOf(target)
 	for val.Kind() == reflect.Ptr {
 		if _, ok := val.Interface().(sql.Scanner); ok {
