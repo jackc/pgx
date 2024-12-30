@@ -1,5 +1,0 @@
-{
-  "go.testEnvVars": {
-    "PGX_TEST_DATABASE":"host=127.0.0.1 user=gamerhound password=gamerhound dbname=gamerhound"
-  }
-}

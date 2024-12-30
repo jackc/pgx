@@ -48,6 +48,7 @@ func TestJSONCodec(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
+	var str string
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "json", []pgxtest.ValueRoundTripTest{
 		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
 		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
@@ -65,6 +66,14 @@ func TestJSONCodec(t *testing.T) {
 		{Issue1805(7), new(Issue1805), isExpectedEq(Issue1805(7))},
 		// Test driver.Scanner is used before json.Unmarshaler (https://github.com/jackc/pgx/issues/2146)
 		{Issue2146(7), new(*Issue2146), isPtrExpectedEq(Issue2146(7))},
+
+		// Test driver.Scanner without pointer receiver (https://github.com/jackc/pgx/issues/2204)
+		{NonPointerJSONScanner{V: stringPtr("{}")}, NonPointerJSONScanner{V: &str}, func(a any) bool {
+			if n, is := a.(NonPointerJSONScanner); is {
+				return *n.V == "{}"
+			}
+			return false
+		}},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -134,6 +143,27 @@ func (i *Issue2146) Scan(src any) error {
 func (i Issue2146) Value() (driver.Value, error) {
 	b, err := json.Marshal(int(i - 1))
 	return string(b), err
+}
+
+type NonPointerJSONScanner struct {
+	V *string
+}
+
+func (i NonPointerJSONScanner) Scan(src any) error {
+	switch c := src.(type) {
+	case string:
+		*i.V = c
+	case []byte:
+		*i.V = string(c)
+	default:
+		return errors.New("unknown source type")
+	}
+
+	return nil
+}
+
+func (i NonPointerJSONScanner) Value() (driver.Value, error) {
+	return i.V, nil
 }
 
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1221414648
