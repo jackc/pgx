@@ -68,12 +68,7 @@ func TestJSONCodec(t *testing.T) {
 		{Issue2146(7), new(*Issue2146), isPtrExpectedEq(Issue2146(7))},
 
 		// Test driver.Scanner without pointer receiver (https://github.com/jackc/pgx/issues/2204)
-		{NonPointerJSONScanner{V: stringPtr("{}")}, NonPointerJSONScanner{V: &str}, func(a any) bool {
-			if n, is := a.(NonPointerJSONScanner); is {
-				return *n.V == "{}"
-			}
-			return false
-		}},
+		{NonPointerJSONScanner{V: stringPtr("{}")}, NonPointerJSONScanner{V: &str}, func(a any) bool { return str == "{}" }},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
