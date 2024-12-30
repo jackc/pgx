@@ -267,7 +267,8 @@ func TestJSONCodecCustomMarshal(t *testing.T) {
 				Unmarshal: func(data []byte, v any) error {
 					return json.Unmarshal([]byte(`{"custom":"value"}`), v)
 				},
-			}})
+			},
+		})
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -276,5 +277,22 @@ func TestJSONCodecCustomMarshal(t *testing.T) {
 		{[]byte(`{"something":"else"}`), new(map[string]any), func(v any) bool {
 			return reflect.DeepEqual(v, map[string]any{"custom": "value"})
 		}},
+	})
+}
+
+func TestJSONCodecScanToNonPointerValues(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		n := 44
+		err := conn.QueryRow(ctx, "select '42'::jsonb").Scan(n)
+		require.Error(t, err)
+
+		var i *int
+		err = conn.QueryRow(ctx, "select '42'::jsonb").Scan(i)
+		require.Error(t, err)
+
+		m := 0
+		err = conn.QueryRow(ctx, "select '42'::jsonb").Scan(&m)
+		require.NoError(t, err)
+		require.Equal(t, 42, m)
 	})
 }
