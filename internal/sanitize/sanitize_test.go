@@ -1,6 +1,8 @@
 package sanitize_test
 
 import (
+	"encoding/hex"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,4 +228,56 @@ func TestQuerySanitize(t *testing.T) {
 			t.Errorf("%d. expected error %v, got %v", i, tt.expected, err)
 		}
 	}
+}
+
+func TestQuoteString(t *testing.T) {
+	tc := func(name, input string) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			got := string(sanitize.QuoteString(nil, input))
+			want := oldQuoteString(input)
+
+			if got != want {
+				t.Errorf("got:  %s", got)
+				t.Fatalf("want: %s", want)
+			}
+		})
+	}
+
+	tc("empty", "")
+	tc("text", "abcd")
+	tc("with quotes", `one's hat is always a cat`)
+}
+
+// This function was used before optimizations.
+// You should keep for testing purposes - we want to ensure there are no breaking changes.
+func oldQuoteString(str string) string {
+	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
+}
+
+func TestQuoteBytes(t *testing.T) {
+	tc := func(name string, input []byte) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			got := string(sanitize.QuoteBytes(nil, input))
+			want := oldQuoteBytes(input)
+
+			if got != want {
+				t.Errorf("got:  %s", got)
+				t.Fatalf("want: %s", want)
+			}
+		})
+	}
+
+	tc("nil", nil)
+	tc("empty", []byte{})
+	tc("text", []byte("abcd"))
+}
+
+// This function was used before optimizations.
+// You should keep for testing purposes - we want to ensure there are no breaking changes.
+func oldQuoteBytes(buf []byte) string {
+	return `'\x` + hex.EncodeToString(buf) + "'"
 }

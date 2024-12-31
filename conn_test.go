@@ -1417,5 +1417,4 @@ func TestErrNoRows(t *testing.T) {
 	require.Equal(t, "no rows in result set", pgx.ErrNoRows.Error())
 
 	require.ErrorIs(t, pgx.ErrNoRows, sql.ErrNoRows, "pgx.ErrNowRows must match sql.ErrNoRows")
-	require.ErrorIs(t, pgx.ErrNoRows, pgx.ErrNoRows, "sql.ErrNowRows must match pgx.ErrNoRows")
 }
