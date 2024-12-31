@@ -172,3 +172,7 @@ Supports, structs, maps, slices and custom mapping functions.
 ### [github.com/z0ne-dev/mgx](https://github.com/z0ne-dev/mgx)
 
 Code first migration library for native pgx (no database/sql abstraction).
+
+### [github.com/amirsalarsafaei/sqlc-pgx-monitoring](https://github.com/amirsalarsafaei/sqlc-pgx-monitoring)
+
+A database monitoring/metrics library for pgx and sqlc. Trace, log and monitor your sqlc query performance using OpenTelemetry.
