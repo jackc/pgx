@@ -12,7 +12,7 @@ type PasswordMessage struct {
 // Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*PasswordMessage) Frontend() {}
 
-// Frontend identifies this message as an authentication response.
+// InitialResponse identifies this message as an authentication response.
 func (*PasswordMessage) InitialResponse() {}
 
 // Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
