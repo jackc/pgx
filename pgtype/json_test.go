@@ -48,6 +48,7 @@ func TestJSONCodec(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
+	var str string
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "json", []pgxtest.ValueRoundTripTest{
 		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
 		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
@@ -65,6 +66,9 @@ func TestJSONCodec(t *testing.T) {
 		{Issue1805(7), new(Issue1805), isExpectedEq(Issue1805(7))},
 		// Test driver.Scanner is used before json.Unmarshaler (https://github.com/jackc/pgx/issues/2146)
 		{Issue2146(7), new(*Issue2146), isPtrExpectedEq(Issue2146(7))},
+
+		// Test driver.Scanner without pointer receiver (https://github.com/jackc/pgx/issues/2204)
+		{NonPointerJSONScanner{V: stringPtr("{}")}, NonPointerJSONScanner{V: &str}, func(a any) bool { return str == "{}" }},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -134,6 +138,27 @@ func (i *Issue2146) Scan(src any) error {
 func (i Issue2146) Value() (driver.Value, error) {
 	b, err := json.Marshal(int(i - 1))
 	return string(b), err
+}
+
+type NonPointerJSONScanner struct {
+	V *string
+}
+
+func (i NonPointerJSONScanner) Scan(src any) error {
+	switch c := src.(type) {
+	case string:
+		*i.V = c
+	case []byte:
+		*i.V = string(c)
+	default:
+		return errors.New("unknown source type")
+	}
+
+	return nil
+}
+
+func (i NonPointerJSONScanner) Value() (driver.Value, error) {
+	return i.V, nil
 }
 
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1221414648
@@ -267,7 +292,8 @@ func TestJSONCodecCustomMarshal(t *testing.T) {
 				Unmarshal: func(data []byte, v any) error {
 					return json.Unmarshal([]byte(`{"custom":"value"}`), v)
 				},
-			}})
+			},
+		})
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -276,5 +302,22 @@ func TestJSONCodecCustomMarshal(t *testing.T) {
 		{[]byte(`{"something":"else"}`), new(map[string]any), func(v any) bool {
 			return reflect.DeepEqual(v, map[string]any{"custom": "value"})
 		}},
+	})
+}
+
+func TestJSONCodecScanToNonPointerValues(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		n := 44
+		err := conn.QueryRow(ctx, "select '42'::jsonb").Scan(n)
+		require.Error(t, err)
+
+		var i *int
+		err = conn.QueryRow(ctx, "select '42'::jsonb").Scan(i)
+		require.Error(t, err)
+
+		m := 0
+		err = conn.QueryRow(ctx, "select '42'::jsonb").Scan(&m)
+		require.NoError(t, err)
+		require.Equal(t, 42, m)
 	})
 }
