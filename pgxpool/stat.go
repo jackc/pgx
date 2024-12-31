@@ -82,3 +82,10 @@ func (s *Stat) MaxLifetimeDestroyCount() int64 {
 func (s *Stat) MaxIdleDestroyCount() int64 {
 	return s.idleDestroyCount
 }
+
+// EmptyAcquireWaitTime returns the cumulative time waited for successful acquires
+// from the pool for a resource to be released or constructed because the pool was
+// empty.
+func (s *Stat) EmptyAcquireWaitTime() time.Duration {
+	return s.s.EmptyAcquireWaitTime()
+}
