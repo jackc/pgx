@@ -104,8 +104,13 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	case "-infinity":
 		*ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
+		tss := *s
 		// PostgreSQL uses ISO 8601 wihout timezone for to_json function and casting from a string to timestampt
-		tim, err := time.Parse(time.RFC3339Nano, *s+"Z")
+		if !strings.HasSuffix(tss, "Z") {
+			tss = tss + "Z"
+		}
+
+		tim, err := time.Parse(time.RFC3339Nano, tss)
 		if err != nil {
 			return err
 		}
