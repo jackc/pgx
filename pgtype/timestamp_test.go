@@ -2,12 +2,14 @@ package pgtype_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -100,12 +102,22 @@ func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 }
 
 func TestTimestampMarshalJSON(t *testing.T) {
+
+	tsStruct := struct {
+		TS pgtype.Timestamp `json:"ts"`
+	}{}
+
+	tm := time.Date(2012, 3, 29, 10, 5, 45, 0, time.UTC)
+	var pgt pgtype.Timestamp
+	_ = pgt.Scan(tm)
+
 	successfulTests := []struct {
 		source pgtype.Timestamp
 		result string
 	}{
 		{source: pgtype.Timestamp{}, result: "null"},
-		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.UTC), Valid: true}, result: "\"2012-03-29T10:05:45Z\""},
+		{source: pgtype.Timestamp{Time: tm, Valid: true}, result: "\"2012-03-29T10:05:45Z\""},
+		{source: pgt, result: "\"2012-03-29T10:05:45Z\""},
 		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}, result: "\"2012-03-29T10:05:45.555Z\""},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}, result: "\"infinity\""},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "\"-infinity\""},
@@ -119,6 +131,12 @@ func TestTimestampMarshalJSON(t *testing.T) {
 		if string(r) != tt.result {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
 		}
+		tsStruct.TS = tt.source
+		b, err := json.Marshal(tsStruct)
+		assert.NoErrorf(t, err, "failed to marshal %v %s", tt.source, err)
+		t2 := tsStruct
+		err = json.Unmarshal(b, &t2)
+		assert.NoErrorf(t, err, "failed to unmarshal %v with %s", tt.source, err)
 	}
 }
 
