@@ -116,9 +116,9 @@ func TestTimestampMarshalJSON(t *testing.T) {
 		result string
 	}{
 		{source: pgtype.Timestamp{}, result: "null"},
-		{source: pgtype.Timestamp{Time: tm, Valid: true}, result: "\"2012-03-29T10:05:45Z\""},
-		{source: pgt, result: "\"2012-03-29T10:05:45Z\""},
-		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}, result: "\"2012-03-29T10:05:45.555Z\""},
+		{source: pgtype.Timestamp{Time: tm, Valid: true}, result: `"2012-03-29T10:05:45"`},
+		{source: pgt, result: `"2012-03-29T10:05:45"`},
+		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}, result: `"2012-03-29T10:05:45.555"`},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}, result: "\"infinity\""},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "\"-infinity\""},
 	}
@@ -137,6 +137,7 @@ func TestTimestampMarshalJSON(t *testing.T) {
 		t2 := tsStruct
 		err = json.Unmarshal(b, &t2)
 		assert.NoErrorf(t, err, "failed to unmarshal %v with %s", tt.source, err)
+		assert.True(t, tsStruct.TS.Time.Unix() == t2.TS.Time.Unix())
 	}
 }
 

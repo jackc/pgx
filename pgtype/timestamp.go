@@ -12,6 +12,7 @@ import (
 )
 
 const pgTimestampFormat = "2006-01-02 15:04:05.999999999"
+const jsonISO8601 = "2006-01-02T15:04:05.999999999"
 
 type TimestampScanner interface {
 	ScanTimestamp(v Timestamp) error
@@ -76,7 +77,7 @@ func (ts Timestamp) MarshalJSON() ([]byte, error) {
 
 	switch ts.InfinityModifier {
 	case Finite:
-		s = ts.Time.Format(time.RFC3339Nano)
+		s = ts.Time.Format(jsonISO8601)
 	case Infinity:
 		s = "infinity"
 	case NegativeInfinity:
@@ -106,16 +107,15 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	default:
 		tss := *s
 		//		PostgreSQL uses ISO 8601 without timezone for to_json function and casting from a string to timestampt
-		if !strings.HasSuffix(tss, "Z") {
-			tss = tss + "Z"
-		}
 
 		tim, err := time.Parse(time.RFC3339Nano, tss)
-		if err != nil {
-			return err
+		if err == nil {
+			*ts = Timestamp{Time: tim, Valid: true}
 		}
-
-		*ts = Timestamp{Time: tim, Valid: true}
+		tim, err = time.Parse(jsonISO8601, tss)
+		if err == nil {
+			*ts = Timestamp{Time: tim, Valid: true}
+		}
 	}
 
 	return nil
