@@ -141,6 +141,18 @@ func TestTimestampMarshalJSON(t *testing.T) {
 	}
 }
 
+func TestTimestampUnmarshalJSONErrors(t *testing.T) {
+	tsStruct := struct {
+		TS pgtype.Timestamp `json:"ts"`
+	}{}
+	goodJson1 := []byte(`{"ts":"2012-03-29T10:05:45"}`)
+	assert.NoError(t, json.Unmarshal(goodJson1, &tsStruct))
+	goodJson2 := []byte(`{"ts":"2012-03-29T10:05:45Z"}`)
+	assert.NoError(t, json.Unmarshal(goodJson2, &tsStruct))
+	badJson := []byte(`{"ts":"2012-03-29"}`)
+	assert.Error(t, json.Unmarshal(badJson, &tsStruct))
+}
+
 func TestTimestampUnmarshalJSON(t *testing.T) {
 	successfulTests := []struct {
 		source string

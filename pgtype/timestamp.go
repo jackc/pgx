@@ -105,19 +105,23 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	case "-infinity":
 		*ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
+		// Parse time with or without timezonr
 		tss := *s
 		//		PostgreSQL uses ISO 8601 without timezone for to_json function and casting from a string to timestampt
-
 		tim, err := time.Parse(time.RFC3339Nano, tss)
 		if err == nil {
 			*ts = Timestamp{Time: tim, Valid: true}
+			return nil
 		}
 		tim, err = time.ParseInLocation(jsonISO8601, tss, time.UTC)
 		if err == nil {
 			*ts = Timestamp{Time: tim, Valid: true}
+			return nil
 		}
+		ts.Valid = false
+		return fmt.Errorf("cannot unmarshal %s to timestamp with layout %s or %s (%w)",
+			*s, time.RFC3339Nano, jsonISO8601, err)
 	}
-
 	return nil
 }
 
