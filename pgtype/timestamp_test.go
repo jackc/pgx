@@ -108,6 +108,7 @@ func TestTimestampMarshalJSON(t *testing.T) {
 	}{}
 
 	tm := time.Date(2012, 3, 29, 10, 5, 45, 0, time.UTC)
+	tsString := "\"" + tm.Format("2006-01-02T15:04:05") + "\"" //  `"2012-03-29T10:05:45"`
 	var pgt pgtype.Timestamp
 	_ = pgt.Scan(tm)
 
@@ -116,9 +117,9 @@ func TestTimestampMarshalJSON(t *testing.T) {
 		result string
 	}{
 		{source: pgtype.Timestamp{}, result: "null"},
-		{source: pgtype.Timestamp{Time: tm, Valid: true}, result: `"2012-03-29T10:05:45"`},
-		{source: pgt, result: `"2012-03-29T10:05:45"`},
-		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}, result: `"2012-03-29T10:05:45.555"`},
+		{source: pgtype.Timestamp{Time: tm, Valid: true}, result: tsString},
+		{source: pgt, result: tsString},
+		{source: pgtype.Timestamp{Time: tm.Add(time.Second * 555 / 1000), Valid: true}, result: `"2012-03-29T10:05:45.555"`},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}, result: "\"infinity\""},
 		{source: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "\"-infinity\""},
 	}
@@ -128,13 +129,14 @@ func TestTimestampMarshalJSON(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if string(r) != tt.result {
+		if !assert.Equal(t, tt.result, string(r)) {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
 		}
 		tsStruct.TS = tt.source
 		b, err := json.Marshal(tsStruct)
 		assert.NoErrorf(t, err, "failed to marshal %v %s", tt.source, err)
 		t2 := tsStruct
+		t2.TS = pgtype.Timestamp{} // Clear out the value so that we can compare after unmarshalling
 		err = json.Unmarshal(b, &t2)
 		assert.NoErrorf(t, err, "failed to unmarshal %v with %s", tt.source, err)
 		assert.True(t, tsStruct.TS.Time.Unix() == t2.TS.Time.Unix())
