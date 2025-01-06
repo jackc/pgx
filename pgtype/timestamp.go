@@ -112,7 +112,7 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 		if err == nil {
 			*ts = Timestamp{Time: tim, Valid: true}
 		}
-		tim, err = time.Parse(jsonISO8601, tss)
+		tim, err = time.ParseInLocation(jsonISO8601, tss, time.UTC)
 		if err == nil {
 			*ts = Timestamp{Time: tim, Valid: true}
 		}
