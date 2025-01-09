@@ -79,7 +79,7 @@ func TestXMLCodecUnmarshalSQLNull(t *testing.T) {
 		// A string cannot scan a NULL.
 		str := "foobar"
 		err = conn.QueryRow(ctx, "select null::xml").Scan(&str)
-		assert.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *string")
+		assert.EqualError(t, err, "can't scan into dest[0] (col: xml): cannot scan NULL into *string")
 	})
 }
 
