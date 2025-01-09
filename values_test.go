@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -215,7 +216,12 @@ func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typena
 	input := []int{1, 2, 234432}
 	var output []int16
 	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
-	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
+	fieldName := typename
+	if conn.PgConn().ParameterStatus("crdb_version") != "" && typename == "json" {
+		fieldName = "jsonb" // Seems like CockroachDB treats json as jsonb.
+	}
+	expectedMessage := fmt.Sprintf("can't scan into dest[0] (col: %s): json: cannot unmarshal number 234432 into Go value of type int16", fieldName)
+	if err == nil || err.Error() != expectedMessage {
 		t.Errorf("%s: Expected *json.UnmarshalTypeError, but got %v", typename, err)
 	}
 }
