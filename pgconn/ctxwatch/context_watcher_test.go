@@ -49,7 +49,7 @@ func TestContextWatcherContextCancelled(t *testing.T) {
 	require.True(t, cleanupCalled, "Cleanup func was not called")
 }
 
-func TestContextWatcherUnwatchdBeforeContextCancelled(t *testing.T) {
+func TestContextWatcherUnwatchedBeforeContextCancelled(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{
 		handleCancel: func(context.Context) {
 			t.Error("cancel func should not have been called")

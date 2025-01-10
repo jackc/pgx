@@ -444,7 +444,7 @@ func (c *Conn) IsClosed() bool {
 	return c.pgConn.IsClosed()
 }
 
-func (c *Conn) die(err error) {
+func (c *Conn) die() {
 	if c.IsClosed() {
 		return
 	}
@@ -610,14 +610,6 @@ func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription
 	result := c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, c.eqb.ResultFormats).Read()
 	c.eqb.reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 	return result.CommandTag, result.Err
-}
-
-type unknownArgumentTypeQueryExecModeExecError struct {
-	arg any
-}
-
-func (e *unknownArgumentTypeQueryExecModeExecError) Error() string {
-	return fmt.Sprintf("cannot use unregistered type %T as query argument in QueryExecModeExec", e.arg)
 }
 
 func (c *Conn) execSQLParams(ctx context.Context, sql string, args []any) (pgconn.CommandTag, error) {

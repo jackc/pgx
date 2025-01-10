@@ -1,3 +1,15 @@
+# 5.7.2 (December 21, 2024)
+
+* Fix prepared statement already exists on batch prepare failure
+* Add commit query to tx options (Lucas Hild)
+* Fix pgtype.Timestamp json unmarshal (Shean de Montigny-Desautels)
+* Add message body size limits in frontend and backend (zene)
+* Add xid8 type
+* Ensure planning encodes and scans cannot infinitely recurse
+* Implement pgtype.UUID.String() (Konstantin Grachev)
+* Switch from ExecParams to Exec in ValidateConnectTargetSessionAttrs functions (Alexander Rumyantsev)
+* Update golang.org/x/crypto
+
 # 5.7.1 (September 10, 2024)
 
 * Fix data race in tracelog.TraceLog

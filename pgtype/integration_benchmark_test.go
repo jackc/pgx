@@ -1,3 +1,5 @@
+// Code generated from pgtype/integration_benchmark_test.go.erb. DO NOT EDIT.
+
 package pgtype_test
 
 import (

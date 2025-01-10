@@ -2,7 +2,7 @@ require "erb"
 
 rule '.go' => '.go.erb' do |task|
   erb = ERB.new(File.read(task.source))
-  File.write(task.name, "// Do not edit. Generated from #{task.source}\n" + erb.result(binding))
+  File.write(task.name, "// Code generated from #{task.source}. DO NOT EDIT.\n\n" + erb.result(binding))
   sh "goimports", "-w", task.name
 end
 
