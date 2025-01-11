@@ -97,3 +97,32 @@ func TestXMLCodecPointerToPointerToString(t *testing.T) {
 		require.Nil(t, s)
 	})
 }
+
+func TestXMLCodecDecodeValue(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB does not support XML.")
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
+		for _, tt := range []struct {
+			sql      string
+			expected any
+		}{
+			{
+				sql:      `select '<foo>bar</foo>'::xml`,
+				expected: []byte("<foo>bar</foo>"),
+			},
+		} {
+			t.Run(tt.sql, func(t *testing.T) {
+				rows, err := conn.Query(ctx, tt.sql)
+				require.NoError(t, err)
+
+				for rows.Next() {
+					values, err := rows.Values()
+					require.NoError(t, err)
+					require.Len(t, values, 1)
+					require.Equal(t, tt.expected, values[0])
+				}
+
+				require.NoError(t, rows.Err())
+			})
+		}
+	})
+}
