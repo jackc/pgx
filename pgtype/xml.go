@@ -192,7 +192,7 @@ func (c *XMLCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 		return nil, nil
 	}
 
-	dstBuf := make([]byte, len(src))
-	copy(dstBuf, src)
-	return dstBuf, nil
+	var dst any
+	err := c.Unmarshal(src, &dst)
+	return dst, err
 }
