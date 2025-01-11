@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -191,11 +192,15 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		// A string cannot scan a NULL.
 		str := "foobar"
 		err = conn.QueryRow(ctx, "select null::json").Scan(&str)
-		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *string")
+		fieldName := "json"
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			fieldName = "jsonb" // Seems like CockroachDB treats json as jsonb.
+		}
+		require.EqualError(t, err, fmt.Sprintf("can't scan into dest[0] (col: %s): cannot scan NULL into *string", fieldName))
 
 		// A non-string cannot scan a NULL.
 		err = conn.QueryRow(ctx, "select null::json").Scan(&n)
-		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *int")
+		require.EqualError(t, err, fmt.Sprintf("can't scan into dest[0] (col: %s): cannot scan NULL into *int", fieldName))
 	})
 }
 
