@@ -20,14 +20,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/jackc/pgx/v5"
 )
 
 func main() {
-	// urlExample := "postgres://username:password@localhost:5432/database_name"
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	username := "username"
+	password := "password"
+	host := "localhost"
+	port := "5432"
+	databaseName := "database_name"
+	escapedPassword := url.QueryEscape(password) 
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", username, escapedPassword, host, port, databaseName)
+	config, err := pgx.ParseConfig(connString)
+	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
