@@ -85,10 +85,8 @@ func (tstz Timestamptz) MarshalJSON() ([]byte, error) {
 	switch tstz.InfinityModifier {
 	case Finite:
 		s = tstz.Time.Format(time.RFC3339Nano)
-	case Infinity:
-		s = "infinity"
-	case NegativeInfinity:
-		s = "-infinity"
+	case Infinity, NegativeInfinity:
+		s = tstz.InfinityModifier.String()
 	}
 
 	return json.Marshal(s)
@@ -213,10 +211,8 @@ func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []by
 		if bc {
 			s = s + " BC"
 		}
-	case Infinity:
-		s = "infinity"
-	case NegativeInfinity:
-		s = "-infinity"
+	case Infinity, NegativeInfinity:
+		s = ts.InfinityModifier.String()
 	}
 
 	buf = append(buf, s...)
