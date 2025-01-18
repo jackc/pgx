@@ -272,7 +272,7 @@ func (rows *baseRows) Scan(dest ...any) error {
 
 		err := rows.scanPlans[i].Scan(values[i], dst)
 		if err != nil {
-			err = ScanArgError{ColumnIndex: i, Err: err}
+			err = ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 			rows.fatal(err)
 			return err
 		}
@@ -334,11 +334,16 @@ func (rows *baseRows) Conn() *Conn {
 
 type ScanArgError struct {
 	ColumnIndex int
+	FieldName   string
 	Err         error
 }
 
 func (e ScanArgError) Error() string {
-	return fmt.Sprintf("can't scan into dest[%d]: %v", e.ColumnIndex, e.Err)
+	if e.FieldName == "?column?" { // Don't include the fieldname if it's unknown
+		return fmt.Sprintf("can't scan into dest[%d]: %v", e.ColumnIndex, e.Err)
+	}
+
+	return fmt.Sprintf("can't scan into dest[%d] (col: %s): %v", e.ColumnIndex, e.FieldName, e.Err)
 }
 
 func (e ScanArgError) Unwrap() error {
@@ -366,7 +371,7 @@ func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgconn.FieldDescription, v
 
 		err := typeMap.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
 		if err != nil {
-			return ScanArgError{ColumnIndex: i, Err: err}
+			return ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 		}
 	}
 
