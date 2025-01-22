@@ -326,3 +326,34 @@ func TestJSONCodecScanToNonPointerValues(t *testing.T) {
 		require.Equal(t, 42, m)
 	})
 }
+
+func TestJSONCodecScanNull(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var dest struct{}
+		err := conn.QueryRow(ctx, "select null::jsonb").Scan(&dest)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot scan NULL into *struct {}")
+
+		err = conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&dest)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot scan NULL into *struct {}")
+
+		var destPointer *struct{}
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&destPointer)
+		require.NoError(t, err)
+		require.Nil(t, destPointer)
+
+		err = conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&destPointer)
+		require.NoError(t, err)
+		require.Nil(t, destPointer)
+	})
+}
+
+func TestJSONCodecScanNullToPointerToSQLScanner(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var dest *Issue2146
+		err := conn.QueryRow(ctx, "select null::jsonb").Scan(&dest)
+		require.NoError(t, err)
+		require.Nil(t, dest)
+	})
+}

@@ -71,6 +71,27 @@ func (c *JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Enco
 	}
 }
 
+// JSON needs its on scan plan for pointers to handle 'null'::json(b).
+// Consider making pointerPointerScanPlan more flexible in the future.
+type jsonPointerScanPlan struct {
+	next ScanPlan
+}
+
+func (p jsonPointerScanPlan) Scan(src []byte, dst any) error {
+	el := reflect.ValueOf(dst).Elem()
+	if src == nil || string(src) == "null" {
+		el.SetZero()
+		return nil
+	}
+
+	el.Set(reflect.New(el.Type().Elem()))
+	if p.next != nil {
+		return p.next.Scan(src, el.Interface())
+	}
+
+	return nil
+}
+
 type encodePlanJSONCodecEitherFormatString struct{}
 
 func (encodePlanJSONCodecEitherFormatString) Encode(value any, buf []byte) (newBuf []byte, err error) {
@@ -117,62 +138,36 @@ func (e *encodePlanJSONCodecEitherFormatMarshal) Encode(value any, buf []byte) (
 	return buf, nil
 }
 
-func (c *JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-	switch target.(type) {
-	case *string:
-		return scanPlanAnyToString{}
-
-	case **string:
-		// This is to fix **string scanning. It seems wrong to special case **string, but it's not clear what a better
-		// solution would be.
-		//
-		// https://github.com/jackc/pgx/issues/1470 -- **string
-		// https://github.com/jackc/pgx/issues/1691 -- ** anything else
-
-		if wrapperPlan, nextDst, ok := TryPointerPointerScanPlan(target); ok {
-			if nextPlan := m.planScan(oid, format, nextDst, 0); nextPlan != nil {
-				if _, failed := nextPlan.(*scanPlanFail); !failed {
-					wrapperPlan.SetNext(nextPlan)
-					return wrapperPlan
-				}
-			}
-		}
-
-	case *[]byte:
-		return scanPlanJSONToByteSlice{}
-	case BytesScanner:
-		return scanPlanBinaryBytesToBytesScanner{}
-
-	}
-
-	// Cannot rely on sql.Scanner being handled later because scanPlanJSONToJSONUnmarshal will take precedence.
-	//
-	// https://github.com/jackc/pgx/issues/1418
-	if isSQLScanner(target) {
-		return &scanPlanSQLScanner{formatCode: format}
-	}
-
-	return &scanPlanJSONToJSONUnmarshal{
-		unmarshal: c.Unmarshal,
-	}
+func (c *JSONCodec) PlanScan(m *Map, oid uint32, formatCode int16, target any) ScanPlan {
+	return c.planScan(m, oid, formatCode, target, 0)
 }
 
-// we need to check if the target is a pointer to a sql.Scanner (or any of the pointer ref tree implements a sql.Scanner).
-//
-// https://github.com/jackc/pgx/issues/2146
-func isSQLScanner(v any) bool {
-	if _, is := v.(sql.Scanner); is {
-		return true
+// JSON cannot fallback to pointerPointerScanPlan because of 'null'::json(b),
+// so we need to duplicate the logic here.
+func (c *JSONCodec) planScan(m *Map, oid uint32, formatCode int16, target any, depth int) ScanPlan {
+	if depth > 8 {
+		return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
 	}
 
-	val := reflect.ValueOf(v)
-	for val.Kind() == reflect.Ptr {
-		if _, ok := val.Interface().(sql.Scanner); ok {
-			return true
-		}
-		val = val.Elem()
+	switch target.(type) {
+	case *string:
+		return &scanPlanAnyToString{}
+	case *[]byte:
+		return &scanPlanJSONToByteSlice{}
+	case BytesScanner:
+		return &scanPlanBinaryBytesToBytesScanner{}
+	case sql.Scanner:
+		return &scanPlanSQLScanner{formatCode: formatCode}
 	}
-	return false
+
+	rv := reflect.ValueOf(target)
+	if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Pointer {
+		var plan jsonPointerScanPlan
+		plan.next = c.planScan(m, oid, formatCode, rv.Elem().Interface(), depth+1)
+		return plan
+	} else {
+		return &scanPlanJSONToJSONUnmarshal{unmarshal: c.Unmarshal}
+	}
 }
 
 type scanPlanAnyToString struct{}
@@ -202,7 +197,7 @@ type scanPlanJSONToJSONUnmarshal struct {
 }
 
 func (s *scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
-	if src == nil {
+	if src == nil || string(src) == "null" {
 		dstValue := reflect.ValueOf(dst)
 		if dstValue.Kind() == reflect.Ptr {
 			el := dstValue.Elem()

@@ -396,11 +396,7 @@ type scanPlanSQLScanner struct {
 }
 
 func (plan *scanPlanSQLScanner) Scan(src []byte, dst any) error {
-	scanner := getSQLScanner(dst)
-
-	if scanner == nil {
-		return fmt.Errorf("cannot scan into %T", dst)
-	}
+	scanner := dst.(sql.Scanner)
 
 	if src == nil {
 		// This is necessary because interface value []byte:nil does not equal nil:nil for the binary format path and the
@@ -411,25 +407,6 @@ func (plan *scanPlanSQLScanner) Scan(src []byte, dst any) error {
 	} else {
 		return scanner.Scan(string(src))
 	}
-}
-
-// we don't know if the target is a sql.Scanner or a pointer on a sql.Scanner, so we need to check recursively
-func getSQLScanner(target any) sql.Scanner {
-	if sc, is := target.(sql.Scanner); is {
-		return sc
-	}
-
-	val := reflect.ValueOf(target)
-	for val.Kind() == reflect.Ptr {
-		if _, ok := val.Interface().(sql.Scanner); ok {
-			if val.IsNil() {
-				val.Set(reflect.New(val.Type().Elem()))
-			}
-			return val.Interface().(sql.Scanner)
-		}
-		val = val.Elem()
-	}
-	return nil
 }
 
 type scanPlanString struct{}
