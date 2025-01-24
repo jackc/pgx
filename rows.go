@@ -667,18 +667,21 @@ func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
 	return &value, err
 }
 
-// AllRowsScanned returns iterator that read and scans rows one-by-one. It closes
-// the rows automatically on return.
+// AllRowsScanned returns an iterator that reads and scans rows one-by-one. It automatically
+// closes the rows when done.
 //
-// In case rows.Err() returns non-nil error after all rows are read, it will
-// trigger extra yield with zero value and the error.
+// If rows.Err() returns a non-nil error after all rows are read, it will trigger an extra
+// yield with a zero value and the error.
+//
+// If the caller's logic implies the possibility of an early loop break, rows.Err() should
+// be checked after the loop.
 func AllRowsScanned[T any](rows Rows, fn RowToFunc[T]) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		defer rows.Close()
 
 		for rows.Next() {
 			if !yield(fn(rows)) {
-				break
+				return
 			}
 		}
 
