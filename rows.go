@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"reflect"
 	"strings"
 	"sync"
@@ -664,6 +665,30 @@ func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
 	var value T
 	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
 	return &value, err
+}
+
+// AllRowsScanned returns iterator that read and scans rows one-by-one. It closes
+// the rows automatically on return.
+//
+// In case rows.Err() returns non-nil error after all rows are read, it will
+// trigger extra yield with zero value and the error.
+func AllRowsScanned[T any](rows Rows, fn RowToFunc[T]) iter.Seq2[T, error] {
+	return func(yield func(T, error) bool) {
+		defer rows.Close()
+
+		for rows.Next() {
+			if !yield(fn(rows)) {
+				break
+			}
+		}
+
+		// we don't have another choice but to push one more time
+		// in order to propagate the error to user
+		if err := rows.Err(); err != nil {
+			var zero T
+			yield(zero, err)
+		}
+	}
 }
 
 type namedStructRowScanner struct {
