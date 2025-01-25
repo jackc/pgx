@@ -653,11 +653,12 @@ const (
 	// should implement pgtype.Int64Valuer.
 	QueryExecModeExec
 
-	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments. Queries
-	// are executed in a single round trip. Type mappings can be registered with pgtype.Map.RegisterDefaultPgType. Queries
-	// will be rejected that have arguments that are unregistered or ambiguous. e.g. A map[string]string may have the
-	// PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use a map[string]string directly as an
-	// argument. This mode cannot.
+	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments. This is
+	// especially significant for []byte values. []byte values are encoded as PostgreSQL bytea. string must be used
+	// instead for text type values including json and jsonb. Type mappings can be registered with
+	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambiguous.
+	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use a
+	// map[string]string directly as an argument. This mode cannot. Queries are executed in a single round trip.
 	//
 	// QueryExecModeSimpleProtocol should have the user application visible behavior as QueryExecModeExec. This includes
 	// the warning regarding differences in text format and binary format encoding with user defined types. There may be
