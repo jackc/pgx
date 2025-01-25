@@ -3,7 +3,8 @@
 
 ---
 
-This is the previous stable `v4` release. `v5` been released.
+This is the previous stable `v4` release. `v5` been released. `v4` will reach end-of-life on July 1, 2025. Only security
+bug fixes will be made to this version.
 
 ---
 # pgx - PostgreSQL Driver and Toolkit
