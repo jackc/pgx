@@ -176,3 +176,7 @@ Code first migration library for native pgx (no database/sql abstraction).
 ### [github.com/amirsalarsafaei/sqlc-pgx-monitoring](https://github.com/amirsalarsafaei/sqlc-pgx-monitoring)
 
 A database monitoring/metrics library for pgx and sqlc. Trace, log and monitor your sqlc query performance using OpenTelemetry.
+
+### [https://github.com/nikolayk812/pgx-outbox](https://github.com/nikolayk812/pgx-outbox)
+
+Simple Golang implementation for transactional outbox pattern for PostgreSQL using jackc/pgx driver.
