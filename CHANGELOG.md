@@ -9,6 +9,7 @@
 * Implement pgtype.UUID.String() (Konstantin Grachev)
 * Switch from ExecParams to Exec in ValidateConnectTargetSessionAttrs functions (Alexander Rumyantsev)
 * Update golang.org/x/crypto
+* Fix json(b) columns prefer sql.Scanner interface like database/sql (Ludovico Russo)
 
 # 5.7.1 (September 10, 2024)
 
