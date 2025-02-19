@@ -268,12 +268,15 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 
 		var pgErr *PgError
 		if errors.As(err, &pgErr) {
-			const ERRCODE_INVALID_PASSWORD = "28P01"                    // wrong password
-			const ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION = "28000" // wrong password or bad pg_hba.conf settings
-			const ERRCODE_INVALID_CATALOG_NAME = "3D000"                // db does not exist
-			const ERRCODE_INSUFFICIENT_PRIVILEGE = "42501"              // missing connect privilege
+			// pgx will try next host even if libpq does not in certain cases (see #2246)
+			// consider change for the next major version
+
+			const ERRCODE_INVALID_PASSWORD = "28P01"
+			const ERRCODE_INVALID_CATALOG_NAME = "3D000"   // db does not exist
+			const ERRCODE_INSUFFICIENT_PRIVILEGE = "42501" // missing connect privilege
+
+			// auth failed due to invalid password, db does not exist or user has no permission
 			if pgErr.Code == ERRCODE_INVALID_PASSWORD ||
-				pgErr.Code == ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION && c.tlsConfig != nil ||
 				pgErr.Code == ERRCODE_INVALID_CATALOG_NAME ||
 				pgErr.Code == ERRCODE_INSUFFICIENT_PRIVILEGE {
 				return nil, allErrors
