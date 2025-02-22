@@ -53,8 +53,8 @@ similar fashion to database/sql. The second is to use a pointer to a pointer.
         return err
     }
 
-When using nullable pgtype types as parameters for queries, one has to remember
-to explicitly set their Valid field to true, otherwise the parameter's value will be NULL.
+When using nullable pgtype types as parameters for queries, one has to remember to explicitly set their Valid field to
+true, otherwise the parameter's value will be NULL.
 
 JSON Support
 
@@ -159,11 +159,10 @@ example_child_records_test.go for an example.
 
 Overview of Scanning Implementation
 
-The first step is to use the OID to lookup the correct Codec. If the OID is unavailable, Map will try to find the OID
-from previous calls of Map.RegisterDefaultPgType. The Map will call the Codec's PlanScan method to get a plan for
-scanning into the Go value. A Codec will support scanning into one or more Go types. Oftentime these Go types are
-interfaces rather than explicit types. For example, PointCodec can use any Go type that implements the PointScanner and
-PointValuer interfaces.
+The first step is to use the OID to lookup the correct Codec. The Map will call the Codec's PlanScan method to get a
+plan for scanning into the Go value. A Codec will support scanning into one or more Go types. Oftentime these Go types
+are interfaces rather than explicit types. For example, PointCodec can use any Go type that implements the PointScanner
+and PointValuer interfaces.
 
 If a Go value is not supported directly by a Codec then Map will try wrapping it with additional logic and try again.
 For example, Int8Codec does not support scanning into a renamed type (e.g. type myInt64 int64). But Map will detect that
