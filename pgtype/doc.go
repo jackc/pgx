@@ -164,6 +164,12 @@ plan for scanning into the Go value. A Codec will support scanning into one or m
 are interfaces rather than explicit types. For example, PointCodec can use any Go type that implements the PointScanner
 and PointValuer interfaces.
 
+If a Go value is not supported directly by a Codec then Map will try see if it is a sql.Scanner. If is then that
+interface will be used to scan the value. Most sql.Scanners require the input to be in the text format (e.g. UUIDs and
+numeric). However, pgx will typically have received the value in the binary format. In this case the binary value will be
+parsed, reencoded as text, and then passed to the sql.Scanner. This may incur additional overhead for query results with
+a large number of affected values.
+
 If a Go value is not supported directly by a Codec then Map will try wrapping it with additional logic and try again.
 For example, Int8Codec does not support scanning into a renamed type (e.g. type myInt64 int64). But Map will detect that
 myInt64 is a renamed type and create a plan that converts the value to the underlying int64 type and then passes that to
