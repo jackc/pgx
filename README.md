@@ -180,3 +180,7 @@ A database monitoring/metrics library for pgx and sqlc. Trace, log and monitor y
 ### [https://github.com/nikolayk812/pgx-outbox](https://github.com/nikolayk812/pgx-outbox)
 
 Simple Golang implementation for transactional outbox pattern for PostgreSQL using jackc/pgx driver.
+
+### [https://github.com/Arlandaren/pgxWrappy](https://github.com/Arlandaren/pgxWrappy)
+
+Simplifies working with the pgx library, providing convenient scanning of nested structures.
