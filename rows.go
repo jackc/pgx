@@ -188,6 +188,8 @@ func (rows *baseRows) Close() {
 	} else if rows.queryTracer != nil {
 		rows.queryTracer.TraceQueryEnd(rows.ctx, rows.conn, TraceQueryEndData{rows.commandTag, rows.err})
 	}
+
+	rows.args = nil
 }
 
 func (rows *baseRows) CommandTag() pgconn.CommandTag {
