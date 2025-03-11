@@ -12,14 +12,17 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/puddle/v2"
 )
 
-var defaultMaxConns = int32(4)
-var defaultMinConns = int32(0)
-var defaultMaxConnLifetime = time.Hour
-var defaultMaxConnIdleTime = time.Minute * 30
-var defaultHealthCheckPeriod = time.Minute
+var (
+	defaultMaxConns          = int32(4)
+	defaultMinConns          = int32(0)
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = time.Minute * 30
+	defaultHealthCheckPeriod = time.Minute
+)
 
 type connResource struct {
 	conn       *pgx.Conn
@@ -100,6 +103,48 @@ type Pool struct {
 
 	closeOnce sync.Once
 	closeChan chan struct{}
+}
+
+// LoadTypesAfterConnect is suitable for assigning to the AfterConnect configuration setting.
+// It will automatically load the named types for each connection in an efficient manner,
+// performing a single query to the database backend. The underlying call to pgx.LoadTypes
+// is smart enough to also retrieve any related types required to support the definition of the
+// named types.
+// If reuseTypeMap is enabled, it is assumed that the OID mapping is stable across all database
+// backends in this pool, resulting in only needing to query when creating the initial connection;
+// subsequent connections will reuse the same OID type mapping.
+// Because it is not always possible for a client to know the database topology in the final usage
+// context, PGXPOOL_REUSE_TYPEMAP, when given a value of y or n, will take precedence over this argument.
+func LoadTypesAfterConnect(typeNames []string, reuseTypeMap bool) func(context.Context, *pgx.Conn) error {
+	if reuseTypeMap {
+		mutex := new(sync.Mutex)
+		var types []*pgtype.Type
+		return func(ctx context.Context, conn *pgx.Conn) error {
+			mutex.Lock()
+			defer mutex.Unlock()
+			var err error
+
+			if types != nil {
+				conn.TypeMap().RegisterTypes(types)
+				return nil
+			}
+			types, err = conn.LoadTypes(ctx, typeNames)
+			if err != nil {
+				types = nil
+				return err
+			}
+			conn.TypeMap().RegisterTypes(types)
+			return nil
+		}
+	}
+	return func(ctx context.Context, conn *pgx.Conn) error {
+		types, err := conn.LoadTypes(ctx, typeNames)
+		if err != nil {
+			return err
+		}
+		conn.TypeMap().RegisterTypes(types)
+		return nil
+	}
 }
 
 // Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
