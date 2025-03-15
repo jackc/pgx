@@ -147,6 +147,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgxpool.Config, testName
 	assert.Equalf(t, expected.MaxConnIdleTime, actual.MaxConnIdleTime, "%s - MaxConnIdleTime", testName)
 	assert.Equalf(t, expected.MaxConns, actual.MaxConns, "%s - MaxConns", testName)
 	assert.Equalf(t, expected.MinConns, actual.MinConns, "%s - MinConns", testName)
+	assert.Equalf(t, expected.MinIdleConns, actual.MinIdleConns, "%s - MinIdleConns", testName)
 	assert.Equalf(t, expected.HealthCheckPeriod, actual.HealthCheckPeriod, "%s - HealthCheckPeriod", testName)
 
 	assertConnConfigsEqual(t, expected.ConnConfig, actual.ConnConfig, testName)

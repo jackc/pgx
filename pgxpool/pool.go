@@ -17,6 +17,7 @@ import (
 
 var defaultMaxConns = int32(4)
 var defaultMinConns = int32(0)
+var defaultMinIdleConns = int32(0)
 var defaultMaxConnLifetime = time.Hour
 var defaultMaxConnIdleTime = time.Minute * 30
 var defaultHealthCheckPeriod = time.Minute
@@ -87,6 +88,7 @@ type Pool struct {
 	afterRelease          func(*pgx.Conn) bool
 	beforeClose           func(*pgx.Conn)
 	minConns              int32
+	minIdleConns          int32
 	maxConns              int32
 	maxConnLifetime       time.Duration
 	maxConnLifetimeJitter time.Duration
@@ -144,6 +146,13 @@ type Config struct {
 	// to create new connections.
 	MinConns int32
 
+	// MinIdleConns is the minimum number of idle connections in the pool. You can increase this to ensure that
+	// there are always idle connections available. This can help reduce tail latencies during request processing,
+	// as you can avoid the latency of establishing a new connection while handling requests. It is superior
+	// to MinConns for this purpose.
+	// Similar to MinConns, the pool might temporarily dip below MinIdleConns after connection closes.
+	MinIdleConns int32
+
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
@@ -189,6 +198,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		afterRelease:          config.AfterRelease,
 		beforeClose:           config.BeforeClose,
 		minConns:              config.MinConns,
+		minIdleConns:          config.MinIdleConns,
 		maxConns:              config.MaxConns,
 		maxConnLifetime:       config.MaxConnLifetime,
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
@@ -271,7 +281,8 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	}
 
 	go func() {
-		p.createIdleResources(ctx, int(p.minConns))
+		targetIdleResources := max(int(p.minConns), int(p.minIdleConns))
+		p.createIdleResources(ctx, targetIdleResources)
 		p.backgroundHealthCheck()
 	}()
 
@@ -332,6 +343,17 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MinConns = int32(n)
 	} else {
 		config.MinConns = defaultMinConns
+	}
+
+	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_min_idle_conns"]; ok {
+		delete(connConfig.Config.RuntimeParams, "pool_min_idle_conns")
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse pool_min_idle_conns: %w", err)
+		}
+		config.MinIdleConns = int32(n)
+	} else {
+		config.MinIdleConns = defaultMinIdleConns
 	}
 
 	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_max_conn_lifetime"]; ok {
@@ -472,7 +494,9 @@ func (p *Pool) checkMinConns() error {
 	// TotalConns can include ones that are being destroyed but we should have
 	// sleep(500ms) around all of the destroys to help prevent that from throwing
 	// off this check
-	toCreate := p.minConns - p.Stat().TotalConns()
+
+	// Create the number of connections needed to get to both minConns and minIdleConns
+	toCreate := max(p.minConns-p.Stat().TotalConns(), p.minIdleConns-p.Stat().IdleConns())
 	if toCreate > 0 {
 		return p.createIdleResources(context.Background(), int(toCreate))
 	}
