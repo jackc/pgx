@@ -43,10 +43,11 @@ func TestConnectConfig(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1")
+	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_min_idle_conns=2")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
 	assert.EqualValues(t, 1, config.MinConns)
+	assert.EqualValues(t, 2, config.MinIdleConns)
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
 }
