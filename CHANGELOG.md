@@ -1,3 +1,16 @@
+# 5.7.3 (March 21, 2025)
+
+* Expose EmptyAcquireWaitTime in pgxpool.Stat (vamshiaruru32)
+* Improve SQL sanitizer performance (ninedraft)
+* Fix Scan confusion with json(b), sql.Scanner, and automatic dereferencing (moukoublen, felix-roehrich)
+* Fix Values() for xml type always returning nil instead of []byte
+* Add ability to send Flush message in pipeline mode (zenkovev)
+* Fix pgtype.Timestamp's JSON behavior to match PostgreSQL (pconstantinou)
+* Better error messages when scanning structs (logicbomb)
+* Fix handling of error on batch write (bonnefoa)
+* Match libpq's connection fallback behavior more closely (felix-roehrich)
+* Add MinIdleConns to pgxpool (djahandarie)
+
 # 5.7.2 (December 21, 2024)
 
 * Fix prepared statement already exists on batch prepare failure
