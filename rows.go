@@ -473,6 +473,8 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 		return value, err
 	}
 
+	// The defer rows.Close() won't have executed yet. If the query returned more than one row, rows would still be open.
+	// rows.Close() must be called before rows.Err() so we explicitly call it here.
 	rows.Close()
 	return value, rows.Err()
 }
