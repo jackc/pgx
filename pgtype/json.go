@@ -197,7 +197,7 @@ type scanPlanJSONToJSONUnmarshal struct {
 }
 
 func (s *scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
-	if src == nil || string(src) == "null" {
+	if src == nil {
 		dstValue := reflect.ValueOf(dst)
 		if dstValue.Kind() == reflect.Ptr {
 			el := dstValue.Elem()
