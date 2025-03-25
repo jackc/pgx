@@ -1,3 +1,7 @@
+# 5.7.4 (March 24, 2025)
+
+* Fix / revert change to scanning JSON `null` (Felix Röhrich)
+
 # 5.7.3 (March 21, 2025)
 
 * Expose EmptyAcquireWaitTime in pgxpool.Stat (vamshiaruru32)
