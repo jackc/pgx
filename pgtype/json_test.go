@@ -335,8 +335,7 @@ func TestJSONCodecScanNull(t *testing.T) {
 		require.Contains(t, err.Error(), "cannot scan NULL into *struct {}")
 
 		err = conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&dest)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot scan NULL into *struct {}")
+		require.NoError(t, err)
 
 		var destPointer *struct{}
 		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&destPointer)
@@ -346,6 +345,10 @@ func TestJSONCodecScanNull(t *testing.T) {
 		err = conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&destPointer)
 		require.NoError(t, err)
 		require.Nil(t, destPointer)
+
+		var raw json.RawMessage
+		require.NoError(t, conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&raw))
+		require.Equal(t, json.RawMessage("null"), raw)
 	})
 }
 
