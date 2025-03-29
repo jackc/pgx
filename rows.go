@@ -451,6 +451,42 @@ func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 	return AppendRows([]T{}, rows, fn)
 }
 
+// AppendFilteredRows iterates through rows, calling fn for each row, and appending the results into a slice of T.
+// If filter is not nil, only rows for which filter returns true will be appended, If filter is nil, all rows will be appended.
+// This function closes the rows automatically on return.
+func AppendFilteredRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T], filter func(T)bool) (S, error){
+	defer rows.Close()
+
+	for rows.Next() {
+		value, err := fn(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		if filter == nil{
+			slice = append(slice, value)
+			continue
+		}
+
+		if filter(value){
+			slice = append(slice, value)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return slice, nil
+}
+
+// CollectFilteredRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
+// If filter is not nil, only rows for which filter returns true will be collected, If filter is nil, all rows will be collected.
+// This function closes the rows automatically on return.
+func CollectFilteredRows[T any](rows Rows, fn RowToFunc[T], filter func(T)bool) ([]T, error){
+	return AppendFilteredRows([]T{}, rows, fn, filter)
+}
+
 // CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
 // CollectOneRow is to CollectRows as QueryRow is to Query.
 //
