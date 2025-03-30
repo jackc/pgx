@@ -665,7 +665,9 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 
 	if sslnegotiation == "direct" {
 		tlsConfig.NextProtos = []string{"postgresql"}
-		sslmode = "require"
+		if sslmode == "prefer" {
+			sslmode = "require"
+		}
 	}
 
 	if sslrootcert != "" {
