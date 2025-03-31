@@ -329,7 +329,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			tlsConn net.Conn
 			err     error
 		)
-		if config.Sslnegotiation == "direct" {
+		if config.SSLnegotiation == "direct" {
 			tlsConn = tls.Client(pgConn.conn, connectConfig.tlsConfig)
 		} else {
 			tlsConn, err = startTLS(pgConn.conn, connectConfig.tlsConfig)
