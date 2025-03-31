@@ -51,6 +51,8 @@ type Config struct {
 	KerberosSpn     string
 	Fallbacks       []*FallbackConfig
 
+	SSLNegotiation string // sslnegotiation=postgres or sslnegotiation=direct
+
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
 	// fallback config is tried. This allows implementing high availability behavior such as libpq does with target_session_attrs.
@@ -318,6 +320,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"sslkey":               {},
 		"sslcert":              {},
 		"sslrootcert":          {},
+		"sslnegotiation":       {},
 		"sslpassword":          {},
 		"sslsni":               {},
 		"krbspn":               {},
@@ -386,6 +389,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Port = fallbacks[0].Port
 	config.TLSConfig = fallbacks[0].TLSConfig
 	config.Fallbacks = fallbacks[1:]
+	config.SSLNegotiation = settings["sslnegotiation"]
 
 	passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 	if err == nil {
@@ -449,6 +453,7 @@ func parseEnvSettings() map[string]string {
 		"PGSSLSNI":             "sslsni",
 		"PGSSLROOTCERT":        "sslrootcert",
 		"PGSSLPASSWORD":        "sslpassword",
+		"PGSSLNEGOTIATION":     "sslnegotiation",
 		"PGTARGETSESSIONATTRS": "target_session_attrs",
 		"PGSERVICE":            "service",
 		"PGSERVICEFILE":        "servicefile",
@@ -646,6 +651,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	sslkey := settings["sslkey"]
 	sslpassword := settings["sslpassword"]
 	sslsni := settings["sslsni"]
+	sslnegotiation := settings["sslnegotiation"]
 
 	// Match libpq default behavior
 	if sslmode == "" {
@@ -656,6 +662,13 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	}
 
 	tlsConfig := &tls.Config{}
+
+	if sslnegotiation == "direct" {
+		tlsConfig.NextProtos = []string{"postgresql"}
+		if sslmode == "prefer" {
+			sslmode = "require"
+		}
+	}
 
 	if sslrootcert != "" {
 		var caCertPool *x509.CertPool

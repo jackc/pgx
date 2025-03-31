@@ -325,7 +325,15 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	if connectConfig.tlsConfig != nil {
 		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
 		pgConn.contextWatcher.Watch(ctx)
-		tlsConn, err := startTLS(pgConn.conn, connectConfig.tlsConfig)
+		var (
+			tlsConn net.Conn
+			err     error
+		)
+		if config.SSLNegotiation == "direct" {
+			tlsConn = tls.Client(pgConn.conn, connectConfig.tlsConfig)
+		} else {
+			tlsConn, err = startTLS(pgConn.conn, connectConfig.tlsConfig)
+		}
 		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
 		if err != nil {
 			pgConn.conn.Close()
