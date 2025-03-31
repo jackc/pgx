@@ -51,7 +51,7 @@ type Config struct {
 	KerberosSpn     string
 	Fallbacks       []*FallbackConfig
 
-	Sslnegotiation string // sslnegotiation=postgres or sslnegotiation=direct
+	SSLnegotiation string // sslnegotiation=postgres or sslnegotiation=direct
 
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
@@ -389,7 +389,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Port = fallbacks[0].Port
 	config.TLSConfig = fallbacks[0].TLSConfig
 	config.Fallbacks = fallbacks[1:]
-	config.Sslnegotiation = settings["sslnegotiation"]
+	config.SSLnegotiation = settings["sslnegotiation"]
 
 	passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 	if err == nil {
