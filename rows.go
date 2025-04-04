@@ -630,6 +630,15 @@ func computeStructFields(
 	return fields
 }
 
+// RowToStructByNameReflect like RowToStructByName with return any and using reflect
+func RowToStructByNameReflect(proto any) RowToFunc[any] {
+	return func(row CollectableRow) (any, error) {
+		rv := reflect.New(reflect.TypeOf(proto))
+		err := (&namedStructRowScanner{ptrToStruct: rv.Interface()}).ScanRow(row)
+		return rv.Elem().Interface(), err
+	}
+}
+
 // RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number of named public
 // fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
