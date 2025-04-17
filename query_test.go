@@ -562,7 +562,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 			}
 
 			if _, ok := rows.Err().(*pgconn.PgError); !ok {
-				t.Fatalf("Expected pgx.PgError, got %v", rows.Err())
+				t.Fatalf("Expected pgconn.PgError, got %v", rows.Err())
 			}
 
 			ensureConnValid(t, conn)
