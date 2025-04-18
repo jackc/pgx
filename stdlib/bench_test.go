@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func getSelectRowsCounts(b *testing.B) []int64 {
@@ -105,5 +107,54 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkFlatArrayEncodeArgument(b *testing.B) {
+	db := openDB(b)
+	defer closeDB(b, db)
+
+	input := make(pgtype.FlatArray[string], 10)
+	for i := range input {
+		input[i] = fmt.Sprintf("String %d", i)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var n int64
+		err := db.QueryRow("select cardinality($1::text[])", input).Scan(&n)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if n != int64(len(input)) {
+			b.Fatalf("Expected %d, got %d", len(input), n)
+		}
+	}
+}
+
+func BenchmarkFlatArrayScanResult(b *testing.B) {
+	db := openDB(b)
+	defer closeDB(b, db)
+
+	var input string
+	for i := 0; i < 10; i++ {
+		if i > 0 {
+			input += ","
+		}
+		input += fmt.Sprintf(`'String %d'`, i)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var result pgtype.FlatArray[string]
+		err := db.QueryRow(fmt.Sprintf("select array[%s]::text[]", input)).Scan(&result)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(result) != 10 {
+			b.Fatalf("Expected %d, got %d", len(result), 10)
+		}
 	}
 }
