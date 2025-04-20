@@ -447,7 +447,7 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
 //
 // This function closes the rows automatically on return.
-func CollectRows[T any, S ~[]T](rows Rows, fn RowToFunc[T]) (S, error) {
+func CollectRows[S ~[]T, T any](rows Rows, fn RowToFunc[T]) (S, error) {
 	return AppendRows(S{}, rows, fn)
 }
 
