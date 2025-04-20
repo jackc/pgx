@@ -447,8 +447,8 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
 //
 // This function closes the rows automatically on return.
-func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
-	return AppendRows([]T{}, rows, fn)
+func CollectRows[T any, S ~[]T](rows Rows, fn RowToFunc[T]) (S, error) {
+	return AppendRows(S{}, rows, fn)
 }
 
 // CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
