@@ -447,8 +447,17 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
 //
 // This function closes the rows automatically on return.
-func CollectRows[S ~[]T, T any](rows Rows, fn RowToFunc[T]) (S, error) {
-	return AppendRows(S{}, rows, fn)
+func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
+	return AppendRows([]T{}, rows, fn)
+}
+
+// CollectRowsInto is the same as [CollectRows] but allows
+// defining a custom slice type. Useful when you have custom
+// types to denote slices.
+//
+// This function closes the rows automatically on return.
+func CollectRowsInto[S ~[]T, T any](rows Rows, fn RowToFunc[T]) (S, error) {
+	return CollectRows(rows, fn)
 }
 
 // CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
