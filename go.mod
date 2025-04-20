@@ -1,6 +1,6 @@
 module github.com/jackc/pgx/v5
 
-go 1.21
+go 1.23
 
 require (
 	github.com/jackc/pgpassfile v1.0.0
