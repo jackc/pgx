@@ -566,3 +566,43 @@ func TestTraceConnect(t *testing.T) {
 	require.True(t, traceConnectStartCalled)
 	require.True(t, traceConnectEndCalled)
 }
+
+// Ensure tracer runs within a transaction.
+//
+// https://github.com/jackc/pgx/issues/2304
+func TestTraceWithinTx(t *testing.T) {
+	t.Parallel()
+
+	tracer := &testTracer{}
+
+	ctr := defaultConnTestRunner
+	ctr.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config := defaultConnTestRunner.CreateConfig(ctx, t)
+		config.Tracer = tracer
+		return config
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var queries []string
+		tracer.traceQueryStart = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+			queries = append(queries, data.SQL)
+			return ctx
+		}
+
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+		_, err = tx.Exec(ctx, `select $1::text`, "testing")
+		require.NoError(t, err)
+		err = tx.Commit(ctx)
+		require.NoError(t, err)
+
+		require.Len(t, queries, 3)
+		require.Equal(t, `begin`, queries[0])
+		require.Equal(t, `select $1::text`, queries[1])
+		require.Equal(t, `commit`, queries[2])
+	})
+}
