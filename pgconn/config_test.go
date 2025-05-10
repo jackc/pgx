@@ -932,7 +932,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 	}
 
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
 
 	tests := []struct {
 		name    string
@@ -972,6 +972,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 				"PGSSLMODE":         "disable",
 				"PGAPPNAME":         "pgxtest",
 				"PGTZ":              "America/New_York",
+				"PGOPTIONS":         "-c search_path=myschema",
 			},
 			config: &pgconn.Config{
 				Host:           "123.123.123.123",
@@ -981,7 +982,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 				Password:       "baz",
 				ConnectTimeout: 10 * time.Second,
 				TLSConfig:      nil,
-				RuntimeParams:  map[string]string{"application_name": "pgxtest", "timezone": "America/New_York"},
+				RuntimeParams:  map[string]string{"application_name": "pgxtest", "timezone": "America/New_York", "options": "-c search_path=myschema"},
 			},
 		},
 		{

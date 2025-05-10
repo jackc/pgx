@@ -200,6 +200,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //	PGSSLKEY
 //	PGSSLROOTCERT
 //	PGSSLPASSWORD
+//	PGOPTIONS
 //	PGAPPNAME
 //	PGCONNECT_TIMEOUT
 //	PGTARGETSESSIONATTRS
@@ -459,6 +460,7 @@ func parseEnvSettings() map[string]string {
 		"PGSERVICE":            "service",
 		"PGSERVICEFILE":        "servicefile",
 		"PGTZ":                 "timezone",
+		"PGOPTIONS":            "options",
 	}
 
 	for envname, realname := range nameMap {
