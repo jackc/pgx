@@ -433,7 +433,7 @@ func TestLogAcquire(t *testing.T) {
 	defer conn1.Release()
 	require.Len(t, logger.logs, 2) // Has both the Connect and Acquire logs
 	require.Equal(t, "Acquire", logger.logs[1].msg)
-	require.Equal(t, tracelog.LogLevelInfo, logger.logs[1].lvl)
+	require.Equal(t, tracelog.LogLevelDebug, logger.logs[1].lvl)
 
 	logger.Clear()
 
@@ -484,7 +484,7 @@ func TestLogRelease(t *testing.T) {
 	conn1.Release()
 	require.Len(t, logger.logs, 1)
 	require.Equal(t, "Release", logger.logs[0].msg)
-	require.Equal(t, tracelog.LogLevelInfo, logger.logs[0].lvl)
+	require.Equal(t, tracelog.LogLevelDebug, logger.logs[0].lvl)
 }
 
 func TestLogPrepare(t *testing.T) {

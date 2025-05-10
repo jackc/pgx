@@ -375,16 +375,16 @@ func (tl *TraceLog) TraceAcquireEnd(ctx context.Context, _ *pgxpool.Pool, data p
 	}
 
 	if data.Conn != nil {
-		if tl.shouldLog(LogLevelInfo) {
-			tl.log(ctx, data.Conn, LogLevelInfo, "Acquire", map[string]any{tl.Config.TimeKey: interval})
+		if tl.shouldLog(LogLevelDebug) {
+			tl.log(ctx, data.Conn, LogLevelDebug, "Acquire", map[string]any{tl.Config.TimeKey: interval})
 		}
 	}
 }
 
 func (tl *TraceLog) TraceRelease(_ *pgxpool.Pool, data pgxpool.TraceReleaseData) {
-	if tl.shouldLog(LogLevelInfo) {
+	if tl.shouldLog(LogLevelDebug) {
 		// there is no context on the TraceRelease callback
-		tl.log(context.Background(), data.Conn, LogLevelInfo, "Release", map[string]any{})
+		tl.log(context.Background(), data.Conn, LogLevelDebug, "Release", map[string]any{})
 	}
 }
 
