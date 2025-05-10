@@ -405,6 +405,88 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 	})
 }
 
+func TestLogAcquire(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	config := defaultConnTestRunner.CreateConfig(ctx, t)
+	config.Tracer = tracer
+
+	poolConfig, err := pgxpool.ParseConfig(config.ConnString())
+	require.NoError(t, err)
+
+	poolConfig.ConnConfig = config
+	pool1, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	require.NoError(t, err)
+	defer pool1.Close()
+
+	conn1, err := pool1.Acquire(ctx)
+	require.NoError(t, err)
+	defer conn1.Release()
+	require.Len(t, logger.logs, 2) // Has both the Connect and Acquire logs
+	require.Equal(t, "Acquire", logger.logs[1].msg)
+	require.Equal(t, tracelog.LogLevelDebug, logger.logs[1].lvl)
+
+	logger.Clear()
+
+	// create a 2nd pool with a bad host to verify the error handling
+	poolConfig, err = pgxpool.ParseConfig("host=/invalid")
+	require.NoError(t, err)
+	poolConfig.ConnConfig.Tracer = tracer
+
+	pool2, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	require.NoError(t, err)
+	defer pool2.Close()
+
+	conn2, err := pool2.Acquire(ctx)
+	require.Error(t, err)
+	require.Nil(t, conn2)
+	require.Len(t, logger.logs, 2)
+	require.Equal(t, "Acquire", logger.logs[1].msg)
+	require.Equal(t, tracelog.LogLevelError, logger.logs[1].lvl)
+}
+
+func TestLogRelease(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	config := defaultConnTestRunner.CreateConfig(ctx, t)
+	config.Tracer = tracer
+
+	poolConfig, err := pgxpool.ParseConfig(config.ConnString())
+	require.NoError(t, err)
+
+	poolConfig.ConnConfig = config
+	pool1, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	require.NoError(t, err)
+	defer pool1.Close()
+
+	conn1, err := pool1.Acquire(ctx)
+	require.NoError(t, err)
+
+	logger.Clear()
+	conn1.Release()
+	require.Len(t, logger.logs, 1)
+	require.Equal(t, "Release", logger.logs[0].msg)
+	require.Equal(t, tracelog.LogLevelDebug, logger.logs[0].lvl)
+}
+
 func TestLogPrepare(t *testing.T) {
 	t.Parallel()
 
