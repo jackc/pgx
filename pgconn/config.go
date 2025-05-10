@@ -203,6 +203,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //	PGAPPNAME
 //	PGCONNECT_TIMEOUT
 //	PGTARGETSESSIONATTRS
+//	PGTZ
 //
 // See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of environment variables.
 //
@@ -457,6 +458,7 @@ func parseEnvSettings() map[string]string {
 		"PGTARGETSESSIONATTRS": "target_session_attrs",
 		"PGSERVICE":            "service",
 		"PGSERVICEFILE":        "servicefile",
+		"PGTZ":                 "timezone",
 	}
 
 	for envname, realname := range nameMap {
