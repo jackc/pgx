@@ -321,10 +321,10 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse pool_max_conns: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_max_conns", err)
 		}
 		if n < 1 {
-			return nil, fmt.Errorf("pool_max_conns too small: %d", n)
+			return nil, pgconn.NewParseConfigError(connString, "pool_max_conns too small", err)
 		}
 		config.MaxConns = int32(n)
 	} else {
@@ -338,7 +338,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_min_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse pool_min_conns: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_min_conns", err)
 		}
 		config.MinConns = int32(n)
 	} else {
@@ -349,7 +349,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_min_idle_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse pool_min_idle_conns: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_min_idle_conns", err)
 		}
 		config.MinIdleConns = int32(n)
 	} else {
@@ -360,7 +360,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conn_lifetime")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid pool_max_conn_lifetime: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_max_conn_lifetime", err)
 		}
 		config.MaxConnLifetime = d
 	} else {
@@ -371,7 +371,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conn_idle_time")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid pool_max_conn_idle_time: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_max_conn_idle_time", err)
 		}
 		config.MaxConnIdleTime = d
 	} else {
@@ -382,7 +382,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_health_check_period")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid pool_health_check_period: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_health_check_period", err)
 		}
 		config.HealthCheckPeriod = d
 	} else {
@@ -393,7 +393,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conn_lifetime_jitter")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid pool_max_conn_lifetime_jitter: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_max_conn_lifetime_jitter", err)
 		}
 		config.MaxConnLifetimeJitter = d
 	}
