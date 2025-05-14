@@ -172,7 +172,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		delete(config.RuntimeParams, "statement_cache_capacity")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse statement_cache_capacity: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse statement_cache_capacity", err)
 		}
 		statementCacheCapacity = int(n)
 	}
@@ -182,7 +182,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		delete(config.RuntimeParams, "description_cache_capacity")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse description_cache_capacity: %w", err)
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse description_cache_capacity", err)
 		}
 		descriptionCacheCapacity = int(n)
 	}
@@ -202,7 +202,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		case "simple_protocol":
 			defaultQueryExecMode = QueryExecModeSimpleProtocol
 		default:
-			return nil, fmt.Errorf("invalid default_query_exec_mode: %s", s)
+			return nil, pgconn.NewParseConfigError(connString, "invalid default_query_exec_mode", err)
 		}
 	}
 
