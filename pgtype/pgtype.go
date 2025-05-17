@@ -1209,7 +1209,7 @@ func codecDecodeToTextFormat(codec Codec, m *Map, oid uint32, format int16, src 
 	}
 }
 
-// PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
+// PlanEncode returns an EncodePlan for encoding value into PostgreSQL format for oid and format. If no plan can be
 // found then nil is returned.
 func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
 	return m.planEncodeDepth(oid, format, value, 0)
