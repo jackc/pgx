@@ -2,7 +2,6 @@ package pgxpool
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"runtime"
 	"strconv"
