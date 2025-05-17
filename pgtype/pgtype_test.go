@@ -555,6 +555,21 @@ func TestMapEncodeRawJSONIntoUnknownOID(t *testing.T) {
 	require.Equal(t, []byte(`{"foo": "bar"}`), buf)
 }
 
+// PlanScan previously used a cache to improve performance. However, the cache could get confused in certain cases. The
+// example below was one such failure case.
+func TestCachedPlanScanConfusion(t *testing.T) {
+	m := pgtype.NewMap()
+	var err error
+
+	var tags any
+	err = m.Scan(pgtype.TextArrayOID, pgx.TextFormatCode, []byte("{foo,bar,baz}"), &tags)
+	require.NoError(t, err)
+
+	var cells [][]string
+	err = m.Scan(pgtype.TextArrayOID, pgx.TextFormatCode, []byte("{{foo,bar},{baz,quz}}"), &cells)
+	require.NoError(t, err)
+}
+
 func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
