@@ -2032,18 +2032,6 @@ func (w *sqlScannerWrapper) Scan(src any) error {
 	return w.m.Scan(t.OID, TextFormatCode, bufSrc, w.v)
 }
 
-// canBeNil returns true if value can be nil.
-func canBeNil(value any) bool {
-	refVal := reflect.ValueOf(value)
-	kind := refVal.Kind()
-	switch kind {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
-		return true
-	default:
-		return false
-	}
-}
-
 // valuerReflectType is a reflect.Type for driver.Valuer. It has confusing syntax because reflect.TypeOf returns nil
 // when it's argument is a nil interface value. So we use a pointer to the interface and call Elem to get the actual
 // type. Yuck.
