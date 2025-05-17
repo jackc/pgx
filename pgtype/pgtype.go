@@ -202,7 +202,6 @@ type Map struct {
 
 	reflectTypeToType map[reflect.Type]*Type
 
-	memoizedScanPlans   map[uint32]map[reflect.Type][2]ScanPlan
 	memoizedEncodePlans map[uint32]map[reflect.Type][2]EncodePlan
 
 	// TryWrapEncodePlanFuncs is a slice of functions that will wrap a value that cannot be encoded by the Codec. Every
@@ -236,7 +235,6 @@ func NewMap() *Map {
 		reflectTypeToName: make(map[reflect.Type]string),
 		oidToFormatCode:   make(map[uint32]int16),
 
-		memoizedScanPlans:   make(map[uint32]map[reflect.Type][2]ScanPlan),
 		memoizedEncodePlans: make(map[uint32]map[reflect.Type][2]EncodePlan),
 
 		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
@@ -276,9 +274,6 @@ func (m *Map) RegisterType(t *Type) {
 
 	// Invalidated by type registration
 	m.reflectTypeToType = nil
-	for k := range m.memoizedScanPlans {
-		delete(m.memoizedScanPlans, k)
-	}
 	for k := range m.memoizedEncodePlans {
 		delete(m.memoizedEncodePlans, k)
 	}
@@ -292,9 +287,6 @@ func (m *Map) RegisterDefaultPgType(value any, name string) {
 
 	// Invalidated by type registration
 	m.reflectTypeToType = nil
-	for k := range m.memoizedScanPlans {
-		delete(m.memoizedScanPlans, k)
-	}
 	for k := range m.memoizedEncodePlans {
 		delete(m.memoizedEncodePlans, k)
 	}
@@ -1067,32 +1059,14 @@ func (plan *wrapPtrArrayReflectScanPlan) Scan(src []byte, target any) error {
 
 // PlanScan prepares a plan to scan a value into target.
 func (m *Map) PlanScan(oid uint32, formatCode int16, target any) ScanPlan {
-	return m.planScanDepth(oid, formatCode, target, 0)
+	return m.planScan(oid, formatCode, target, 0)
 }
 
-func (m *Map) planScanDepth(oid uint32, formatCode int16, target any, depth int) ScanPlan {
+func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) ScanPlan {
 	if depth > 8 {
 		return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
 	}
 
-	oidMemo := m.memoizedScanPlans[oid]
-	if oidMemo == nil {
-		oidMemo = make(map[reflect.Type][2]ScanPlan)
-		m.memoizedScanPlans[oid] = oidMemo
-	}
-	targetReflectType := reflect.TypeOf(target)
-	typeMemo := oidMemo[targetReflectType]
-	plan := typeMemo[formatCode]
-	if plan == nil {
-		plan = m.planScan(oid, formatCode, target, depth)
-		typeMemo[formatCode] = plan
-		oidMemo[targetReflectType] = typeMemo
-	}
-
-	return plan
-}
-
-func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) ScanPlan {
 	if target == nil {
 		return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
 	}
@@ -1152,7 +1126,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) Scan
 
 	for _, f := range m.TryWrapScanPlanFuncs {
 		if wrapperPlan, nextDst, ok := f(target); ok {
-			if nextPlan := m.planScanDepth(oid, formatCode, nextDst, depth+1); nextPlan != nil {
+			if nextPlan := m.planScan(oid, formatCode, nextDst, depth+1); nextPlan != nil {
 				if _, failed := nextPlan.(*scanPlanFail); !failed {
 					wrapperPlan.SetNext(nextPlan)
 					return wrapperPlan
