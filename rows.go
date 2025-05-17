@@ -188,6 +188,17 @@ func (rows *baseRows) Close() {
 	} else if rows.queryTracer != nil {
 		rows.queryTracer.TraceQueryEnd(rows.ctx, rows.conn, TraceQueryEndData{rows.commandTag, rows.err})
 	}
+
+	// Zero references to other memory allocations. This allows them to be GC'd even when the Rows still referenced. In
+	// particular, when using pgxpool GC could be delayed as pgxpool.poolRows are allocated in large slices.
+	//
+	// https://github.com/jackc/pgx/pull/2269
+	rows.values = nil
+	rows.scanPlans = nil
+	rows.scanTypes = nil
+	rows.ctx = nil
+	rows.sql = ""
+	rows.args = nil
 }
 
 func (rows *baseRows) CommandTag() pgconn.CommandTag {
