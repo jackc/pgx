@@ -112,6 +112,14 @@ type ParseConfigError struct {
 	err        error
 }
 
+func NewParseConfigError(conn, msg string, err error) error {
+	return &ParseConfigError{
+		ConnString: conn,
+		msg:        msg,
+		err:        err,
+	}
+}
+
 func (e *ParseConfigError) Error() string {
 	// Now that ParseConfigError is public and ConnString is available to the developer, perhaps it would be better only
 	// return a static string. That would ensure that the error message cannot leak a password. The ConnString field would
