@@ -83,7 +83,7 @@ type Pool struct {
 	config                *Config
 	beforeConnect         func(context.Context, *pgx.ConnConfig) error
 	afterConnect          func(context.Context, *pgx.Conn) error
-	beforeAcquire         func(context.Context, *pgx.Conn) bool
+	prepareConn           func(context.Context, *pgx.Conn) (bool, error)
 	afterRelease          func(*pgx.Conn) bool
 	beforeClose           func(*pgx.Conn)
 	minConns              int32
@@ -118,7 +118,21 @@ type Config struct {
 	// BeforeAcquire is called before a connection is acquired from the pool. It must return true to allow the
 	// acquisition or false to indicate that the connection should be destroyed and a different connection should be
 	// acquired.
+	//
+	// Deprecated: Use PrepareConn instead. If both PrepareConn and BeforeAcquire are set, PrepareConn will take
+	// precedence, ignoring BeforeAcquire.
 	BeforeAcquire func(context.Context, *pgx.Conn) bool
+
+	// PrepareConn is called before a connection is acquired from the pool. If this function returns true, the connection
+	// is considered valid. If the function returns a non-nil error, the instigating query will fail with the returned error.
+	//
+	// Specifically, this means that:
+	//
+	// 	- It must return true and a nil error to allow acquisition and the query to proceed.
+	// 	- If it returns true and an error, the connection will be returned to the pool, and the instigating query will fail with the returned error.
+	// 	- If it returns false, and an error, the query will fail with the returned error, and the connection will be destroyed.
+	// 	- If it returns false and a nil error, the connection will be returned to the pool, and the instigating query will be retried on a new connection.
+	PrepareConn func(context.Context, *pgx.Conn) (bool, error)
 
 	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
 	// return the connection to the pool or false to destroy the connection.
@@ -189,11 +203,18 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		panic("config must be created by ParseConfig")
 	}
 
+	prepareConn := config.PrepareConn
+	if prepareConn == nil && config.BeforeAcquire != nil {
+		prepareConn = func(ctx context.Context, conn *pgx.Conn) (bool, error) {
+			return config.BeforeAcquire(ctx, conn), nil
+		}
+	}
+
 	p := &Pool{
 		config:                config,
 		beforeConnect:         config.BeforeConnect,
 		afterConnect:          config.AfterConnect,
-		beforeAcquire:         config.BeforeAcquire,
+		prepareConn:           prepareConn,
 		afterRelease:          config.AfterRelease,
 		beforeClose:           config.BeforeClose,
 		minConns:              config.MinConns,
@@ -560,11 +581,23 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			}
 		}
 
-		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
-			return cr.getConn(p, res), nil
+		if p.prepareConn != nil {
+			ok, err := p.prepareConn(ctx, cr.conn)
+			if !ok {
+				res.Destroy()
+			}
+			if err != nil {
+				if ok {
+					res.Release()
+				}
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
 		}
 
-		res.Destroy()
+		return cr.getConn(p, res), nil
 	}
 }
 
@@ -588,11 +621,14 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	conns := make([]*Conn, 0, len(resources))
 	for _, res := range resources {
 		cr := res.Value()
-		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
-			conns = append(conns, cr.getConn(p, res))
-		} else {
-			res.Destroy()
+		if p.prepareConn != nil {
+			ok, err := p.prepareConn(ctx, cr.conn)
+			if !ok || err != nil {
+				res.Destroy()
+				continue
+			}
 		}
+		conns = append(conns, cr.getConn(p, res))
 	}
 
 	return conns

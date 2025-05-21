@@ -330,6 +330,64 @@ func TestPoolBeforeAcquire(t *testing.T) {
 	assert.EqualValues(t, 12, acquireAttempts)
 }
 
+func TestPoolPrepareConn(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	acquireAttempts := 0
+
+	config.PrepareConn = func(context.Context, *pgx.Conn) (bool, error) {
+		acquireAttempts++
+		var err error
+		if acquireAttempts%3 == 0 {
+			err = errors.New("PrepareConn error")
+		}
+		return acquireAttempts%2 == 0, err
+	}
+
+	db, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	t.Cleanup(db.Close)
+
+	var errorCount int
+	conns := make([]*pgxpool.Conn, 0, 4)
+	for {
+		conn, err := db.Acquire(ctx)
+		if err != nil {
+			errorCount++
+			continue
+		}
+		conns = append(conns, conn)
+		if len(conns) == 4 {
+			break
+		}
+	}
+	const wantErrorCount = 3
+	assert.Equal(t, wantErrorCount, errorCount, "Acquire() should have failed %d times", wantErrorCount)
+
+	for _, c := range conns {
+		c.Release()
+	}
+	waitForReleaseToComplete()
+
+	assert.EqualValues(t, len(conns)*2+wantErrorCount-1, acquireAttempts)
+
+	conns = db.AcquireAllIdle(ctx)
+	assert.Len(t, conns, 1)
+
+	for _, c := range conns {
+		c.Release()
+	}
+	waitForReleaseToComplete()
+
+	assert.EqualValues(t, 14, acquireAttempts)
+}
+
 func TestPoolAfterRelease(t *testing.T) {
 	t.Parallel()
 
@@ -1082,9 +1140,9 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	acquireAttempts := int64(0)
 	connectAttempts := int64(0)
 
-	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+	config.PrepareConn = func(ctx context.Context, conn *pgx.Conn) (bool, error) {
 		atomic.AddInt64(&acquireAttempts, 1)
-		return true
+		return true, nil
 	}
 	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
 		atomic.AddInt64(&connectAttempts, 1)
