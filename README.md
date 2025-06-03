@@ -127,6 +127,7 @@ pgerrcode contains constants for the PostgreSQL error codes.
 ## Adapters for 3rd Party Tracers
 
 * [github.com/jackhopner/pgx-xray-tracer](https://github.com/jackhopner/pgx-xray-tracer)
+* [github.com/exaring/otelpgx](https://github.com/exaring/otelpgx)
 
 ## Adapters for 3rd Party Loggers
 
