@@ -135,7 +135,7 @@ func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptio
 //
 // If config.Fallbacks are present they will sequentially be tried in case of error establishing network connection. An
 // authentication error will terminate the chain of attempts (like libpq:
-// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error.
+// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error.
 func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
@@ -991,7 +991,8 @@ func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
 
 // CancelRequest sends a cancel request to the PostgreSQL server. It returns an error if unable to deliver the cancel
 // request, but lack of an error does not ensure that the query was canceled. As specified in the documentation, there
-// is no way to be sure a query was canceled. See https://www.postgresql.org/docs/11/protocol-flow.html#id-1.10.5.7.9
+// is no way to be sure a query was canceled.
+// See https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-CANCELING-REQUESTS
 func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
 	// the connection config. This is important in high availability configurations where fallback connections may be

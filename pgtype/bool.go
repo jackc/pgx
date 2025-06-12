@@ -328,7 +328,7 @@ func (scanPlanTextAnyToBoolScanner) Scan(src []byte, dst any) error {
 	return s.ScanBool(Bool{Bool: v, Valid: true})
 }
 
-// https://www.postgresql.org/docs/11/datatype-boolean.html
+// https://www.postgresql.org/docs/current/datatype-boolean.html
 func planTextToBool(src []byte) (bool, error) {
 	s := string(bytes.ToLower(bytes.TrimSpace(src)))
 
