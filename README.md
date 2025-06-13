@@ -65,7 +65,7 @@ See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-starte
 * `json` and `jsonb` support
 * Maps `inet` and `cidr` PostgreSQL types to `netip.Addr` and `netip.Prefix`
 * Large object support
-* NULL mapping to pointer to pointer
+* NULL mapping to nil pointer
 * Supports `database/sql.Scanner` and `database/sql/driver.Valuer` interfaces for custom types
 * Notice response handling
 * Simulated nested transactions with savepoints
