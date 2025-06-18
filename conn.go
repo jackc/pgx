@@ -41,6 +41,10 @@ type ConnConfig struct {
 	// functionality can be controlled on a per query basis by passing a QueryExecMode as the first query argument.
 	DefaultQueryExecMode QueryExecMode
 
+	// PrepareThreshold is the number of times a query must be executed before it is prepared as a named statement.
+	// If PrepareThreshold is 0, all queries are prepared as named statements immediately.
+	PrepareThreshold int
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -70,6 +74,7 @@ type Conn struct {
 	preparedStatements map[string]*pgconn.StatementDescription
 	statementCache     stmtcache.Cache
 	descriptionCache   stmtcache.Cache
+	queryExecCount     map[string]int // tracks how many times each query has been executed
 
 	queryTracer    QueryTracer
 	batchTracer    BatchTracer
@@ -187,6 +192,16 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		descriptionCacheCapacity = int(n)
 	}
 
+	prepareThreshold := 0
+	if s, ok := config.RuntimeParams["prepare_threshold"]; ok {
+		delete(config.RuntimeParams, "prepare_threshold")
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse prepare_threshold", err)
+		}
+		prepareThreshold = int(n)
+	}
+
 	defaultQueryExecMode := QueryExecModeCacheStatement
 	if s, ok := config.RuntimeParams["default_query_exec_mode"]; ok {
 		delete(config.RuntimeParams, "default_query_exec_mode")
@@ -212,6 +227,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		StatementCacheCapacity:   statementCacheCapacity,
 		DescriptionCacheCapacity: descriptionCacheCapacity,
 		DefaultQueryExecMode:     defaultQueryExecMode,
+		PrepareThreshold:         prepareThreshold,
 		connString:               connString,
 	}
 
@@ -334,14 +350,27 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 		}()
 	}
 
+	// Check if we should use a named prepared statement based on the threshold
+	useNamedPrepared := true
+	if c.config.PrepareThreshold > 0 {
+		execCount := c.queryExecCount[sql]
+		useNamedPrepared = execCount >= c.config.PrepareThreshold
+	}
+
 	var psName, psKey string
-	if name == sql {
-		digest := sha256.Sum256([]byte(sql))
-		psName = "stmt_" + hex.EncodeToString(digest[0:24])
-		psKey = sql
+	if useNamedPrepared {
+		if name == sql {
+			digest := sha256.Sum256([]byte(sql))
+			psName = "stmt_" + hex.EncodeToString(digest[0:24])
+			psKey = sql
+		} else {
+			psName = name
+			psKey = name
+		}
 	} else {
-		psName = name
-		psKey = name
+		// Use empty name for unnamed prepared statement
+		psName = ""
+		psKey = ""
 	}
 
 	sd, err = c.pgConn.Prepare(ctx, psName, sql, nil)
@@ -501,6 +530,12 @@ optionLoop:
 	if len(arguments) == 0 {
 		mode = QueryExecModeSimpleProtocol
 	}
+
+	// Increment query execution counter
+	if c.queryExecCount == nil {
+		c.queryExecCount = make(map[string]int)
+	}
+	c.queryExecCount[sql]++
 
 	if sd, ok := c.preparedStatements[sql]; ok {
 		return c.execPrepared(ctx, sd, arguments)

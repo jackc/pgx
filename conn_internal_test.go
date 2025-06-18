@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,111 @@ func TestStmtCacheSizeLimit(t *testing.T) {
 	// preparedStatements contains cacheLimit+1 because deallocation happens before the query
 	assert.Len(t, conn.preparedStatements, cacheLimit+1)
 	assert.Equal(t, cacheLimit, conn.statementCache.Len())
+}
+
+func TestPrepareThreshold_Internal(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	// Test with prepare_threshold=0 (default)
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PrepareThreshold = 0
+	conn := mustConnect(t, config)
+	defer func() { _ = conn.Close(ctx) }()
+
+	for i := 0; i < 5; i++ {
+		rows, err := conn.Query(ctx, "select $1::text", fmt.Sprintf("test%d", i))
+		require.NoError(t, err)
+		rows.Close()
+	}
+	// Should prepare immediately
+	assert.NotNil(t, conn.statementCache)
+	assert.Greater(t, conn.statementCache.Len(), 0)
+
+	// Test with prepare_threshold=3
+	config = mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PrepareThreshold = 3
+	conn = mustConnect(t, config)
+	defer func() { _ = conn.Close(ctx) }()
+
+	for i := 0; i < 2; i++ {
+		rows, err := conn.Query(ctx, "select $1::text", fmt.Sprintf("test%d", i))
+		require.NoError(t, err)
+		rows.Close()
+	}
+	assert.NotNil(t, conn.statementCache)
+	assert.Equal(t, 0, conn.statementCache.Len())
+
+	for i := 2; i < 4; i++ {
+		rows, err := conn.Query(ctx, "select $1::text", fmt.Sprintf("test%d", i))
+		require.NoError(t, err)
+		rows.Close()
+	}
+	assert.NotNil(t, conn.statementCache)
+	assert.Greater(t, conn.statementCache.Len(), 0)
+
+	// Test with prepare_threshold=1
+	config = mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PrepareThreshold = 1
+	conn = mustConnect(t, config)
+	defer func() { _ = conn.Close(ctx) }()
+
+	rows, err := conn.Query(ctx, "select $1::text", "test")
+	require.NoError(t, err)
+	rows.Close()
+	assert.NotNil(t, conn.statementCache)
+	assert.Greater(t, conn.statementCache.Len(), 0)
+}
+
+func TestPrepareThresholdWithDifferentQueries_Internal(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PrepareThreshold = 2
+	conn := mustConnect(t, config)
+	defer func() { _ = conn.Close(ctx) }()
+
+	queries := []string{
+		"select $1::text",
+		"select $1::int",
+		"select $1::float",
+	}
+	for _, query := range queries {
+		rows, err := conn.Query(ctx, query, "test")
+		require.NoError(t, err)
+		rows.Close()
+	}
+	assert.Equal(t, 0, conn.statementCache.Len())
+	for _, query := range queries {
+		rows, err := conn.Query(ctx, query, "test")
+		require.NoError(t, err)
+		rows.Close()
+	}
+	assert.Equal(t, len(queries), conn.statementCache.Len())
+}
+
+func TestPrepareThresholdWithTransaction_Internal(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PrepareThreshold = 2
+	conn := mustConnect(t, config)
+	defer func() { _ = conn.Close(ctx) }()
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, "select $1::text", "test")
+	require.NoError(t, err)
+	rows.Close()
+	assert.Equal(t, 0, conn.statementCache.Len())
+	rows, err = tx.Query(ctx, "select $1::text", "test")
+	require.NoError(t, err)
+	rows.Close()
+	assert.Equal(t, 1, conn.statementCache.Len())
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+	rows, err = conn.Query(ctx, "select $1::text", "test")
+	require.NoError(t, err)
+	rows.Close()
+	assert.Equal(t, 1, conn.statementCache.Len())
 }

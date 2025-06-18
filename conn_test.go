@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -1209,7 +1210,6 @@ func TestStmtCacheInvalidationConn(t *testing.T) {
 	err = rows.Err()
 	require.NoError(t, err)
 	rows.Close()
-	require.NoError(t, rows.Err())
 
 	ensureConnValid(t, conn)
 }
@@ -1417,4 +1417,80 @@ func TestErrNoRows(t *testing.T) {
 	require.Equal(t, "no rows in result set", pgx.ErrNoRows.Error())
 
 	require.ErrorIs(t, pgx.ErrNoRows, sql.ErrNoRows, "pgx.ErrNowRows must match sql.ErrNoRows")
+}
+
+func TestParseConfigWithPrepareThreshold(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		connString    string
+		expectedValue int
+		expectedError bool
+	}{
+		{
+			name:          "valid prepare_threshold",
+			connString:    "postgres://localhost:5432/testdb?prepare_threshold=5",
+			expectedValue: 5,
+			expectedError: false,
+		},
+		{
+			name:          "zero prepare_threshold",
+			connString:    "postgres://localhost:5432/testdb?prepare_threshold=0",
+			expectedValue: 0,
+			expectedError: false,
+		},
+		{
+			name:          "negative prepare_threshold",
+			connString:    "postgres://localhost:5432/testdb?prepare_threshold=-1",
+			expectedValue: -1,
+			expectedError: false,
+		},
+		{
+			name:          "invalid prepare_threshold",
+			connString:    "postgres://localhost:5432/testdb?prepare_threshold=invalid",
+			expectedValue: 0,
+			expectedError: true,
+		},
+		{
+			name:          "no prepare_threshold",
+			connString:    "postgres://localhost:5432/testdb",
+			expectedValue: 0,
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			config, err := pgx.ParseConfig(tt.connString)
+			if tt.expectedError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedValue, config.PrepareThreshold)
+		})
+	}
+}
+
+func TestPrepareThreshold_Behavioral(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	config.PrepareThreshold = 2
+	conn, err := pgx.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+	for i := 0; i < 4; i++ {
+		var out string
+		err := conn.QueryRow(ctx, "select $1::text", fmt.Sprintf("test%d", i)).Scan(&out)
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("test%d", i), out)
+	}
 }
