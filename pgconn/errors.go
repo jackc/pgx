@@ -27,7 +27,7 @@ func Timeout(err error) bool {
 }
 
 // PgError represents an error reported by the PostgreSQL server. See
-// http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
+// http://www.postgresql.org/docs/current/static/protocol-error-fields.html for
 // detailed field description.
 type PgError struct {
 	Severity            string
