@@ -693,6 +693,46 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	require.EqualValues(t, 3, stats.NewConnsCount())
 }
 
+func TestPoolAcquireTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.AcquireTimeout = 1 * time.Second
+
+	db, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+
+	// Acquire all available connections to starve the pool
+	maxConns := int(db.Stat().MaxConns())
+	conns := make([]*pgxpool.Conn, 0, maxConns)
+	for i := 0; i < maxConns; i++ {
+		conn, err := db.Acquire(ctx)
+		require.NoError(t, err)
+
+		conns = append(conns, conn)
+	}
+
+	// If the timeout is not triggered within two seconds (2x the configured timeout), fail the test
+	timer := time.AfterFunc(2*time.Second, func() {
+		t.Fatal("Acquire() attempt did not timeout")
+	})
+
+	_, err = db.Acquire(ctx)
+	require.ErrorAs(t, err, &context.DeadlineExceeded)
+
+	timer.Stop()
+
+	for _, conn := range conns {
+		conn.Release()
+	}
+	waitForReleaseToComplete()
+}
+
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 
