@@ -5,8 +5,9 @@ package pgconn
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 func defaultSettings() map[string]string {
@@ -18,21 +19,29 @@ func defaultSettings() map[string]string {
 	// Default to the OS user name. Purposely ignoring err getting user name from
 	// OS. The client application will simply have to specify the user in that
 	// case (which they typically will be doing anyway).
-	user, err := user.Current()
+	username := os.Getenv("USER") // Unix-like
+	if username == "" {
+		username = os.Getenv("USERNAME") // Windows
+	}
+	if username != "" {
+		settings["user"] = username
+	}
+
+	homeDir, err := homedir.Dir()
 	if err == nil {
-		settings["user"] = user.Username
-		settings["passfile"] = filepath.Join(user.HomeDir, ".pgpass")
-		settings["servicefile"] = filepath.Join(user.HomeDir, ".pg_service.conf")
-		sslcert := filepath.Join(user.HomeDir, ".postgresql", "postgresql.crt")
-		sslkey := filepath.Join(user.HomeDir, ".postgresql", "postgresql.key")
+		settings["passfile"] = filepath.Join(homeDir, ".pgpass")
+		settings["servicefile"] = filepath.Join(homeDir, ".pg_service.conf")
+
+		sslcert := filepath.Join(homeDir, ".postgresql", "postgresql.crt")
+		sslkey := filepath.Join(homeDir, ".postgresql", "postgresql.key")
 		if _, err := os.Stat(sslcert); err == nil {
 			if _, err := os.Stat(sslkey); err == nil {
-				// Both the cert and key must be present to use them, or do not use either
 				settings["sslcert"] = sslcert
 				settings["sslkey"] = sslkey
 			}
 		}
-		sslrootcert := filepath.Join(user.HomeDir, ".postgresql", "root.crt")
+
+		sslrootcert := filepath.Join(homeDir, ".postgresql", "root.crt")
 		if _, err := os.Stat(sslrootcert); err == nil {
 			settings["sslrootcert"] = sslrootcert
 		}
