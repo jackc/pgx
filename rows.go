@@ -563,7 +563,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	return nil
 }
 
-// RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number a public fields as row
+// RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number of public fields as row
 // has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
 func RowToStructByPos[T any](row CollectableRow) (T, error) {
