@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -73,6 +74,29 @@ func (src Uint32) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return int64(src.Uint32), nil
+}
+
+func (src Uint32) MarshalJSON() ([]byte, error) {
+	if !src.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(src.Uint32)
+}
+
+func (dst *Uint32) UnmarshalJSON(b []byte) error {
+	var n *uint32
+	err := json.Unmarshal(b, &n)
+	if err != nil {
+		return err
+	}
+
+	if n == nil {
+		*dst = Uint32{}
+	} else {
+		*dst = Uint32{Uint32: *n, Valid: true}
+	}
+
+	return nil
 }
 
 type Uint32Codec struct{}
