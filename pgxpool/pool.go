@@ -125,14 +125,15 @@ type Config struct {
 	BeforeAcquire func(context.Context, *pgx.Conn) bool
 
 	// PrepareConn is called before a connection is acquired from the pool. If this function returns true, the connection
-	// is considered valid. If the function returns a non-nil error, the instigating query will fail with the returned error.
+	// is considered valid, otherwise the connection is destroyed. If the function returns a non-nil error, the instigating
+	// query will fail with the returned error.
 	//
 	// Specifically, this means that:
 	//
-	// 	- It must return true and a nil error to allow acquisition and the query to proceed.
+	// 	- If it returns true and a nil error, the query proceeds as normal.
 	// 	- If it returns true and an error, the connection will be returned to the pool, and the instigating query will fail with the returned error.
-	// 	- If it returns false, and an error, the query will fail with the returned error, and the connection will be destroyed.
-	// 	- If it returns false and a nil error, the connection will be returned to the pool, and the instigating query will be retried on a new connection.
+	// 	- If it returns false, and an error, the connection will be destroyed, and the query will fail with the returned error.
+	// 	- If it returns false and a nil error, the connection will be destroyed, and the instigating query will be retried on a new connection.
 	PrepareConn func(context.Context, *pgx.Conn) (bool, error)
 
 	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
