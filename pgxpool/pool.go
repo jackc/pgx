@@ -87,6 +87,7 @@ type Pool struct {
 	prepareConn           func(context.Context, *pgx.Conn) (bool, error)
 	afterRelease          func(*pgx.Conn) bool
 	beforeClose           func(*pgx.Conn)
+	shouldPing            func(context.Context, ShouldPingParams) bool
 	minConns              int32
 	minIdleConns          int32
 	maxConns              int32
@@ -102,6 +103,12 @@ type Pool struct {
 
 	closeOnce sync.Once
 	closeChan chan struct{}
+}
+
+// ShouldPingParams are the parameters passed to ShouldPing.
+type ShouldPingParams struct {
+	Conn         *pgx.Conn
+	IdleDuration time.Duration
 }
 
 // Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
@@ -142,6 +149,10 @@ type Config struct {
 
 	// BeforeClose is called right before a connection is closed and removed from the pool.
 	BeforeClose func(*pgx.Conn)
+
+	// ShouldPing is called after a connection is acquired from the pool. If it returns true, the connection is pinged to check for liveness.
+	// If this func is not set, the default behavior is to ping connections that have been idle for at least 1 second.
+	ShouldPing func(context.Context, ShouldPingParams) bool
 
 	// MaxConnLifetime is the duration since creation after which a connection will be automatically closed.
 	MaxConnLifetime time.Duration
@@ -236,6 +247,14 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	if t, ok := config.ConnConfig.Tracer.(ReleaseTracer); ok {
 		p.releaseTracer = t
+	}
+
+	if config.ShouldPing != nil {
+		p.shouldPing = config.ShouldPing
+	} else {
+		p.shouldPing = func(ctx context.Context, params ShouldPingParams) bool {
+			return params.IdleDuration > time.Second
+		}
 	}
 
 	var err error
@@ -578,7 +597,8 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		cr := res.Value()
 
-		if res.IdleDuration() > time.Second {
+		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
+		if p.shouldPing(ctx, shouldPingParams) {
 			err := cr.conn.Ping(ctx)
 			if err != nil {
 				res.Destroy()
