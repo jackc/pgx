@@ -204,6 +204,47 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	require.NotContains(t, pids, cPID)
 }
 
+func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	controllerConn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(ctx)
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	// Replace the default ShouldPing func
+	var shouldPingLastCalledWith *pgxpool.ShouldPingParams
+	config.ShouldPing = func(ctx context.Context, params pgxpool.ShouldPingParams) bool {
+		shouldPingLastCalledWith = &params
+		return false
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	c.Release()
+
+	time.Sleep(time.Millisecond * 200)
+
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	conn := c.Conn()
+
+	require.NotNil(t, shouldPingLastCalledWith)
+	assert.Equal(t, conn, shouldPingLastCalledWith.Conn)
+	assert.InDelta(t, time.Millisecond*200, shouldPingLastCalledWith.IdleDuration, float64(time.Millisecond*100))
+
+	c.Release()
+}
+
 func TestPoolAcquireFunc(t *testing.T) {
 	t.Parallel()
 
