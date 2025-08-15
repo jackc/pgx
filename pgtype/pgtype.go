@@ -2010,7 +2010,7 @@ var valuerReflectType = reflect.TypeFor[driver.Valuer]()
 
 // isNilDriverValuer returns true if value is any type of nil unless it implements driver.Valuer. *T is not considered to implement
 // driver.Valuer if it is only implemented by T.
-func isNilDriverValuer(value any) (isNil bool, callNilDriverValuer bool) {
+func isNilDriverValuer(value any) (isNil, callNilDriverValuer bool) {
 	if value == nil {
 		return true, false
 	}

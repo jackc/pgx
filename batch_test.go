@@ -488,7 +488,6 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		batch := &pgx.Batch{}
 		batch.Queue("select n from generate_series(0,5) n")
 		batch.Queue("select n from generate_series(0,5) n")
@@ -539,7 +538,6 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
 	})
 }
 
@@ -550,7 +548,6 @@ func TestConnSendBatchQueryError(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		batch := &pgx.Batch{}
 		batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0")
 		batch.Queue("select n from generate_series(0,5) n")
@@ -580,7 +577,6 @@ func TestConnSendBatchQueryError(t *testing.T) {
 		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "22012") {
 			t.Errorf("br.Close() => %v, want error code %v", err, 22012)
 		}
-
 	})
 }
 
@@ -591,7 +587,6 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		batch := &pgx.Batch{}
 		batch.Queue("select 1 1")
 
@@ -607,7 +602,6 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error")
 		}
-
 	})
 }
 
@@ -618,7 +612,6 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		sql := `create temporary table ledger(
 	  id serial primary key,
 	  description varchar not null,
@@ -647,7 +640,6 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 		}
 
 		br.Close()
-
 	})
 }
 
@@ -658,7 +650,6 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		sql := `create temporary table ledger(
 	  id serial primary key,
 	  description varchar not null,
@@ -687,7 +678,6 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 		}
 
 		br.Close()
-
 	})
 }
 
@@ -698,7 +688,6 @@ func TestTxSendBatch(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		sql := `create temporary table ledger1(
 	  id serial primary key,
 	  description varchar not null
@@ -757,7 +746,6 @@ func TestTxSendBatch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
 	})
 }
 
@@ -768,7 +756,6 @@ func TestTxSendBatchRollback(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		sql := `create temporary table ledger1(
 	  id serial primary key,
 	  description varchar not null
@@ -795,7 +782,6 @@ func TestTxSendBatchRollback(t *testing.T) {
 		if count != 0 {
 			t.Errorf("count => %v, want %v", count, 0)
 		}
-
 	})
 }
 
@@ -855,7 +841,6 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		pgxtest.SkipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 		mustExec(t, conn, `create temporary table t (
@@ -894,7 +879,6 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 		if err, ok := err.(*pgconn.PgError); !ok || err.Code != "23505" {
 			t.Fatalf("expected error 23505, got %v", err)
 		}
-
 	})
 }
 

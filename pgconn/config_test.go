@@ -133,7 +133,6 @@ func TestParseConfig(t *testing.T) {
 			name:       "sslmode prefer",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=prefer",
 			config: &pgconn.Config{
-
 				User:     "jack",
 				Password: "secret",
 				Host:     "localhost",
@@ -567,7 +566,8 @@ func TestParseConfig(t *testing.T) {
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "bar",
-						}},
+						},
+					},
 					{
 						Host:      "bar",
 						Port:      defaultPort,
@@ -579,7 +579,8 @@ func TestParseConfig(t *testing.T) {
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "baz",
-						}},
+						},
+					},
 					{
 						Host:      "baz",
 						Port:      defaultPort,
@@ -1023,7 +1024,7 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	t.Parallel()
 
 	tfName := filepath.Join(t.TempDir(), "config")
-	err := os.WriteFile(tfName, []byte("test1:5432:curlydb:curly:nyuknyuknyuk"), 0600)
+	err := os.WriteFile(tfName, []byte("test1:5432:curlydb:curly:nyuknyuknyuk"), 0o600)
 	require.NoError(t, err)
 
 	connString := fmt.Sprintf("postgres://curly@test1:5432/curlydb?sslmode=disable&passfile=%s", tfName)
@@ -1061,7 +1062,7 @@ host = def.example.com
 dbname = defdb
 user = defuser
 application_name = spaced string
-`), 0600)
+`), 0o600)
 	require.NoError(t, err)
 
 	defaultPort := getDefaultPort(t)

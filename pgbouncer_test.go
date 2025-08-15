@@ -72,5 +72,4 @@ func testPgbouncer(t *testing.T, config *pgx.ConnConfig, workers, iterations int
 	for i := 0; i < workers; i++ {
 		<-doneChan
 	}
-
 }

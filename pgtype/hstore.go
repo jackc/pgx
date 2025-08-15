@@ -162,7 +162,6 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 }
 
 func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -298,7 +297,7 @@ func (p *hstoreParser) consume() (b byte, end bool) {
 	return b, false
 }
 
-func unexpectedByteErr(actualB byte, expectedB byte) error {
+func unexpectedByteErr(actualB, expectedB byte) error {
 	return fmt.Errorf("expected '%c' ('%#v'); found '%c' ('%#v')", expectedB, expectedB, actualB, actualB)
 }
 
@@ -316,7 +315,7 @@ func (p *hstoreParser) consumeExpectedByte(expectedB byte) error {
 
 // consumeExpected2 consumes two expected bytes or returns an error.
 // This was a bit faster than using a string argument (better inlining? Not sure).
-func (p *hstoreParser) consumeExpected2(one byte, two byte) error {
+func (p *hstoreParser) consumeExpected2(one, two byte) error {
 	if p.pos+2 > len(p.str) {
 		return errors.New("unexpected end of string")
 	}

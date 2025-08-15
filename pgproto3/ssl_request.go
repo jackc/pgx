@@ -10,8 +10,7 @@ import (
 
 const sslRequestNumber = 80877103
 
-type SSLRequest struct {
-}
+type SSLRequest struct{}
 
 // Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*SSLRequest) Frontend() {}

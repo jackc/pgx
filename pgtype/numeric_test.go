@@ -198,7 +198,6 @@ func TestNumericMarshalJSON(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-
 		for i, tt := range []struct {
 			decString string
 		}{

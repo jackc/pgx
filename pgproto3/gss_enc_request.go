@@ -10,8 +10,7 @@ import (
 
 const gssEncReqNumber = 80877104
 
-type GSSEncRequest struct {
-}
+type GSSEncRequest struct{}
 
 // Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*GSSEncRequest) Frontend() {}

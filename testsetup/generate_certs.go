@@ -161,7 +161,6 @@ func writeEncryptedPrivateKey(path string, privateKey *rsa.PrivateKey, password 
 	}
 
 	return nil
-
 }
 
 func writeCertificate(path string, certBytes []byte) error {
