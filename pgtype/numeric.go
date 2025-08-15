@@ -27,16 +27,20 @@ const (
 	pgNumericNegInfSign = 0xf000
 )
 
-var big0 *big.Int = big.NewInt(0)
-var big1 *big.Int = big.NewInt(1)
-var big10 *big.Int = big.NewInt(10)
-var big100 *big.Int = big.NewInt(100)
-var big1000 *big.Int = big.NewInt(1000)
+var (
+	big0    *big.Int = big.NewInt(0)
+	big1    *big.Int = big.NewInt(1)
+	big10   *big.Int = big.NewInt(10)
+	big100  *big.Int = big.NewInt(100)
+	big1000 *big.Int = big.NewInt(1000)
+)
 
-var bigNBase *big.Int = big.NewInt(nbase)
-var bigNBaseX2 *big.Int = big.NewInt(nbase * nbase)
-var bigNBaseX3 *big.Int = big.NewInt(nbase * nbase * nbase)
-var bigNBaseX4 *big.Int = big.NewInt(nbase * nbase * nbase * nbase)
+var (
+	bigNBase   *big.Int = big.NewInt(nbase)
+	bigNBaseX2 *big.Int = big.NewInt(nbase * nbase)
+	bigNBaseX3 *big.Int = big.NewInt(nbase * nbase * nbase)
+	bigNBaseX4 *big.Int = big.NewInt(nbase * nbase * nbase * nbase)
+)
 
 type NumericScanner interface {
 	ScanNumeric(v Numeric) error
@@ -553,7 +557,6 @@ func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
 }
 
 func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

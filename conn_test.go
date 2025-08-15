@@ -412,7 +412,6 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	if commandTag.String() != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
-
 }
 
 func TestPrepare(t *testing.T) {
@@ -1089,7 +1088,7 @@ func TestLoadRangeType(t *testing.T) {
 		conn.TypeMap().RegisterType(newRangeType)
 		conn.TypeMap().RegisterDefaultPgType(pgtype.Range[float64]{}, "examplefloatrange")
 
-		var inputRangeType = pgtype.Range[float64]{
+		inputRangeType := pgtype.Range[float64]{
 			Lower:     1.0,
 			Upper:     2.0,
 			LowerType: pgtype.Inclusive,
@@ -1129,7 +1128,7 @@ func TestLoadMultiRangeType(t *testing.T) {
 		conn.TypeMap().RegisterType(newMultiRangeType)
 		conn.TypeMap().RegisterDefaultPgType(pgtype.Multirange[pgtype.Range[float64]]{}, "examplefloatmultirange")
 
-		var inputMultiRangeType = pgtype.Multirange[pgtype.Range[float64]]{
+		inputMultiRangeType := pgtype.Multirange[pgtype.Range[float64]]{
 			{
 				Lower:     1.0,
 				Upper:     2.0,

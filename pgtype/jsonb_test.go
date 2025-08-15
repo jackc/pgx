@@ -95,7 +95,8 @@ func TestJSONBCodecCustomMarshal(t *testing.T) {
 				Unmarshal: func(data []byte, v any) error {
 					return json.Unmarshal([]byte(`{"custom":"value"}`), v)
 				},
-			}})
+			},
+		})
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "jsonb", []pgxtest.ValueRoundTripTest{

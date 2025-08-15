@@ -221,7 +221,6 @@ func (encodePlanUint32CodecTextInt64Valuer) Encode(value any, buf []byte) (newBu
 }
 
 func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
