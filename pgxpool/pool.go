@@ -15,12 +15,14 @@ import (
 	"github.com/jackc/puddle/v2"
 )
 
-var defaultMaxConns = int32(4)
-var defaultMinConns = int32(0)
-var defaultMinIdleConns = int32(0)
-var defaultMaxConnLifetime = time.Hour
-var defaultMaxConnIdleTime = time.Minute * 30
-var defaultHealthCheckPeriod = time.Minute
+var (
+	defaultMaxConns          = int32(4)
+	defaultMinConns          = int32(0)
+	defaultMinIdleConns      = int32(0)
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = time.Minute * 30
+	defaultHealthCheckPeriod = time.Minute
+)
 
 type connResource struct {
 	conn       *pgx.Conn

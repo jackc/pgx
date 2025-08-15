@@ -332,7 +332,7 @@ func TestJSONUnmarshalRowDescription(t *testing.T) {
 }
 
 func TestJSONUnmarshalBind(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		desc string
 		data []byte
 	}{
@@ -348,7 +348,7 @@ func TestJSONUnmarshalBind(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			var want = Bind{
+			want := Bind{
 				PreparedStatement:    "lrupsc_1_0",
 				ParameterFormatCodes: []int16{0},
 				Parameters:           [][]byte{[]byte("ABC-123")},

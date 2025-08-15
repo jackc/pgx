@@ -207,7 +207,6 @@ func (br *batchResults) Query() (Rows, error) {
 func (br *batchResults) QueryRow() Row {
 	rows, _ := br.Query()
 	return (*connRow)(rows.(*baseRows))
-
 }
 
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
@@ -378,7 +377,6 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 func (br *pipelineBatchResults) QueryRow() Row {
 	rows, _ := br.Query()
 	return (*connRow)(rows.(*baseRows))
-
 }
 
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to

@@ -374,7 +374,6 @@ parseValueLoop:
 	}
 
 	return elements, nil
-
 }
 
 func parseRange(buf *bytes.Buffer) (string, error) {

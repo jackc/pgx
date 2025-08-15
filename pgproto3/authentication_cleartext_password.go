@@ -9,8 +9,7 @@ import (
 )
 
 // AuthenticationCleartextPassword is a message sent from the backend indicating that a clear-text password is required.
-type AuthenticationCleartextPassword struct {
-}
+type AuthenticationCleartextPassword struct{}
 
 // Backend identifies this message as sendable by the PostgreSQL backend.
 func (*AuthenticationCleartextPassword) Backend() {}

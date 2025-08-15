@@ -776,7 +776,6 @@ func TestPoolQuery(t *testing.T) {
 	stats = pool.Stat()
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
-
 }
 
 func TestPoolQueryRow(t *testing.T) {
@@ -1204,7 +1203,6 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	}
 
 	t.Fatal("did not reach min pool size")
-
 }
 
 func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
