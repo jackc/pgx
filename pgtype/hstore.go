@@ -22,16 +22,18 @@ type HstoreValuer interface {
 // associated with its keys.
 type Hstore map[string]*string
 
+// ScanHstore implements the [HstoreScanner] interface.
 func (h *Hstore) ScanHstore(v Hstore) error {
 	*h = v
 	return nil
 }
 
+// HstoreValue implements the [HstoreValuer] interface.
 func (h Hstore) HstoreValue() (Hstore, error) {
 	return h, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (h *Hstore) Scan(src any) error {
 	if src == nil {
 		*h = nil
@@ -46,7 +48,7 @@ func (h *Hstore) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (h Hstore) Value() (driver.Value, error) {
 	if h == nil {
 		return nil, nil

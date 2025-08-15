@@ -22,16 +22,18 @@ type Bool struct {
 	Valid bool
 }
 
+// ScanBool implements the [BoolScanner] interface.
 func (b *Bool) ScanBool(v Bool) error {
 	*b = v
 	return nil
 }
 
+// BoolValue implements the [BoolValuer] interface.
 func (b Bool) BoolValue() (Bool, error) {
 	return b, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Bool) Scan(src any) error {
 	if src == nil {
 		*dst = Bool{}
@@ -61,7 +63,7 @@ func (dst *Bool) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Bool) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -70,6 +72,7 @@ func (src Bool) Value() (driver.Value, error) {
 	return src.Bool, nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (src Bool) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
@@ -82,6 +85,7 @@ func (src Bool) MarshalJSON() ([]byte, error) {
 	}
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (dst *Bool) UnmarshalJSON(b []byte) error {
 	var v *bool
 	err := json.Unmarshal(b, &v)

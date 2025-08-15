@@ -25,16 +25,18 @@ type Uint32 struct {
 	Valid  bool
 }
 
+// ScanUint32 implements the [Uint32Scanner] interface.
 func (n *Uint32) ScanUint32(v Uint32) error {
 	*n = v
 	return nil
 }
 
+// Uint32Value implements the [Uint32Valuer] interface.
 func (n Uint32) Uint32Value() (Uint32, error) {
 	return n, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Uint32) Scan(src any) error {
 	if src == nil {
 		*dst = Uint32{}
@@ -68,7 +70,7 @@ func (dst *Uint32) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Uint32) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -76,6 +78,7 @@ func (src Uint32) Value() (driver.Value, error) {
 	return int64(src.Uint32), nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (src Uint32) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
@@ -83,6 +86,7 @@ func (src Uint32) MarshalJSON() ([]byte, error) {
 	return json.Marshal(src.Uint32)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (dst *Uint32) UnmarshalJSON(b []byte) error {
 	var n *uint32
 	err := json.Unmarshal(b, &n)
