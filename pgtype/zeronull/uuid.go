@@ -8,9 +8,10 @@ import (
 
 type UUID [16]byte
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (UUID) SkipUnderlyingTypePlan() {}
 
-// ScanUUID implements the UUIDScanner interface.
+// ScanUUID implements the [pgtype.UUIDScanner] interface.
 func (u *UUID) ScanUUID(v pgtype.UUID) error {
 	if !v.Valid {
 		*u = UUID{}
@@ -22,6 +23,7 @@ func (u *UUID) ScanUUID(v pgtype.UUID) error {
 	return nil
 }
 
+// UUIDValue implements the [pgtype.UUIDValuer] interface.
 func (u UUID) UUIDValue() (pgtype.UUID, error) {
 	if u == (UUID{}) {
 		return pgtype.UUID{}, nil
@@ -29,7 +31,7 @@ func (u UUID) UUIDValue() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: u, Valid: true}, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (u *UUID) Scan(src any) error {
 	if src == nil {
 		*u = UUID{}
@@ -47,7 +49,7 @@ func (u *UUID) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (u UUID) Value() (driver.Value, error) {
 	if u == (UUID{}) {
 		return nil, nil

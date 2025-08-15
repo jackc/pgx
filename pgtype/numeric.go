@@ -54,15 +54,18 @@ type Numeric struct {
 	Valid            bool
 }
 
+// ScanNumeric implements the [NumericScanner] interface.
 func (n *Numeric) ScanNumeric(v Numeric) error {
 	*n = v
 	return nil
 }
 
+// NumericValue implements the [NumericValuer] interface.
 func (n Numeric) NumericValue() (Numeric, error) {
 	return n, nil
 }
 
+// Float64Value implements the [Float64Valuer] interface.
 func (n Numeric) Float64Value() (Float8, error) {
 	if !n.Valid {
 		return Float8{}, nil
@@ -92,6 +95,7 @@ func (n Numeric) Float64Value() (Float8, error) {
 	return Float8{Float64: f, Valid: true}, nil
 }
 
+// ScanInt64 implements the [Int64Scanner] interface.
 func (n *Numeric) ScanInt64(v Int8) error {
 	if !v.Valid {
 		*n = Numeric{}
@@ -102,6 +106,7 @@ func (n *Numeric) ScanInt64(v Int8) error {
 	return nil
 }
 
+// Int64Value implements the [Int64Valuer] interface.
 func (n Numeric) Int64Value() (Int8, error) {
 	if !n.Valid {
 		return Int8{}, nil
@@ -203,7 +208,7 @@ func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
 	return accum, rp, digits
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (n *Numeric) Scan(src any) error {
 	if src == nil {
 		*n = Numeric{}
@@ -218,7 +223,7 @@ func (n *Numeric) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (n Numeric) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -231,6 +236,7 @@ func (n Numeric) Value() (driver.Value, error) {
 	return string(buf), err
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (n Numeric) MarshalJSON() ([]byte, error) {
 	if !n.Valid {
 		return []byte("null"), nil
@@ -243,6 +249,7 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 	return n.numberTextBytes(), nil
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (n *Numeric) UnmarshalJSON(src []byte) error {
 	if bytes.Equal(src, []byte(`null`)) {
 		*n = Numeric{}

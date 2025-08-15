@@ -374,8 +374,8 @@ func quoteArrayElementIfNeeded(src string) string {
 	return src
 }
 
-// Array represents a PostgreSQL array for T. It implements the ArrayGetter and ArraySetter interfaces. It preserves
-// PostgreSQL dimensions and custom lower bounds. Use FlatArray if these are not needed.
+// Array represents a PostgreSQL array for T. It implements the [ArrayGetter] and [ArraySetter] interfaces. It preserves
+// PostgreSQL dimensions and custom lower bounds. Use [FlatArray] if these are not needed.
 type Array[T any] struct {
 	Elements []T
 	Dims     []ArrayDimension
@@ -419,8 +419,8 @@ func (a Array[T]) ScanIndexType() any {
 	return new(T)
 }
 
-// FlatArray implements the ArrayGetter and ArraySetter interfaces for any slice of T. It ignores PostgreSQL dimensions
-// and custom lower bounds. Use Array to preserve these.
+// FlatArray implements the [ArrayGetter] and [ArraySetter] interfaces for any slice of T. It ignores PostgreSQL dimensions
+// and custom lower bounds. Use [Array] to preserve these.
 type FlatArray[T any] []T
 
 func (a FlatArray[T]) Dimensions() []ArrayDimension {

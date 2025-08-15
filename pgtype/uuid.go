@@ -20,11 +20,13 @@ type UUID struct {
 	Valid bool
 }
 
+// ScanUUID implements the [UUIDScanner] interface.
 func (b *UUID) ScanUUID(v UUID) error {
 	*b = v
 	return nil
 }
 
+// UUIDValue implements the [UUIDValuer] interface.
 func (b UUID) UUIDValue() (UUID, error) {
 	return b, nil
 }
@@ -67,7 +69,7 @@ func encodeUUID(src [16]byte) string {
 	return string(buf[:])
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *UUID) Scan(src any) error {
 	if src == nil {
 		*dst = UUID{}
@@ -87,7 +89,7 @@ func (dst *UUID) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src UUID) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -104,6 +106,7 @@ func (src UUID) String() string {
 	return encodeUUID(src.Bytes)
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (src UUID) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
@@ -116,6 +119,7 @@ func (src UUID) MarshalJSON() ([]byte, error) {
 	return buff.Bytes(), nil
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (dst *UUID) UnmarshalJSON(src []byte) error {
 	if bytes.Equal(src, []byte("null")) {
 		*dst = UUID{}
