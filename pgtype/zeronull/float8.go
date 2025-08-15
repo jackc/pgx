@@ -8,9 +8,10 @@ import (
 
 type Float8 float64
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Float8) SkipUnderlyingTypePlan() {}
 
-// ScanFloat64 implements the Float64Scanner interface.
+// ScanFloat64 implements the [pgtype.Float64Scanner] interface.
 func (f *Float8) ScanFloat64(n pgtype.Float8) error {
 	if !n.Valid {
 		*f = 0
@@ -22,6 +23,7 @@ func (f *Float8) ScanFloat64(n pgtype.Float8) error {
 	return nil
 }
 
+// Float64Value implements the [pgtype.Float64Valuer] interface.
 func (f Float8) Float64Value() (pgtype.Float8, error) {
 	if f == 0 {
 		return pgtype.Float8{}, nil
@@ -29,7 +31,7 @@ func (f Float8) Float64Value() (pgtype.Float8, error) {
 	return pgtype.Float8{Float64: float64(f), Valid: true}, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (f *Float8) Scan(src any) error {
 	if src == nil {
 		*f = 0
@@ -47,7 +49,7 @@ func (f *Float8) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (f Float8) Value() (driver.Value, error) {
 	if f == 0 {
 		return nil, nil

@@ -10,8 +10,10 @@ import (
 
 type Timestamp time.Time
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Timestamp) SkipUnderlyingTypePlan() {}
 
+// ScanTimestamp implements the [pgtype.TimestampScanner] interface.
 func (ts *Timestamp) ScanTimestamp(v pgtype.Timestamp) error {
 	if !v.Valid {
 		*ts = Timestamp{}
@@ -31,6 +33,7 @@ func (ts *Timestamp) ScanTimestamp(v pgtype.Timestamp) error {
 	}
 }
 
+// TimestampValue implements the [pgtype.TimestampValuer] interface.
 func (ts Timestamp) TimestampValue() (pgtype.Timestamp, error) {
 	if time.Time(ts).IsZero() {
 		return pgtype.Timestamp{}, nil
@@ -39,7 +42,7 @@ func (ts Timestamp) TimestampValue() (pgtype.Timestamp, error) {
 	return pgtype.Timestamp{Time: time.Time(ts), Valid: true}, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (ts *Timestamp) Scan(src any) error {
 	if src == nil {
 		*ts = Timestamp{}
@@ -57,7 +60,7 @@ func (ts *Timestamp) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (ts Timestamp) Value() (driver.Value, error) {
 	if time.Time(ts).IsZero() {
 		return nil, nil
