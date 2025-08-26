@@ -1,6 +1,7 @@
 package pgconn_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -42,6 +43,11 @@ func TestConfigError(t *testing.T) {
 			name:        "url without password",
 			err:         pgconn.NewParseConfigError("postgresql://other@host/db", "msg", nil),
 			expectedMsg: "cannot parse `postgresql://other@host/db`: msg",
+		},
+		{
+			name:        "url with password, include error",
+			err:         pgconn.NewParseConfigError("postgresql://foo:password@host", "msg", errors.New(`failed to parse as URL (postgresql://foo:password@host)`)),
+			expectedMsg: "cannot parse `postgresql://foo:xxxxx@host`: msg (failed to parse as URL (postgresql://foo:xxxxxx@host))",
 		},
 	}
 	for _, tt := range tests {

@@ -128,7 +128,8 @@ func (e *ParseConfigError) Error() string {
 	if e.err == nil {
 		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
 	}
-	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, e.err.Error())
+	errorRedacted := redactPW(e.err.Error())
+	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, errorRedacted)
 }
 
 func (e *ParseConfigError) Unwrap() error {
