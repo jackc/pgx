@@ -24,16 +24,18 @@ type Uint64 struct {
 	Valid  bool
 }
 
+// ScanUint64 implements the [Uint64Scanner] interface.
 func (n *Uint64) ScanUint64(v Uint64) error {
 	*n = v
 	return nil
 }
 
+// Uint64Value implements the [Uint64Valuer] interface.
 func (n Uint64) Uint64Value() (Uint64, error) {
 	return n, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Uint64) Scan(src any) error {
 	if src == nil {
 		*dst = Uint64{}
@@ -63,7 +65,7 @@ func (dst *Uint64) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Uint64) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -194,7 +196,6 @@ func (encodePlanUint64CodecTextInt64Valuer) Encode(value any, buf []byte) (newBu
 }
 
 func (Uint64Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

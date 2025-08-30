@@ -104,7 +104,7 @@ func logQueryArgs(args []any) []any {
 			}
 		case string:
 			if len(v) > 64 {
-				var l = 0
+				l := 0
 				for w := 0; l < 64; l += w {
 					_, w = utf8.DecodeRuneInString(v[l:])
 				}

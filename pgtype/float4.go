@@ -16,26 +16,29 @@ type Float4 struct {
 	Valid   bool
 }
 
-// ScanFloat64 implements the Float64Scanner interface.
+// ScanFloat64 implements the [Float64Scanner] interface.
 func (f *Float4) ScanFloat64(n Float8) error {
 	*f = Float4{Float32: float32(n.Float64), Valid: n.Valid}
 	return nil
 }
 
+// Float64Value implements the [Float64Valuer] interface.
 func (f Float4) Float64Value() (Float8, error) {
 	return Float8{Float64: float64(f.Float32), Valid: f.Valid}, nil
 }
 
+// ScanInt64 implements the [Int64Scanner] interface.
 func (f *Float4) ScanInt64(n Int8) error {
 	*f = Float4{Float32: float32(n.Int64), Valid: n.Valid}
 	return nil
 }
 
+// Int64Value implements the [Int64Valuer] interface.
 func (f Float4) Int64Value() (Int8, error) {
 	return Int8{Int64: int64(f.Float32), Valid: f.Valid}, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (f *Float4) Scan(src any) error {
 	if src == nil {
 		*f = Float4{}
@@ -58,7 +61,7 @@ func (f *Float4) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (f Float4) Value() (driver.Value, error) {
 	if !f.Valid {
 		return nil, nil
@@ -66,6 +69,7 @@ func (f Float4) Value() (driver.Value, error) {
 	return float64(f.Float32), nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (f Float4) MarshalJSON() ([]byte, error) {
 	if !f.Valid {
 		return []byte("null"), nil
@@ -73,6 +77,7 @@ func (f Float4) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.Float32)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (f *Float4) UnmarshalJSON(b []byte) error {
 	var n *float32
 	err := json.Unmarshal(b, &n)
@@ -170,7 +175,6 @@ func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value any, buf []byte) (new
 }
 
 func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
