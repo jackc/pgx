@@ -36,16 +36,18 @@ type Timestamptz struct {
 	Valid            bool
 }
 
+// ScanTimestamptz implements the [TimestamptzScanner] interface.
 func (tstz *Timestamptz) ScanTimestamptz(v Timestamptz) error {
 	*tstz = v
 	return nil
 }
 
+// TimestamptzValue implements the [TimestamptzValuer] interface.
 func (tstz Timestamptz) TimestamptzValue() (Timestamptz, error) {
 	return tstz, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (tstz *Timestamptz) Scan(src any) error {
 	if src == nil {
 		*tstz = Timestamptz{}
@@ -63,7 +65,7 @@ func (tstz *Timestamptz) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (tstz Timestamptz) Value() (driver.Value, error) {
 	if !tstz.Valid {
 		return nil, nil
@@ -75,6 +77,7 @@ func (tstz Timestamptz) Value() (driver.Value, error) {
 	return tstz.Time, nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (tstz Timestamptz) MarshalJSON() ([]byte, error) {
 	if !tstz.Valid {
 		return []byte("null"), nil
@@ -94,6 +97,7 @@ func (tstz Timestamptz) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (tstz *Timestamptz) UnmarshalJSON(b []byte) error {
 	var s *string
 	err := json.Unmarshal(b, &s)

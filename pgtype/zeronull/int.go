@@ -12,9 +12,10 @@ import (
 
 type Int2 int16
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Int2) SkipUnderlyingTypePlan() {}
 
-// ScanInt64 implements the Int64Scanner interface.
+// ScanInt64 implements the [pgtype.Int64Scanner] interface.
 func (dst *Int2) ScanInt64(n int64, valid bool) error {
 	if !valid {
 		*dst = 0
@@ -32,7 +33,7 @@ func (dst *Int2) ScanInt64(n int64, valid bool) error {
 	return nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Int2) Scan(src any) error {
 	if src == nil {
 		*dst = 0
@@ -50,7 +51,7 @@ func (dst *Int2) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Int2) Value() (driver.Value, error) {
 	if src == 0 {
 		return nil, nil
@@ -60,9 +61,10 @@ func (src Int2) Value() (driver.Value, error) {
 
 type Int4 int32
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Int4) SkipUnderlyingTypePlan() {}
 
-// ScanInt64 implements the Int64Scanner interface.
+// ScanInt64 implements the [pgtype.Int64Scanner] interface.
 func (dst *Int4) ScanInt64(n int64, valid bool) error {
 	if !valid {
 		*dst = 0
@@ -80,7 +82,7 @@ func (dst *Int4) ScanInt64(n int64, valid bool) error {
 	return nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Int4) Scan(src any) error {
 	if src == nil {
 		*dst = 0
@@ -98,7 +100,7 @@ func (dst *Int4) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Int4) Value() (driver.Value, error) {
 	if src == 0 {
 		return nil, nil
@@ -108,9 +110,10 @@ func (src Int4) Value() (driver.Value, error) {
 
 type Int8 int64
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Int8) SkipUnderlyingTypePlan() {}
 
-// ScanInt64 implements the Int64Scanner interface.
+// ScanInt64 implements the [pgtype.Int64Scanner] interface.
 func (dst *Int8) ScanInt64(n int64, valid bool) error {
 	if !valid {
 		*dst = 0
@@ -128,7 +131,7 @@ func (dst *Int8) ScanInt64(n int64, valid bool) error {
 	return nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Int8) Scan(src any) error {
 	if src == nil {
 		*dst = 0
@@ -146,7 +149,7 @@ func (dst *Int8) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Int8) Value() (driver.Value, error) {
 	if src == 0 {
 		return nil, nil
