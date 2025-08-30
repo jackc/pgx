@@ -306,12 +306,13 @@ func TestRoundTrip(t *testing.T) {
 			})
 		}
 	}
-
 }
 
 func BenchmarkHstoreEncode(b *testing.B) {
-	h := pgtype.Hstore{"a x": stringPtr("100"), "b": stringPtr("200"), "c": stringPtr("300"),
-		"d": stringPtr("400"), "e": stringPtr("500")}
+	h := pgtype.Hstore{
+		"a x": stringPtr("100"), "b": stringPtr("200"), "c": stringPtr("300"),
+		"d": stringPtr("400"), "e": stringPtr("500"),
+	}
 
 	serializeConfigs := []struct {
 		name       string

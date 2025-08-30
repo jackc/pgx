@@ -207,7 +207,6 @@ func (br *batchResults) Query() (Rows, error) {
 func (br *batchResults) QueryRow() Row {
 	rows, _ := br.Query()
 	return (*connRow)(rows.(*baseRows))
-
 }
 
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
@@ -220,6 +219,8 @@ func (br *batchResults) Close() error {
 			}
 			br.endTraced = true
 		}
+
+		invalidateCachesOnBatchResultsError(br.conn, br.b, br.err)
 	}()
 
 	if br.err != nil {
@@ -378,7 +379,6 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 func (br *pipelineBatchResults) QueryRow() Row {
 	rows, _ := br.Query()
 	return (*connRow)(rows.(*baseRows))
-
 }
 
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
@@ -391,6 +391,8 @@ func (br *pipelineBatchResults) Close() error {
 			}
 			br.endTraced = true
 		}
+
+		invalidateCachesOnBatchResultsError(br.conn, br.b, br.err)
 	}()
 
 	if br.err == nil && br.lastRows != nil && br.lastRows.err != nil {
@@ -440,4 +442,21 @@ func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, er
 	bi := br.b.QueuedQueries[br.qqIdx]
 	br.qqIdx++
 	return bi.SQL, bi.Arguments, nil
+}
+
+// invalidates statement and description caches on batch results error
+func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
+	if err != nil && conn != nil && b != nil {
+		if sc := conn.statementCache; sc != nil {
+			for _, bi := range b.QueuedQueries {
+				sc.Invalidate(bi.SQL)
+			}
+		}
+
+		if sc := conn.descriptionCache; sc != nil {
+			for _, bi := range b.QueuedQueries {
+				sc.Invalidate(bi.SQL)
+			}
+		}
+	}
 }

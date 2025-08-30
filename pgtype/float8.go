@@ -24,26 +24,29 @@ type Float8 struct {
 	Valid   bool
 }
 
-// ScanFloat64 implements the Float64Scanner interface.
+// ScanFloat64 implements the [Float64Scanner] interface.
 func (f *Float8) ScanFloat64(n Float8) error {
 	*f = n
 	return nil
 }
 
+// Float64Value implements the [Float64Valuer] interface.
 func (f Float8) Float64Value() (Float8, error) {
 	return f, nil
 }
 
+// ScanInt64 implements the [Int64Scanner] interface.
 func (f *Float8) ScanInt64(n Int8) error {
 	*f = Float8{Float64: float64(n.Int64), Valid: n.Valid}
 	return nil
 }
 
+// Int64Value implements the [Int64Valuer] interface.
 func (f Float8) Int64Value() (Int8, error) {
 	return Int8{Int64: int64(f.Float64), Valid: f.Valid}, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (f *Float8) Scan(src any) error {
 	if src == nil {
 		*f = Float8{}
@@ -66,7 +69,7 @@ func (f *Float8) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (f Float8) Value() (driver.Value, error) {
 	if !f.Valid {
 		return nil, nil
@@ -74,6 +77,7 @@ func (f Float8) Value() (driver.Value, error) {
 	return f.Float64, nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (f Float8) MarshalJSON() ([]byte, error) {
 	if !f.Valid {
 		return []byte("null"), nil
@@ -81,6 +85,7 @@ func (f Float8) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.Float64)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (f *Float8) UnmarshalJSON(b []byte) error {
 	var n *float64
 	err := json.Unmarshal(b, &n)
@@ -208,7 +213,6 @@ func (encodePlanTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, e
 }
 
 func (Float8Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

@@ -412,7 +412,6 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	if commandTag.String() != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
-
 }
 
 func TestPrepare(t *testing.T) {
@@ -1089,7 +1088,7 @@ func TestLoadRangeType(t *testing.T) {
 		conn.TypeMap().RegisterType(newRangeType)
 		conn.TypeMap().RegisterDefaultPgType(pgtype.Range[float64]{}, "examplefloatrange")
 
-		var inputRangeType = pgtype.Range[float64]{
+		inputRangeType := pgtype.Range[float64]{
 			Lower:     1.0,
 			Upper:     2.0,
 			LowerType: pgtype.Inclusive,
@@ -1129,7 +1128,7 @@ func TestLoadMultiRangeType(t *testing.T) {
 		conn.TypeMap().RegisterType(newMultiRangeType)
 		conn.TypeMap().RegisterDefaultPgType(pgtype.Multirange[pgtype.Range[float64]]{}, "examplefloatmultirange")
 
-		var inputMultiRangeType = pgtype.Multirange[pgtype.Range[float64]]{
+		inputMultiRangeType := pgtype.Multirange[pgtype.Range[float64]]{
 			{
 				Lower:     1.0,
 				Upper:     2.0,
@@ -1289,6 +1288,177 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 	err = rows.Err()
 	require.NoError(t, err)
 	rows.Close()
+
+	ensureConnValid(t, conn)
+}
+
+func TestStmtCacheInvalidationConnWithBatch(t *testing.T) {
+	ctx := context.Background()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Test fails due to different CRDB behavior")
+	}
+
+	// create a table and fill it with some data
+	_, err := conn.Exec(ctx, `
+        DROP TABLE IF EXISTS drop_cols;
+        CREATE TABLE drop_cols (
+            id SERIAL PRIMARY KEY NOT NULL,
+            f1 int NOT NULL,
+            f2 int NOT NULL
+        );
+    `)
+	require.NoError(t, err)
+	_, err = conn.Exec(ctx, "INSERT INTO drop_cols (f1, f2) VALUES (1, 2)")
+	require.NoError(t, err)
+
+	getSQL := "SELECT * FROM drop_cols WHERE id = $1"
+
+	// This query will populate the statement cache. We don't care about the result.
+	rows, err := conn.Query(ctx, getSQL, 1)
+	require.NoError(t, err)
+	rows.Close()
+	require.NoError(t, rows.Err())
+
+	// Now, change the schema of the table out from under the statement, making it invalid.
+	_, err = conn.Exec(ctx, "ALTER TABLE drop_cols DROP COLUMN f1")
+	require.NoError(t, err)
+
+	// We must get an error the first time we try to re-execute a bad statement.
+	// It is up to the application to determine if it wants to try again. We punt to
+	// the application because there is no clear recovery path in the case of failed transactions
+	// or batch operations and because automatic retry is tricky and we don't want to get
+	// it wrong at such an importaint layer of the stack.
+	batch := &pgx.Batch{}
+	batch.Queue(getSQL, 1)
+	br := conn.SendBatch(ctx, batch)
+	rows, err = br.Query()
+	require.Error(t, err)
+	rows.Next()
+	nextErr := rows.Err()
+	rows.Close()
+	err = br.Close()
+	require.Error(t, err)
+	for _, err := range []error{nextErr, rows.Err()} {
+		if err == nil {
+			t.Fatal(`expected "cached plan must not change result type": no error`)
+		}
+		if !strings.Contains(err.Error(), "cached plan must not change result type") {
+			t.Fatalf(`expected "cached plan must not change result type", got: "%s"`, err.Error())
+		}
+	}
+
+	// On retry, the statement should have been flushed from the cache.
+	batch = &pgx.Batch{}
+	batch.Queue(getSQL, 1)
+	br = conn.SendBatch(ctx, batch)
+	rows, err = br.Query()
+	require.NoError(t, err)
+	rows.Next()
+	err = rows.Err()
+	require.NoError(t, err)
+	rows.Close()
+	require.NoError(t, rows.Err())
+	err = br.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, conn)
+}
+
+func TestStmtCacheInvalidationTxWithBatch(t *testing.T) {
+	ctx := context.Background()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server has non-standard prepare in errored transaction behavior (https://github.com/cockroachdb/cockroach/issues/84140)")
+	}
+
+	// create a table and fill it with some data
+	_, err := conn.Exec(ctx, `
+        DROP TABLE IF EXISTS drop_cols;
+        CREATE TABLE drop_cols (
+            id SERIAL PRIMARY KEY NOT NULL,
+            f1 int NOT NULL,
+            f2 int NOT NULL
+        );
+    `)
+	require.NoError(t, err)
+	_, err = conn.Exec(ctx, "INSERT INTO drop_cols (f1, f2) VALUES (1, 2)")
+	require.NoError(t, err)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+
+	getSQL := "SELECT * FROM drop_cols WHERE id = $1"
+
+	// This query will populate the statement cache. We don't care about the result.
+	rows, err := tx.Query(ctx, getSQL, 1)
+	require.NoError(t, err)
+	rows.Close()
+	require.NoError(t, rows.Err())
+
+	// Now, change the schema of the table out from under the statement, making it invalid.
+	_, err = tx.Exec(ctx, "ALTER TABLE drop_cols DROP COLUMN f1")
+	require.NoError(t, err)
+
+	// We must get an error the first time we try to re-execute a bad statement.
+	// It is up to the application to determine if it wants to try again. We punt to
+	// the application because there is no clear recovery path in the case of failed transactions
+	// or batch operations and because automatic retry is tricky and we don't want to get
+	// it wrong at such an importaint layer of the stack.
+	batch := &pgx.Batch{}
+	batch.Queue(getSQL, 1)
+	br := tx.SendBatch(ctx, batch)
+	rows, err = br.Query()
+	require.Error(t, err)
+	rows.Next()
+	nextErr := rows.Err()
+	rows.Close()
+	err = br.Close()
+	require.Error(t, err)
+	for _, err := range []error{nextErr, rows.Err()} {
+		if err == nil {
+			t.Fatal(`expected "cached plan must not change result type": no error`)
+		}
+		if !strings.Contains(err.Error(), "cached plan must not change result type") {
+			t.Fatalf(`expected "cached plan must not change result type", got: "%s"`, err.Error())
+		}
+	}
+
+	batch = &pgx.Batch{}
+	batch.Queue(getSQL, 1)
+	br = tx.SendBatch(ctx, batch)
+	rows, err = br.Query()
+	require.Error(t, err)
+	rows.Close()
+	err = rows.Err()
+	// Retries within the same transaction are errors (really anything except a rollback
+	// will be an error in this transaction).
+	require.Error(t, err)
+	rows.Close()
+	err = br.Close()
+	require.Error(t, err)
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
+
+	// once we've rolled back, retries will work
+	batch = &pgx.Batch{}
+	batch.Queue(getSQL, 1)
+	br = conn.SendBatch(ctx, batch)
+	rows, err = br.Query()
+	require.NoError(t, err)
+	rows.Next()
+	err = rows.Err()
+	require.NoError(t, err)
+	rows.Close()
+	err = br.Close()
+	require.NoError(t, err)
 
 	ensureConnValid(t, conn)
 }

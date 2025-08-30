@@ -33,16 +33,18 @@ type Interval struct {
 	Valid        bool
 }
 
+// ScanInterval implements the [IntervalScanner] interface.
 func (interval *Interval) ScanInterval(v Interval) error {
 	*interval = v
 	return nil
 }
 
+// IntervalValue implements the [IntervalValuer] interface.
 func (interval Interval) IntervalValue() (Interval, error) {
 	return interval, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (interval *Interval) Scan(src any) error {
 	if src == nil {
 		*interval = Interval{}
@@ -57,7 +59,7 @@ func (interval *Interval) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (interval Interval) Value() (driver.Value, error) {
 	if !interval.Valid {
 		return nil, nil
@@ -157,7 +159,6 @@ func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte,
 }
 
 func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

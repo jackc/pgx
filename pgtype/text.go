@@ -19,16 +19,18 @@ type Text struct {
 	Valid  bool
 }
 
+// ScanText implements the [TextScanner] interface.
 func (t *Text) ScanText(v Text) error {
 	*t = v
 	return nil
 }
 
+// TextValue implements the [TextValuer] interface.
 func (t Text) TextValue() (Text, error) {
 	return t, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Text) Scan(src any) error {
 	if src == nil {
 		*dst = Text{}
@@ -47,7 +49,7 @@ func (dst *Text) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Text) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -55,6 +57,7 @@ func (src Text) Value() (driver.Value, error) {
 	return src.String, nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (src Text) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
@@ -63,6 +66,7 @@ func (src Text) MarshalJSON() ([]byte, error) {
 	return json.Marshal(src.String)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (dst *Text) UnmarshalJSON(b []byte) error {
 	var s *string
 	err := json.Unmarshal(b, &s)
@@ -146,7 +150,6 @@ func (encodePlanTextCodecTextValuer) Encode(value any, buf []byte) (newBuf []byt
 }
 
 func (TextCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {

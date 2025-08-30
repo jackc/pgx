@@ -24,16 +24,18 @@ type Lseg struct {
 	Valid bool
 }
 
+// ScanLseg implements the [LsegScanner] interface.
 func (lseg *Lseg) ScanLseg(v Lseg) error {
 	*lseg = v
 	return nil
 }
 
+// LsegValue implements the [LsegValuer] interface.
 func (lseg Lseg) LsegValue() (Lseg, error) {
 	return lseg, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (lseg *Lseg) Scan(src any) error {
 	if src == nil {
 		*lseg = Lseg{}
@@ -48,7 +50,7 @@ func (lseg *Lseg) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (lseg Lseg) Value() (driver.Value, error) {
 	if !lseg.Valid {
 		return nil, nil
@@ -127,7 +129,6 @@ func (encodePlanLsegCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 }
 
 func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

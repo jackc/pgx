@@ -102,7 +102,6 @@ func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 }
 
 func TestTimestampMarshalJSON(t *testing.T) {
-
 	tsStruct := struct {
 		TS pgtype.Timestamp `json:"ts"`
 	}{}

@@ -2130,6 +2130,63 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2364
+func TestConnCopyFromConnectionTerminated(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support pg_terminate_backend")
+	}
+
+	closerConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	time.AfterFunc(500*time.Millisecond, func() {
+		// defer inside of AfterFunc instead of outer test function because outer function can finish while Read is still in
+		// progress which could cause closerConn to be closed too soon.
+		defer closeConn(t, closerConn)
+		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{[]byte(fmt.Sprintf("%d", pgConn.PID()))}, nil, nil, nil).Read().Err
+		require.NoError(t, err)
+	})
+
+	_, err = pgConn.Exec(ctx, `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	r, w := io.Pipe()
+	go func() {
+		for i := 0; i < 5_000; i++ {
+			a := strconv.Itoa(i)
+			b := "foo " + a + " bar"
+			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			if err != nil {
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+
+	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
+	ct, err := pgConn.CopyFrom(ctx, r, copySql)
+	assert.Equal(t, int64(0), ct.RowsAffected())
+	assert.Error(t, err)
+
+	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupDone():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
+}
+
 func TestConnCopyFromGzipReader(t *testing.T) {
 	t.Parallel()
 
