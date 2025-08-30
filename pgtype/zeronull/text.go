@@ -8,9 +8,10 @@ import (
 
 type Text string
 
+// SkipUnderlyingTypePlan implements the [pgtype.SkipUnderlyingTypePlanner] interface.
 func (Text) SkipUnderlyingTypePlan() {}
 
-// ScanText implements the TextScanner interface.
+// ScanText implements the [pgtype.TextScanner] interface.
 func (dst *Text) ScanText(v pgtype.Text) error {
 	if !v.Valid {
 		*dst = ""
@@ -22,7 +23,7 @@ func (dst *Text) ScanText(v pgtype.Text) error {
 	return nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Text) Scan(src any) error {
 	if src == nil {
 		*dst = ""
@@ -40,7 +41,7 @@ func (dst *Text) Scan(src any) error {
 	return nil
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Text) Value() (driver.Value, error) {
 	if src == "" {
 		return nil, nil

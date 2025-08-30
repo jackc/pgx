@@ -97,7 +97,8 @@ func testCopyFrom(t *testing.T, ctx context.Context, db interface {
 	execer
 	queryer
 	copyFromer
-}) {
+},
+) {
 	_, err := db.Exec(ctx, `create temporary table foo(a int2, b int4, c int8, d varchar, e text, f date, g timestamptz)`)
 	require.NoError(t, err)
 

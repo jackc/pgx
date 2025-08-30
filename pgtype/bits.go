@@ -23,16 +23,18 @@ type Bits struct {
 	Valid bool
 }
 
+// ScanBits implements the [BitsScanner] interface.
 func (b *Bits) ScanBits(v Bits) error {
 	*b = v
 	return nil
 }
 
+// BitsValue implements the [BitsValuer] interface.
 func (b Bits) BitsValue() (Bits, error) {
 	return b, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Bits) Scan(src any) error {
 	if src == nil {
 		*dst = Bits{}
@@ -47,7 +49,7 @@ func (dst *Bits) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Bits) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -127,7 +129,6 @@ func (encodePlanBitsCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 }
 
 func (BitsCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

@@ -24,16 +24,18 @@ type Box struct {
 	Valid bool
 }
 
+// ScanBox implements the [BoxScanner] interface.
 func (b *Box) ScanBox(v Box) error {
 	*b = v
 	return nil
 }
 
+// BoxValue implements the [BoxValuer] interface.
 func (b Box) BoxValue() (Box, error) {
 	return b, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Box) Scan(src any) error {
 	if src == nil {
 		*dst = Box{}
@@ -48,7 +50,7 @@ func (dst *Box) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Box) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -127,7 +129,6 @@ func (encodePlanBoxCodecText) Encode(value any, buf []byte) (newBuf []byte, err 
 }
 
 func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

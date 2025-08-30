@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 )
 
-type CopyDone struct {
-}
+type CopyDone struct{}
 
 // Backend identifies this message as sendable by the PostgreSQL backend.
 func (*CopyDone) Backend() {}

@@ -24,16 +24,18 @@ type Polygon struct {
 	Valid bool
 }
 
+// ScanPolygon implements the [PolygonScanner] interface.
 func (p *Polygon) ScanPolygon(v Polygon) error {
 	*p = v
 	return nil
 }
 
+// PolygonValue implements the [PolygonValuer] interface.
 func (p Polygon) PolygonValue() (Polygon, error) {
 	return p, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (p *Polygon) Scan(src any) error {
 	if src == nil {
 		*p = Polygon{}
@@ -48,7 +50,7 @@ func (p *Polygon) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (p Polygon) Value() (driver.Value, error) {
 	if !p.Valid {
 		return nil, nil
@@ -139,7 +141,6 @@ func (encodePlanPolygonCodecText) Encode(value any, buf []byte) (newBuf []byte, 
 }
 
 func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
