@@ -1374,7 +1374,14 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 				close(pgConn.cleanupDone)
 				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
-			msg, _ := pgConn.receiveMessage()
+			// peekMessage never returns err in the bufferingReceive mode - it only forwards the bufferingReceive variables.
+			// Therefore, the only case for receiveMessage to return err is during handling of the ErrorResponse message type
+			// and using pgOnError handler to determine the connection is no longer valid (and thus closing the conn).
+			msg, serverError := pgConn.receiveMessage()
+			if serverError != nil {
+				close(abortCopyChan)
+				return CommandTag{}, serverError
+			}
 
 			switch msg := msg.(type) {
 			case *pgproto3.ErrorResponse:
