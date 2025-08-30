@@ -33,6 +33,14 @@ func (dst *Int2) ScanInt64(n pgtype.Int8) error {
 	return nil
 }
 
+// Int64Value implements the [pgtype.Int64Valuer] interface.
+func (src Int2) Int64Value() (pgtype.Int8, error) {
+	if src == 0 {
+		return pgtype.Int8{}, nil
+	}
+	return pgtype.Int8{Int64: int64(src), Valid: true}, nil
+}
+
 // Scan implements the [database/sql.Scanner] interface.
 func (dst *Int2) Scan(src any) error {
 	if src == nil {
@@ -82,6 +90,14 @@ func (dst *Int4) ScanInt64(n pgtype.Int8) error {
 	return nil
 }
 
+// Int64Value implements the [pgtype.Int64Valuer] interface.
+func (src Int4) Int64Value() (pgtype.Int8, error) {
+	if src == 0 {
+		return pgtype.Int8{}, nil
+	}
+	return pgtype.Int8{Int64: int64(src), Valid: true}, nil
+}
+
 // Scan implements the [database/sql.Scanner] interface.
 func (dst *Int4) Scan(src any) error {
 	if src == nil {
@@ -129,6 +145,14 @@ func (dst *Int8) ScanInt64(n pgtype.Int8) error {
 	*dst = Int8(n.Int64)
 
 	return nil
+}
+
+// Int64Value implements the [pgtype.Int64Valuer] interface.
+func (src Int8) Int64Value() (pgtype.Int8, error) {
+	if src == 0 {
+		return pgtype.Int8{}, nil
+	}
+	return pgtype.Int8{Int64: int64(src), Valid: true}, nil
 }
 
 // Scan implements the [database/sql.Scanner] interface.
