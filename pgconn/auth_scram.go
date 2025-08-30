@@ -263,7 +263,7 @@ func computeClientProof(saltedPassword, authMessage []byte) []byte {
 	return buf
 }
 
-func computeServerSignature(saltedPassword []byte, authMessage []byte) []byte {
+func computeServerSignature(saltedPassword, authMessage []byte) []byte {
 	serverKey := computeHMAC(saltedPassword, []byte("Server Key"))
 	serverSignature := computeHMAC(serverKey, authMessage)
 	buf := make([]byte, base64.StdEncoding.EncodedLen(len(serverSignature)))

@@ -71,7 +71,6 @@ func TestMultirangeCodecDecodeValue(t *testing.T) {
 	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
 
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
-
 		for _, tt := range []struct {
 			sql      string
 			expected any

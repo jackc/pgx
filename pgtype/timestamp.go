@@ -11,8 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
-const pgTimestampFormat = "2006-01-02 15:04:05.999999999"
-const jsonISO8601 = "2006-01-02T15:04:05.999999999"
+const (
+	pgTimestampFormat = "2006-01-02 15:04:05.999999999"
+	jsonISO8601       = "2006-01-02T15:04:05.999999999"
+)
 
 type TimestampScanner interface {
 	ScanTimestamp(v Timestamp) error

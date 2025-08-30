@@ -1141,7 +1141,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 // binary format. If resultFormats is nil all results will be in text format.
 //
 // ResultReader must be closed before PgConn can be used again.
-func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) *ResultReader {
+func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
 		return result
@@ -1167,7 +1167,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 // binary format. If resultFormats is nil all results will be in text format.
 //
 // ResultReader must be closed before PgConn can be used again.
-func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) *ResultReader {
+func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
 		return result
@@ -1720,7 +1720,7 @@ type Batch struct {
 }
 
 // ExecParams appends an ExecParams command to the batch. See PgConn.ExecParams for parameter descriptions.
-func (batch *Batch) ExecParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) {
+func (batch *Batch) ExecParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats, resultFormats []int16) {
 	if batch.err != nil {
 		return
 	}
@@ -1733,7 +1733,7 @@ func (batch *Batch) ExecParams(sql string, paramValues [][]byte, paramOIDs []uin
 }
 
 // ExecPrepared appends an ExecPrepared e command to the batch. See PgConn.ExecPrepared for parameter descriptions.
-func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) {
+func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFormats, resultFormats []int16) {
 	if batch.err != nil {
 		return
 	}
@@ -2209,7 +2209,7 @@ func (p *Pipeline) SendDeallocate(name string) {
 }
 
 // SendQueryParams is the pipeline version of *PgConn.QueryParams.
-func (p *Pipeline) SendQueryParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) {
+func (p *Pipeline) SendQueryParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats, resultFormats []int16) {
 	if p.closed {
 		return
 	}
@@ -2222,7 +2222,7 @@ func (p *Pipeline) SendQueryParams(sql string, paramValues [][]byte, paramOIDs [
 }
 
 // SendQueryPrepared is the pipeline version of *PgConn.QueryPrepared.
-func (p *Pipeline) SendQueryPrepared(stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) {
+func (p *Pipeline) SendQueryPrepared(stmtName string, paramValues [][]byte, paramFormats, resultFormats []int16) {
 	if p.closed {
 		return
 	}
