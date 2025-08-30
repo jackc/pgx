@@ -2143,7 +2143,13 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 
 	closerConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
-	defer closeConn(t, closerConn)
+	time.AfterFunc(500*time.Millisecond, func() {
+		// defer inside of AfterFunc instead of outer test function because outer function can finish while Read is still in
+		// progress which could cause closerConn to be closed too soon.
+		defer closeConn(t, closerConn)
+		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{[]byte(fmt.Sprintf("%d", pgConn.PID()))}, nil, nil, nil).Read().Err
+		require.NoError(t, err)
+	})
 
 	_, err = pgConn.Exec(ctx, `create temporary table foo(
 		a int4,
@@ -2164,11 +2170,6 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 		}
 	}()
 
-	time.AfterFunc(500*time.Millisecond, func() {
-		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{[]byte(fmt.Sprintf("%d", pgConn.PID()))}, nil, nil, nil).Read().Err
-		require.NoError(t, err)
-	})
-
 	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
 	if pgConn.ParameterStatus("crdb_version") != "" {
 		copySql = "COPY foo FROM STDIN WITH CSV"
@@ -2176,7 +2177,6 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 	ct, err := pgConn.CopyFrom(ctx, r, copySql)
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	assert.Error(t, err)
-	fmt.Println(err)
 
 	assert.True(t, pgConn.IsClosed())
 	select {
