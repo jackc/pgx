@@ -25,16 +25,18 @@ type Path struct {
 	Valid  bool
 }
 
+// ScanPath implements the [PathScanner] interface.
 func (path *Path) ScanPath(v Path) error {
 	*path = v
 	return nil
 }
 
+// PathValue implements the [PathValuer] interface.
 func (path Path) PathValue() (Path, error) {
 	return path, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (path *Path) Scan(src any) error {
 	if src == nil {
 		*path = Path{}
@@ -49,7 +51,7 @@ func (path *Path) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (path Path) Value() (driver.Value, error) {
 	if !path.Valid {
 		return nil, nil
@@ -154,7 +156,6 @@ func (encodePlanPathCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 }
 
 func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

@@ -23,9 +23,11 @@ import (
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
-type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
-type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
-type GetSSLPasswordFunc func(ctx context.Context) string
+type (
+	AfterConnectFunc    func(ctx context.Context, pgconn *PgConn) error
+	ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
+	GetSSLPasswordFunc  func(ctx context.Context) string
+)
 
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by [ParseConfig]. A
 // manually initialized Config will cause ConnectConfig to panic.
@@ -784,8 +786,8 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			if sslpassword != "" {
 				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			}
-			//if sslpassword not provided or has decryption error when use it
-			//try to find sslpassword with callback function
+			// if sslpassword not provided or has decryption error when use it
+			// try to find sslpassword with callback function
 			if sslpassword == "" || decryptedError != nil {
 				if parseConfigOptions.GetSSLPassword != nil {
 					sslpassword = parseConfigOptions.GetSSLPassword(context.Background())

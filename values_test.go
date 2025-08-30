@@ -117,7 +117,6 @@ func TestJSONAndJSONBTranscodeExtendedOnly(t *testing.T) {
 		testJSONInt16ArrayFailureDueToOverflow(t, conn, typename)
 		testJSONStruct(t, conn, typename)
 	}
-
 }
 
 func testJSONString(t testing.TB, conn *pgx.Conn, typename string) {
@@ -597,7 +596,9 @@ func TestArrayDecoding(t *testing.T) {
 			assert func(testing.TB, any, any)
 		}{
 			{
-				"select $1::bool[]", []bool{true, false, true}, &[]bool{},
+				"select $1::bool[]",
+				[]bool{true, false, true},
+				&[]bool{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]bool))) {
 						t.Errorf("failed to encode bool[]")
@@ -605,7 +606,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
+				"select $1::smallint[]",
+				[]int16{2, 4, 484, 32767},
+				&[]int16{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int16))) {
 						t.Errorf("failed to encode smallint[]")
@@ -613,7 +616,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
+				"select $1::smallint[]",
+				[]uint16{2, 4, 484, 32767},
+				&[]uint16{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint16))) {
 						t.Errorf("failed to encode smallint[]")
@@ -621,7 +626,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
+				"select $1::int[]",
+				[]int32{2, 4, 484},
+				&[]int32{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int32))) {
 						t.Errorf("failed to encode int[]")
@@ -629,7 +636,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
+				"select $1::int[]",
+				[]uint32{2, 4, 484, 2147483647},
+				&[]uint32{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint32))) {
 						t.Errorf("failed to encode int[]")
@@ -637,7 +646,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
+				"select $1::bigint[]",
+				[]int64{2, 4, 484, 9223372036854775807},
+				&[]int64{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int64))) {
 						t.Errorf("failed to encode bigint[]")
@@ -645,7 +656,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
+				"select $1::bigint[]",
+				[]uint64{2, 4, 484, 9223372036854775807},
+				&[]uint64{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint64))) {
 						t.Errorf("failed to encode bigint[]")
@@ -653,7 +666,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
+				"select $1::text[]",
+				[]string{"it's", "over", "9000!"},
+				&[]string{},
 				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]string))) {
 						t.Errorf("failed to encode text[]")
@@ -661,7 +676,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
+				"select $1::timestamptz[]",
+				[]time.Time{time.Unix(323232, 0), time.Unix(3239949334, 0o0)},
+				&[]time.Time{},
 				func(t testing.TB, query, scan any) {
 					queryTimeSlice := query.([]time.Time)
 					scanTimeSlice := *(scan.(*[]time.Time))
@@ -672,7 +689,9 @@ func TestArrayDecoding(t *testing.T) {
 				},
 			},
 			{
-				"select $1::bytea[]", [][]byte{{0, 1, 2, 3}, {4, 5, 6, 7}}, &[][]byte{},
+				"select $1::bytea[]",
+				[][]byte{{0, 1, 2, 3}, {4, 5, 6, 7}},
+				&[][]byte{},
 				func(t testing.TB, query, scan any) {
 					queryBytesSliceSlice := query.([][]byte)
 					scanBytesSliceSlice := *(scan.(*[][]byte))

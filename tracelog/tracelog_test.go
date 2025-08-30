@@ -362,7 +362,6 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 		assert.Equal(t, "BatchQuery", logger.logs[1].msg)
 		assert.Equal(t, "drop table foo", logger.logs[1].data["sql"])
 		assert.Equal(t, "BatchClose", logger.logs[2].msg)
-
 	})
 }
 

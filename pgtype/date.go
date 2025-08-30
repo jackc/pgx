@@ -26,11 +26,13 @@ type Date struct {
 	Valid            bool
 }
 
+// ScanDate implements the [DateScanner] interface.
 func (d *Date) ScanDate(v Date) error {
 	*d = v
 	return nil
 }
 
+// DateValue implements the [DateValuer] interface.
 func (d Date) DateValue() (Date, error) {
 	return d, nil
 }
@@ -40,7 +42,7 @@ const (
 	infinityDayOffset         = 2147483647
 )
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (dst *Date) Scan(src any) error {
 	if src == nil {
 		*dst = Date{}
@@ -58,7 +60,7 @@ func (dst *Date) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (src Date) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
@@ -70,6 +72,7 @@ func (src Date) Value() (driver.Value, error) {
 	return src.Time, nil
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 func (src Date) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
@@ -89,6 +92,7 @@ func (src Date) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (dst *Date) UnmarshalJSON(b []byte) error {
 	var s *string
 	err := json.Unmarshal(b, &s)
@@ -223,7 +227,6 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 }
 
 func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

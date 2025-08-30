@@ -34,17 +34,19 @@ func init() {
 }
 
 // Test for renamed types
-type _string string
-type _bool bool
-type _uint8 uint8
-type _int8 int8
-type _int16 int16
-type _int16Slice []int16
-type _int32Slice []int32
-type _int64Slice []int64
-type _float32Slice []float32
-type _float64Slice []float64
-type _byteSlice []byte
+type (
+	_string       string
+	_bool         bool
+	_uint8        uint8
+	_int8         int8
+	_int16        int16
+	_int16Slice   []int16
+	_int32Slice   []int32
+	_int64Slice   []int64
+	_float32Slice []float32
+	_float64Slice []float64
+	_byteSlice    []byte
+)
 
 // unregisteredOID represents an actual type that is not registered. Cannot use 0 because that represents that the type
 // is not known (e.g. when using the simple protocol).
@@ -530,7 +532,8 @@ func TestMapEncodePlanCacheUUIDTypeConfusion(t *testing.T) {
 		0, 0, 0, 16,
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 		0, 0, 0, 16,
-		15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}
+		15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+	}
 
 	m := pgtype.NewMap()
 	buf, err := m.Encode(pgtype.UUIDArrayOID, pgtype.BinaryFormatCode,

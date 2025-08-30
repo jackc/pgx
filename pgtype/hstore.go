@@ -22,16 +22,18 @@ type HstoreValuer interface {
 // associated with its keys.
 type Hstore map[string]*string
 
+// ScanHstore implements the [HstoreScanner] interface.
 func (h *Hstore) ScanHstore(v Hstore) error {
 	*h = v
 	return nil
 }
 
+// HstoreValue implements the [HstoreValuer] interface.
 func (h Hstore) HstoreValue() (Hstore, error) {
 	return h, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (h *Hstore) Scan(src any) error {
 	if src == nil {
 		*h = nil
@@ -46,7 +48,7 @@ func (h *Hstore) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (h Hstore) Value() (driver.Value, error) {
 	if h == nil {
 		return nil, nil
@@ -162,7 +164,6 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 }
 
 func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -298,7 +299,7 @@ func (p *hstoreParser) consume() (b byte, end bool) {
 	return b, false
 }
 
-func unexpectedByteErr(actualB byte, expectedB byte) error {
+func unexpectedByteErr(actualB, expectedB byte) error {
 	return fmt.Errorf("expected '%c' ('%#v'); found '%c' ('%#v')", expectedB, expectedB, actualB, actualB)
 }
 
@@ -316,7 +317,7 @@ func (p *hstoreParser) consumeExpectedByte(expectedB byte) error {
 
 // consumeExpected2 consumes two expected bytes or returns an error.
 // This was a bit faster than using a string argument (better inlining? Not sure).
-func (p *hstoreParser) consumeExpected2(one byte, two byte) error {
+func (p *hstoreParser) consumeExpected2(one, two byte) error {
 	if p.pos+2 > len(p.str) {
 		return errors.New("unexpected end of string")
 	}

@@ -9,7 +9,7 @@ import (
 func TestCommandTag(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		commandTag   CommandTag
 		rowsAffected int64
 		isInsert     bool
