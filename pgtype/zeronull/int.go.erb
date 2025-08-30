@@ -16,19 +16,19 @@ type Int<%= pg_byte_size %> int<%= pg_bit_size %>
 func (Int<%= pg_byte_size %>) SkipUnderlyingTypePlan() {}
 
 // ScanInt64 implements the [pgtype.Int64Scanner] interface.
-func (dst *Int<%= pg_byte_size %>) ScanInt64(n int64, valid bool) error {
-	if !valid {
+func (dst *Int<%= pg_byte_size %>) ScanInt64(n pgtype.Int8) error {
+	if !n.Valid {
 		*dst = 0
 		return nil
 	}
 
-	if n < math.MinInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n)
+	if n.Int64 < math.MinInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is less than minimum value for Int<%= pg_byte_size %>", n.Int64)
 	}
-	if n > math.MaxInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n)
+	if n.Int64 > math.MaxInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int64)
 	}
-	*dst = Int<%= pg_byte_size %>(n)
+	*dst = Int<%= pg_byte_size %>(n.Int64)
 
 	return nil
 }
