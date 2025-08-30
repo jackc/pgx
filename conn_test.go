@@ -1299,6 +1299,10 @@ func TestStmtCacheInvalidationConnWithBatch(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Test fails due to different CRDB behavior")
+	}
+
 	// create a table and fill it with some data
 	_, err := conn.Exec(ctx, `
         DROP TABLE IF EXISTS drop_cols;
