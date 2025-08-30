@@ -43,6 +43,10 @@ func (qq *QueuedQuery) QueryRow(fn func(row Row) error) {
 }
 
 // Exec sets fn to be called when the response to qq is received.
+//
+// Note: for simple batch insert uses where it is not required to handle
+// each potential error individually, it's sufficient to not set any callbacks,
+// and just handle the return value of BatchResults.Close.
 func (qq *QueuedQuery) Exec(fn func(ct pgconn.CommandTag) error) {
 	qq.Fn = func(br BatchResults) error {
 		ct, err := br.Exec()
@@ -83,7 +87,7 @@ func (b *Batch) Len() int {
 
 type BatchResults interface {
 	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec. Prefer
-	// calling Exec on the QueuedQuery.
+	// calling Exec on the QueuedQuery, or just calling Close.
 	Exec() (pgconn.CommandTag, error)
 
 	// Query reads the results from the next query in the batch as if the query has been sent with Conn.Query. Prefer
@@ -97,6 +101,9 @@ type BatchResults interface {
 	// Close closes the batch operation. All unread results are read and any callback functions registered with
 	// QueuedQuery.Query, QueuedQuery.QueryRow, or QueuedQuery.Exec will be called. If a callback function returns an
 	// error or the batch encounters an error subsequent callback functions will not be called.
+	//
+	// For simple batch inserts inside a transaction or similar queries, it's sufficient to not set any callbacks,
+	// and just handle the return value of Close.
 	//
 	// Close must be called before the underlying connection can be used again. Any error that occurred during a batch
 	// operation may have made it impossible to resyncronize the connection with the server. In this case the underlying
