@@ -2141,6 +2141,10 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support pg_terminate_backend")
+	}
+
 	closerConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	time.AfterFunc(500*time.Millisecond, func() {
@@ -2171,9 +2175,6 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 	}()
 
 	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
-	if pgConn.ParameterStatus("crdb_version") != "" {
-		copySql = "COPY foo FROM STDIN WITH CSV"
-	}
 	ct, err := pgConn.CopyFrom(ctx, r, copySql)
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	assert.Error(t, err)
