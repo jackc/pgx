@@ -2130,6 +2130,62 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2364
+func TestConnCopyFromConnectionTerminated(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	closerConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, closerConn)
+
+	_, err = pgConn.Exec(ctx, `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	r, w := io.Pipe()
+	go func() {
+		for i := 0; i < 5_000; i++ {
+			a := strconv.Itoa(i)
+			b := "foo " + a + " bar"
+			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			if err != nil {
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+
+	time.AfterFunc(500*time.Millisecond, func() {
+		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{[]byte(fmt.Sprintf("%d", pgConn.PID()))}, nil, nil, nil).Read().Err
+		require.NoError(t, err)
+	})
+
+	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		copySql = "COPY foo FROM STDIN WITH CSV"
+	}
+	ct, err := pgConn.CopyFrom(ctx, r, copySql)
+	assert.Equal(t, int64(0), ct.RowsAffected())
+	assert.Error(t, err)
+	fmt.Println(err)
+
+	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupDone():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
+}
+
 func TestConnCopyFromGzipReader(t *testing.T) {
 	t.Parallel()
 
