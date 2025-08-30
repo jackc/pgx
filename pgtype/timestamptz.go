@@ -11,10 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
-const pgTimestamptzHourFormat = "2006-01-02 15:04:05.999999999Z07"
-const pgTimestamptzMinuteFormat = "2006-01-02 15:04:05.999999999Z07:00"
-const pgTimestamptzSecondFormat = "2006-01-02 15:04:05.999999999Z07:00:00"
-const microsecFromUnixEpochToY2K = 946684800 * 1000000
+const (
+	pgTimestamptzHourFormat    = "2006-01-02 15:04:05.999999999Z07"
+	pgTimestamptzMinuteFormat  = "2006-01-02 15:04:05.999999999Z07:00"
+	pgTimestamptzSecondFormat  = "2006-01-02 15:04:05.999999999Z07:00:00"
+	microsecFromUnixEpochToY2K = 946684800 * 1000000
+)
 
 const (
 	negativeInfinityMicrosecondOffset = -9223372036854775808
@@ -229,7 +231,6 @@ func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []by
 }
 
 func (c *TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
