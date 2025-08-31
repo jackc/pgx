@@ -41,22 +41,19 @@ type Rows interface {
 	// when there was an error executing the query.
 	FieldDescriptions() []pgconn.FieldDescription
 
-	// Next prepares the next row for reading. It returns true if there is another
-	// row and false if no more rows are available or a fatal error has occurred.
-	// It automatically closes rows when all rows are read.
+	// Next prepares the next row for reading. It returns true if there is another row and false if no more rows are
+	// available or a fatal error has occurred. It automatically closes rows upon returning false (whether due to all rows
+	// having been read or due to an error).
 	//
-	// Callers should check rows.Err() after rows.Next() returns false to detect
-	// whether result-set reading ended prematurely due to an error. See
-	// Conn.Query for details.
+	// Callers should check rows.Err() after rows.Next() returns false to detect whether result-set reading ended
+	// prematurely due to an error. See Conn.Query for details.
 	//
-	// For simpler error handling, consider using the higher-level pgx v5
-	// CollectRows() and ForEachRow() helpers instead.
+	// For simpler error handling, consider using the higher-level pgx v5 CollectRows() and ForEachRow() helpers instead.
 	Next() bool
 
-	// Scan reads the values from the current row into dest values positionally.
-	// dest can include pointers to core types, values implementing the Scanner
-	// interface, and nil. nil will skip the value entirely. It is an error to
-	// call Scan without first calling Next() and checking that it returned true.
+	// Scan reads the values from the current row into dest values positionally. dest can include pointers to core types,
+	// values implementing the Scanner interface, and nil. nil will skip the value entirely. It is an error to call Scan
+	// without first calling Next() and checking that it returned true. Rows is automatically closed upon error.
 	Scan(dest ...any) error
 
 	// Values returns the decoded row values. As with Scan(), it is an error to
