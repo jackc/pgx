@@ -15,6 +15,7 @@ package pgconn
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -23,7 +24,6 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgproto3"
-	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/secure/precis"
 )
 
@@ -107,7 +107,7 @@ func (c *PgConn) rxSASLFinal() (*pgproto3.AuthenticationSASLFinal, error) {
 
 type scramClient struct {
 	serverAuthMechanisms []string
-	password             []byte
+	password             string
 	clientNonce          []byte
 
 	clientFirstMessageBare []byte
@@ -140,10 +140,10 @@ func newScramClient(serverAuthMechanisms []string, password string) (*scramClien
 
 	// precis.OpaqueString is equivalent to SASLprep for password.
 	var err error
-	sc.password, err = precis.OpaqueString.Bytes([]byte(password))
+	sc.password, err = precis.OpaqueString.String(password)
 	if err != nil {
 		// PostgreSQL allows passwords invalid according to SCRAM / SASLprep.
-		sc.password = []byte(password)
+		sc.password = password
 	}
 
 	buf := make([]byte, clientNonceLen)
@@ -220,7 +220,11 @@ func (sc *scramClient) recvServerFirstMessage(serverFirstMessage []byte) error {
 func (sc *scramClient) clientFinalMessage() string {
 	clientFinalMessageWithoutProof := []byte(fmt.Sprintf("c=biws,r=%s", sc.clientAndServerNonce))
 
-	sc.saltedPassword = pbkdf2.Key([]byte(sc.password), sc.salt, sc.iterations, 32, sha256.New)
+	var err error
+	sc.saltedPassword, err = pbkdf2.Key(sha256.New, sc.password, sc.salt, sc.iterations, 32)
+	if err != nil {
+		panic(err) // This should never happen.
+	}
 	sc.authMessage = bytes.Join([][]byte{sc.clientFirstMessageBare, sc.serverFirstMessage, clientFinalMessageWithoutProof}, []byte(","))
 
 	clientProof := computeClientProof(sc.saltedPassword, sc.authMessage)
