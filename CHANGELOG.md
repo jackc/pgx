@@ -1,3 +1,14 @@
+# 5.7.6 (September 8, 2025)
+
+* Use ParseConfigError in pgx.ParseConfig and pgxpool.ParseConfig (Yurasov Ilia)
+* Add PrepareConn hook to pgxpool (Jonathan Hall)
+* Reduce allocations in QueryContext (Dominique Lefevre)
+* Add MarshalJSON and UnmarshalJSON for pgtype.Uint32 (Panos Koutsovasilis)
+* Configure ping behavior on pgxpool with ShouldPing (Christian Kiely)
+* zeronull int types implement Int64Valuer and Int64Scanner (Li Zeghong)
+* Fix panic when receiving terminate connection message during CopyFrom (Michal Drausowski)
+* Fix statement cache not being invalidated on error during batch (Muhammadali Nazarov)
+
 # 5.7.5 (May 17, 2025)
 
 * Support sslnegotiation connection option (divyam234)
