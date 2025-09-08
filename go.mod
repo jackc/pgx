@@ -7,8 +7,8 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
 	github.com/jackc/puddle/v2 v2.2.2
 	github.com/stretchr/testify v1.8.1
-	golang.org/x/sync v0.13.0
-	golang.org/x/text v0.24.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/text v0.29.0
 )
 
 require (
