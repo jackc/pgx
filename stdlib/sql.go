@@ -124,6 +124,22 @@ func init() {
 // OptionOpenDB options for configuring the driver when opening a new db pool.
 type OptionOpenDB func(*connector)
 
+// ShouldPingParams are passed to OptionShouldPing to decide whether to ping before reusing a connection.
+type ShouldPingParams struct {
+	// Conn is the underlying pgx connection.
+	Conn *pgx.Conn
+	// IdleDuration is how long it has been since ResetSession last ran.
+	IdleDuration time.Duration
+}
+
+// OptionShouldPing controls whether stdlib should issue a liveness ping before reusing a connection.
+// If the function returns true, stdlib will ping.
+// If it returns false, stdlib will skip the ping.
+// If not provided, default is ping only when IdleDuration > 1s.
+func OptionShouldPing(f func(context.Context, ShouldPingParams) bool) OptionOpenDB {
+	return func(dc *connector) { dc.ShouldPing = f }
+}
+
 // OptionBeforeConnect provides a callback for before connect. It is passed a shallow copy of the ConnConfig that will
 // be used to connect, so only its immediate members should be modified. Used only if db is opened with *pgx.ConnConfig.
 func OptionBeforeConnect(bc func(context.Context, *pgx.ConnConfig) error) OptionOpenDB {
@@ -231,6 +247,7 @@ type connector struct {
 	BeforeConnect func(context.Context, *pgx.ConnConfig) error // function to call before creation of every new connection
 	AfterConnect  func(context.Context, *pgx.Conn) error       // function to call after creation of every new connection
 	ResetSession  func(context.Context, *pgx.Conn) error       // function is called before a connection is reused
+	ShouldPing    func(context.Context, ShouldPingParams) bool // function to decide if stdlib should ping before reusing a connection
 	driver        *Driver
 }
 
@@ -282,6 +299,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 		driver:           c.driver,
 		connConfig:       connConfig,
 		resetSessionFunc: c.ResetSession,
+		shouldPing:       c.ShouldPing,
 		psRefCounts:      make(map[*pgconn.StatementDescription]int),
 	}, nil
 }
@@ -389,7 +407,8 @@ type Conn struct {
 	close                func(context.Context) error
 	driver               *Driver
 	connConfig           pgx.ConnConfig
-	resetSessionFunc     func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
+	resetSessionFunc     func(context.Context, *pgx.Conn) error       // Function is called before a connection is reused
+	shouldPing           func(context.Context, ShouldPingParams) bool // Function to decide if stdlib should ping before reusing a connection
 	lastResetSessionTime time.Time
 
 	// psRefCounts contains reference counts for prepared statements. Prepare uses the underlying pgx logic to generate
@@ -537,11 +556,23 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 	}
 
 	now := time.Now()
-	if now.Sub(c.lastResetSessionTime) > time.Second {
+	idle := now.Sub(c.lastResetSessionTime)
+
+	doPing := idle > time.Second // default behavior: ping only if idle > 1s
+
+	if c.shouldPing != nil {
+		doPing = c.shouldPing(ctx, ShouldPingParams{
+			Conn:         c.conn,
+			IdleDuration: idle,
+		})
+	}
+
+	if doPing {
 		if err := c.conn.PgConn().Ping(ctx); err != nil {
 			return driver.ErrBadConn
 		}
 	}
+
 	c.lastResetSessionTime = now
 
 	return c.resetSessionFunc(ctx, c.conn)
