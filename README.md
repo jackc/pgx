@@ -186,6 +186,6 @@ Simple Golang implementation for transactional outbox pattern for PostgreSQL usi
 
 Simplifies working with the pgx library, providing convenient scanning of nested structures.
 
-## [https://github.com/KoNekoD/pgx-colon-query-rewriter](https://github.com/KoNekoD/pgx-colon-query-rewriter)
+### [https://github.com/KoNekoD/pgx-colon-query-rewriter](https://github.com/KoNekoD/pgx-colon-query-rewriter)
 
 Implementation of the pgx query rewriter to use ':' instead of '@' in named query parameters.
