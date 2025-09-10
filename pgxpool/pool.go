@@ -591,7 +591,7 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 	// Try to acquire from the connection pool up to maxConns + 1 times, so that
 	// any that fatal errors would empty the pool and still at least try 1 fresh
 	// connection.
-	for range p.maxConns + 1 {
+	for range int(p.maxConns) + 1 {
 		res, err := p.p.Acquire(ctx)
 		if err != nil {
 			return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -242,6 +243,27 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 	assert.Equal(t, conn, shouldPingLastCalledWith.Conn)
 	assert.InDelta(t, time.Millisecond*200, shouldPingLastCalledWith.IdleDuration, float64(time.Millisecond*100))
 
+	c.Release()
+}
+
+// https://github.com/jackc/pgx/issues/2379
+func TestPoolAcquireWithMaxConnsEqualsMaxInt32(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConns = math.MaxInt32
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
 	c.Release()
 }
 
