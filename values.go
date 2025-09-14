@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"errors"
+	"reflect"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,6 +15,13 @@ const (
 )
 
 func convertSimpleArgument(m *pgtype.Map, arg any) (any, error) {
+	fieldValue := reflect.ValueOf(arg)
+	switch fieldValue.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		arg = fieldValue.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		arg = fieldValue.Uint()
+	}
 	buf, err := m.Encode(0, TextFormatCode, arg, []byte{})
 	if err != nil {
 		return nil, err
