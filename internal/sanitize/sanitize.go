@@ -53,6 +53,10 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 				return "", errors.Errorf("invalid arg type: %T", arg)
 			}
 			argUse[argIdx] = true
+
+			// Prevent SQL injection via Line Comment Creation
+			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
+			str = "(" + str + ")"
 		default:
 			return "", errors.Errorf("invalid Part type: %T", part)
 		}
