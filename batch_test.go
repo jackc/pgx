@@ -1022,6 +1022,44 @@ func TestConnSendBatchErrorDoesNotLeaveOrphanedPreparedStatement(t *testing.T) {
 	})
 }
 
+func TestSendBatchStatementTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("SET statement_timeout='1ms'")
+		batch.Queue("SELECT pg_sleep(10)")
+
+		br := conn.SendBatch(context.Background(), batch)
+		// set statement_timeout
+		_, err := br.Exec()
+		assert.NoError(t, err)
+
+		// get pg_sleep results
+		rows, err := br.Query()
+		assert.NoError(t, err)
+
+		// Consume rows and check error
+		for rows.Next() {
+		}
+		err = rows.Err()
+		assert.ErrorContains(t, err, "(SQLSTATE 57014)")
+		rows.Close()
+
+		// The last error should be repeated when closing the batch
+		err = br.Close()
+		assert.ErrorContains(t, err, "(SQLSTATE 57014)")
+
+		// Connection should be usable after the statement timeout in pipeline
+		_, err = conn.Exec(context.Background(), "Select 1")
+		assert.NoError(t, err)
+	})
+
+}
+
 func ExampleConn_SendBatch() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
