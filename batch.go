@@ -404,7 +404,6 @@ func (br *pipelineBatchResults) Close() error {
 
 	if br.err == nil && br.lastRows != nil && br.lastRows.err != nil {
 		br.err = br.lastRows.err
-		return br.err
 	}
 
 	if br.closed {
