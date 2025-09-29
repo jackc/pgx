@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql/driver"
 	"errors"
 	"reflect"
 	"time"
@@ -16,6 +17,15 @@ const (
 )
 
 func convertSimpleArgument(m *pgtype.Map, arg any) (any, error) {
+	// If arg implements driver.Valuer, use Value method
+	if valuer, ok := arg.(driver.Valuer); ok && valuer != nil {
+		v, err := valuer.Value()
+		if err != nil {
+			return nil, err
+		}
+		arg = v
+	}
+
 	fieldValue := reflect.ValueOf(arg)
 	switch fieldValue.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
