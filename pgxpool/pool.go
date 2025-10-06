@@ -97,6 +97,7 @@ type Pool struct {
 	maxConnLifetimeJitter time.Duration
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
+	acquireTimeout        time.Duration
 
 	healthCheckChan chan struct{}
 
@@ -184,6 +185,9 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
+	// AcquireTimeout is the timeout for acquiring a connection from the pool
+	AcquireTimeout time.Duration
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -239,6 +243,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 		maxConnIdleTime:       config.MaxConnIdleTime,
 		healthCheckPeriod:     config.HealthCheckPeriod,
+		acquireTimeout:        config.AcquireTimeout,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
 	}
@@ -586,6 +591,12 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			}
 			p.acquireTracer.TraceAcquireEnd(ctx, p, TraceAcquireEndData{Conn: conn, Err: err})
 		}()
+	}
+
+	if p.acquireTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, p.acquireTimeout)
+		defer cancel()
 	}
 
 	// Try to acquire from the connection pool up to maxConns + 1 times, so that
