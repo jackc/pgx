@@ -1004,6 +1004,57 @@ func TestEncodeTypeRename(t *testing.T) {
 	})
 }
 
+// Define custom types that are aliases of basic types but also implement fmt.Stringer
+type StringerInt32 int32
+type StringerFloat64 float64
+
+// Implement the String() method for these types
+func (s StringerInt32) String() string {
+	return fmt.Sprintf("StringerInt32(%d)", int32(s))
+}
+
+func (s StringerFloat64) String() string {
+	return fmt.Sprintf("StringerFloat64(%f)", float64(s))
+}
+
+// TestStringerTypes tests custom type aliases that implement the fmt.Stringer interface
+func TestStringerTypes(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		// Test values
+		inInt := StringerInt32(42)
+		var outInt StringerInt32
+
+		inFloat := StringerFloat64(553.36)
+		var outFloat StringerFloat64
+
+		// Register types with the connection
+		conn.TypeMap().RegisterDefaultPgType(inInt, "int4")
+		conn.TypeMap().RegisterDefaultPgType(inFloat, "float8")
+
+		// Test that the underlying values are properly encoded/decoded,
+		// not the String() representation
+		err := conn.QueryRow(context.Background(), "select $1::int4, $2::float8", inInt, inFloat).
+			Scan(&outInt, &outFloat)
+		if err != nil {
+			t.Fatalf("Failed with Stringer types: %v", err)
+		}
+
+		// Check that the values are correctly preserved (not converted to their String() representation)
+		if inInt != outInt {
+			t.Errorf("StringerInt32: expected %v, got %v", inInt, outInt)
+		}
+
+		if inFloat != outFloat {
+			t.Errorf("StringerFloat64: expected %v, got %v", inFloat, outFloat)
+		}
+	})
+}
+
 // func TestRowDecodeBinary(t *testing.T) {
 // 	t.Parallel()
 
