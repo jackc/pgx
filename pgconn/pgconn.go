@@ -1499,7 +1499,12 @@ func (mrr *MultiResultReader) NextResult() bool {
 			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.EmptyQueryResponse:
-			return false
+			mrr.pgConn.resultReader = ResultReader{
+				commandConcluded: true,
+				closed:           true,
+			}
+			mrr.rr = &mrr.pgConn.resultReader
+			return true
 		}
 	}
 

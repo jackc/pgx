@@ -912,6 +912,10 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 // Depending on the QueryExecMode, all queries may be prepared before any are executed. This means that creating a table
 // and using it in a subsequent query in the same batch can fail.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
+	if len(b.QueuedQueries) == 0 {
+		return &emptyBatchResults{conn: c}
+	}
+
 	if c.batchTracer != nil {
 		ctx = c.batchTracer.TraceBatchStart(ctx, c, TraceBatchStartData{Batch: b})
 		defer func() {
