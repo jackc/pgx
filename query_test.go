@@ -2167,6 +2167,25 @@ func TestQueryWithQueryRewriter(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2402
+func TestQueryWithEmptyQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		emptyQueryStrings := []string{"", " ", "/* ping */", "-- ping"}
+		for _, eq := range emptyQueryStrings {
+			rows, err := conn.Query(ctx, eq)
+			require.NoError(t, err)
+			require.Equal(t, []pgconn.FieldDescription(nil), rows.FieldDescriptions())
+			require.False(t, rows.Next())
+			require.NoError(t, rows.Err())
+		}
+	})
+}
+
 // This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another
 // helper function should be used.
 func ExampleConn_Query() {

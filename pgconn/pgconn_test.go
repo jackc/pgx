@@ -792,16 +792,12 @@ func TestConnExecEmpty(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	multiResult := pgConn.Exec(ctx, ";")
-
-	resultCount := 0
-	for multiResult.NextResult() {
-		resultCount++
-		multiResult.ResultReader().Close()
-	}
-	assert.Equal(t, 0, resultCount)
-	err = multiResult.Close()
-	assert.NoError(t, err)
+	results, err := pgConn.Exec(ctx, ";").ReadAll()
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Nil(t, results[0].Err)
+	require.Equal(t, "", results[0].CommandTag.String())
+	require.Nil(t, results[0].FieldDescriptions)
 
 	ensureConnValid(t, pgConn)
 }
