@@ -1497,7 +1497,18 @@ func TryWrapBuiltinTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, 
 	case []byte:
 		return &wrapByteSliceEncodePlan{}, byteSliceWrapper(value), true
 	case fmt.Stringer:
-		return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{value}, true
+		// Check if the value is a renamed basic type. If it is, prefer the basic type encoding.
+		rv := reflect.ValueOf(value)
+		switch rv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64, reflect.Bool, reflect.String:
+			// For renamed basic types, don't use Stringer interface automatically
+			// Let the specific type match above handle it
+		default:
+			// For structs and other complex types that implement Stringer, use the Stringer interface
+			return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{value}, true
+		}
 	}
 
 	return nil, nil, false
