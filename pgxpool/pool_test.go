@@ -1291,8 +1291,8 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
-	// Set a very short ping timeout to force timeout during ping and destruction of the connection
-	config.PingTimeout = 1 * time.Nanosecond
+	config.PingTimeout = 200 * time.Millisecond
+	config.ConnConfig.DialFunc = newDelayProxyDialFunc(500 * time.Millisecond)
 
 	var conID *uint32
 	// Only ping the connection with the original PID to force creation of a new connection
@@ -1300,9 +1300,9 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 		if conID != nil && params.Conn.PgConn().PID() == *conID {
 			return true
 		}
-
 		return false
 	}
+
 	// Limit to a single connection to ensure the same connection is reused
 	config.MinConns = 1
 	config.MaxConns = 1
