@@ -503,9 +503,10 @@ func TestPrepareIdempotency(t *testing.T) {
 			}
 		}
 
+		// Previously, preparing a statement with the same name but different SQL would fail. Now it should succeed.
 		_, err := conn.Prepare(context.Background(), "test", "select 'fail'::varchar")
-		if err == nil {
-			t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
+		if err != nil {
+			t.Fatalf("Prepare statement with same name but different SQL should have succeeded but it didn't: %v", err)
 			return
 		}
 	})
