@@ -11,6 +11,7 @@ create user pgx_md5 with superuser PASSWORD 'secret';
 set password_encryption = 'scram-sha-256';
 create user pgx_pw with superuser PASSWORD 'secret';
 create user pgx_scram with superuser PASSWORD 'secret';
+create user pgx_oauth with superuser;
 \set whoami `whoami`
 create user :whoami with superuser; -- unix domain socket user
 

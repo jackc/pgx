@@ -14,6 +14,17 @@ then
   sudo sh -c "echo \"listen_addresses = '127.0.0.1'\" >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
   sudo sh -c "cat testsetup/postgresql_ssl.conf >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
 
+  if [ "$PGVERSION" -ge 18 ]; then
+    # Configure and Install OAuth validator for PostgreSQL 18+
+    sudo sh -c "cat testsetup/oauth_validator_module/postgresql.conf >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
+    sudo sh -c "cat testsetup/oauth_validator_module/pg_hba.conf >> /etc/postgresql/$PGVERSION/main/pg_hba.conf"
+    (
+      cd testsetup/oauth_validator_module
+      sudo apt-get install -y gcc make libkrb5-dev
+      make && sudo make install
+    )
+  fi
+
   cd testsetup
 
   # Generate CA, server, and encrypted client certificates.
