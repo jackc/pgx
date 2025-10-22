@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
+	"unsafe"
 )
 
 type UUIDScanner interface {
@@ -32,24 +33,65 @@ func (b UUID) UUIDValue() (UUID, error) {
 }
 
 // parseUUID converts a string UUID in standard form to a byte array.
-func parseUUID(src string) (dst [16]byte, err error) {
+func parseUUID(src []byte) (dst [16]byte, err error) {
+	var s [32]byte
 	switch len(src) {
 	case 36:
-		src = src[0:8] + src[9:13] + src[14:18] + src[19:23] + src[24:]
+		copy(s[0:8], src[0:8])
+		copy(s[8:12], src[9:13])
+		copy(s[12:16], src[14:18])
+		copy(s[16:20], src[19:23])
+		copy(s[20:], src[24:])
 	case 32:
 		// dashes already stripped, assume valid
+		copy(s[:], src)
 	default:
 		// assume invalid.
 		return dst, fmt.Errorf("cannot parse UUID %v", src)
 	}
 
-	buf, err := hex.DecodeString(src)
-	if err != nil {
-		return dst, err
+	return decode(s)
+}
+
+const (
+	reverseHexTable = "" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+)
+
+func decode(src [32]byte) (dst [16]byte, err error) {
+	i, j := 0, 1
+	for ; j < len(src); j += 2 {
+		p := src[j-1]
+		q := src[j]
+
+		a := reverseHexTable[p]
+		b := reverseHexTable[q]
+		if a > 0x0f {
+			return dst, fmt.Errorf("encoding/hex: invalid byte: %#U", rune(a))
+		}
+		if b > 0x0f {
+			return dst, fmt.Errorf("encoding/hex: invalid byte: %#U", rune(b))
+		}
+		dst[i] = (a << 4) | b
+		i++
 	}
 
-	copy(dst[:], buf)
-	return dst, err
+	return dst, nil
 }
 
 // encodeUUID converts a uuid byte array to UUID standard string form.
@@ -78,7 +120,7 @@ func (dst *UUID) Scan(src any) error {
 
 	switch src := src.(type) {
 	case string:
-		buf, err := parseUUID(src)
+		buf, err := parseUUID(unsafe.Slice(unsafe.StringData(src), len(src)))
 		if err != nil {
 			return err
 		}
@@ -128,7 +170,7 @@ func (dst *UUID) UnmarshalJSON(src []byte) error {
 	if len(src) != 38 {
 		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
-	buf, err := parseUUID(string(src[1 : len(src)-1]))
+	buf, err := parseUUID(src[1 : len(src)-1])
 	if err != nil {
 		return err
 	}
@@ -257,7 +299,7 @@ func (scanPlanTextAnyToUUIDScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanUUID(UUID{})
 	}
 
-	buf, err := parseUUID(string(src))
+	buf, err := parseUUID(src)
 	if err != nil {
 		return err
 	}
