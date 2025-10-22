@@ -74,6 +74,25 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 	return pr
 }
 
+// PoolModel describes main methods for reuse.
+type PoolModel interface {
+	Close()
+	Acquire(ctx context.Context) (c *Conn, err error)
+	AcquireFunc(ctx context.Context, f func(*Conn) error) error
+	AcquireAllIdle(ctx context.Context) []*Conn
+	Reset()
+	Config() *Config
+	Stat() *Stat
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
+	Ping(ctx context.Context) error
+}
+
 // Pool allows for connection reuse.
 type Pool struct {
 	// 64 bit fields accessed with atomics must be at beginning of struct to guarantee alignment for certain 32-bit
