@@ -639,6 +639,33 @@ func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgconn.ConnectConfig(ctx, config) })
 }
 
+func TestConnPrepareOverwritesExistingPreparedStatement(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	psd, err := pgConn.Prepare(ctx, "ps1", "select 1", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+
+	psd, err = pgConn.Prepare(ctx, "ps1", "select 2", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+
+	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Len(t, result.Rows[0], 1)
+	require.Equal(t, "2", string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 

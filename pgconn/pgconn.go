@@ -854,7 +854,8 @@ type StatementDescription struct {
 }
 
 // Prepare creates a prepared statement. If the name is empty, the anonymous prepared statement will be used. This
-// allows Prepare to also to describe statements without creating a server-side prepared statement.
+// allows Prepare to also to describe statements without creating a server-side prepared statement. Prepare is safe to
+// call with a name that is already in use. The previous statement will be closed and replaced with the new one.
 //
 // Prepare does not send a PREPARE statement to the server. It uses the PostgreSQL Parse and Describe protocol messages
 // directly.
@@ -874,6 +875,9 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
+	if name != "" {
+		pgConn.frontend.SendClose(&pgproto3.Close{ObjectType: 'S', Name: name})
+	}
 	pgConn.frontend.SendParse(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
 	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'S', Name: name})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
