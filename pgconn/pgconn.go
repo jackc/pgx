@@ -2044,6 +2044,7 @@ type pipelineRequestType int
 
 const (
 	pipelineNil pipelineRequestType = iota
+	pipelineClose
 	pipelinePrepare
 	pipelineQueryParams
 	pipelineQueryPrepared
@@ -2196,7 +2197,8 @@ func (pgConn *PgConn) StartPipeline(ctx context.Context) *Pipeline {
 	return pipeline
 }
 
-// SendPrepare is the pipeline version of *PgConn.Prepare.
+// SendPrepare is the pipeline version of *PgConn.Prepare. However, unlike Prepare, it does not deallocate any existing
+// prepared statement with the same name.
 func (p *Pipeline) SendPrepare(name, sql string, paramOIDs []uint32) {
 	if p.closed {
 		return

@@ -1139,6 +1139,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	if len(distinctNewQueries) > 0 {
 		err := func() (err error) {
 			for _, sd := range distinctNewQueries {
+				pipeline.SendDeallocate(sd.Name)
 				pipeline.SendPrepare(sd.Name, sd.SQL, nil)
 			}
 
@@ -1168,6 +1169,13 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 				results, err := pipeline.GetResults()
 				if err != nil {
 					return err
+				}
+
+				if _, ok := results.(*pgconn.CloseComplete); ok {
+					results, err = pipeline.GetResults()
+					if err != nil {
+						return err
+					}
 				}
 
 				resultSD, ok := results.(*pgconn.StatementDescription)
