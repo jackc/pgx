@@ -129,6 +129,25 @@ func TestNumericCodec(t *testing.T) {
 	})
 }
 
+func TestNumericCodec67e44535(t *testing.T) {
+	var scanner pgtype.Numeric
+	scanPlan := pgtype.NumericCodec{}.PlanScan(nil, 0, pgtype.BinaryFormatCode, &scanner)
+	if err := scanPlan.Scan(
+		[]byte{0, 2, 43, 126, 0, 0, 0, 1, 0, 6, 27, 88},
+		&scanner,
+	); err != nil {
+		t.Error(err)
+		return
+	}
+	isExpectedEqNumeric(pgtype.Numeric{
+		Int:              big.NewInt(67),
+		Exp:              44535,
+		NaN:              false,
+		InfinityModifier: pgtype.Finite,
+		Valid:            true,
+	})(scanner)
+}
+
 func TestNumericCodecInfinity(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 	skipPostgreSQLVersionLessThan(t, 14)

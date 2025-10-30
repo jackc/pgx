@@ -610,8 +610,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	rp += 2
 	sign := binary.BigEndian.Uint16(src[rp:])
 	rp += 2
-	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
-	rp += 2
+	rp += 2 // ignore dscale
 
 	if sign == pgNumericNaNSign {
 		return scanner.ScanNumeric(Numeric{NaN: true, Valid: true})
@@ -656,25 +655,6 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	}
 
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
-
-	if dscale > 0 {
-		fracNBaseDigits := int16(int32(ndigits) - int32(weight) - 1)
-		fracDecimalDigits := fracNBaseDigits * 4
-
-		if dscale > fracDecimalDigits {
-			multCount := int(dscale - fracDecimalDigits)
-			for i := 0; i < multCount; i++ {
-				accum.Mul(accum, big10)
-				exp--
-			}
-		} else if dscale < fracDecimalDigits {
-			divCount := int(fracDecimalDigits - dscale)
-			for i := 0; i < divCount; i++ {
-				accum.Div(accum, big10)
-				exp++
-			}
-		}
-	}
 
 	reduced := &big.Int{}
 	remainder := &big.Int{}
