@@ -654,6 +654,10 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		accum.Add(accum, big.NewInt(int64accum))
 	}
 
+	if accum.Sign() == 0 {
+		return scanner.ScanNumeric(Numeric{Int: accum, Valid: true})
+	}
+
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
 
 	reduced := &big.Int{}
