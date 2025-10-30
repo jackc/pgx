@@ -129,23 +129,70 @@ func TestNumericCodec(t *testing.T) {
 	})
 }
 
-func TestNumericCodec67e44535(t *testing.T) {
+func TestNumericCodecGolden(t *testing.T) {
 	var scanner pgtype.Numeric
-	scanPlan := pgtype.NumericCodec{}.PlanScan(nil, 0, pgtype.BinaryFormatCode, &scanner)
-	if err := scanPlan.Scan(
-		[]byte{0, 2, 43, 126, 0, 0, 0, 1, 0, 6, 27, 88},
-		&scanner,
-	); err != nil {
-		t.Error(err)
-		return
+	testCases := []struct {
+		name   string
+		input  []byte
+		output pgtype.Numeric
+	}{
+		{
+			name:  "67e44535",
+			input: []byte{0, 2, 43, 126, 0, 0, 0, 1, 0, 6, 27, 88},
+			output: pgtype.Numeric{
+				Int:              big.NewInt(67),
+				Exp:              44535,
+				NaN:              false,
+				InfinityModifier: pgtype.Finite,
+				Valid:            true,
+			},
+		},
+		{
+			name: "big zero",
+			input: []byte{
+				0x00, 0x01, // ndigits = 1
+				0x13, 0x88, // weight = 5000
+				0x00, 0x00, // sign = 0
+				0x00, 0x01, // dscale = 1
+				0x00, 0x00, // digit = 0
+			},
+			output: pgtype.Numeric{
+				Int:              big.NewInt(0),
+				Exp:              0,
+				NaN:              false,
+				InfinityModifier: pgtype.Finite,
+				Valid:            true,
+			},
+		},
+		{
+			name: "max weight",
+			input: []byte{
+				0x00, 0x01, // ndigits = 1
+				0x7F, 0xFF, // weight = 32767 (max int16)
+				0x00, 0x00, // sign = 0
+				0x00, 0x01, // dscale = 1
+				0x00, 0x01, // digit = 1
+			},
+			output: pgtype.Numeric{
+				Int:              big.NewInt(1),
+				Exp:              131068,
+				NaN:              false,
+				InfinityModifier: pgtype.Finite,
+				Valid:            true,
+			},
+		},
 	}
-	isExpectedEqNumeric(pgtype.Numeric{
-		Int:              big.NewInt(67),
-		Exp:              44535,
-		NaN:              false,
-		InfinityModifier: pgtype.Finite,
-		Valid:            true,
-	})(scanner)
+	for _, tc := range testCases {
+		scanPlan := pgtype.NumericCodec{}.PlanScan(nil, 0, pgtype.BinaryFormatCode, &scanner)
+		if err := scanPlan.Scan(
+			tc.input,
+			&scanner,
+		); err != nil {
+			t.Error(err)
+			return
+		}
+		isExpectedEqNumeric(tc.output)(scanner)
+	}
 }
 
 func TestNumericCodecInfinity(t *testing.T) {
