@@ -343,6 +343,14 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		pgConn.conn = tlsConn
 	}
 
+	if config.AfterNetConnect != nil {
+		pgConn.conn, err = config.AfterNetConnect(ctx, config, pgConn.conn)
+		if err != nil {
+			pgConn.conn.Close()
+			return nil, newPerDialConnectError("AfterNetConnect failed", err)
+		}
+	}
+
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(config.BuildContextWatcherHandler(pgConn))
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
