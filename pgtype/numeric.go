@@ -658,17 +658,18 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
 
 	if dscale > 0 {
-		fracNBaseDigits := int16(int32(ndigits) - int32(weight) - 1)
+		fracNBaseDigits := int(ndigits) - int(weight) - 1
 		fracDecimalDigits := fracNBaseDigits * 4
+		dscaleInt := int(dscale)
 
-		if dscale > fracDecimalDigits {
-			multCount := int(dscale - fracDecimalDigits)
+		if dscaleInt > fracDecimalDigits {
+			multCount := dscaleInt - fracDecimalDigits
 			for i := 0; i < multCount; i++ {
 				accum.Mul(accum, big10)
 				exp--
 			}
-		} else if dscale < fracDecimalDigits {
-			divCount := int(fracDecimalDigits - dscale)
+		} else if dscaleInt < fracDecimalDigits {
+			divCount := fracDecimalDigits - dscaleInt
 			for i := 0; i < divCount; i++ {
 				accum.Div(accum, big10)
 				exp++
