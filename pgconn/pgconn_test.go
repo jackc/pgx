@@ -544,6 +544,63 @@ func TestConnectFailsWithResolveFailureAndFailedConnectionAttempts(t *testing.T)
 	require.ErrorContains(t, err, ":2 (127.0.0.1): dial error:")
 }
 
+type testConnWrapper struct {
+	conn net.Conn
+}
+
+func (w *testConnWrapper) Read(b []byte) (n int, err error) {
+	return w.conn.Read(b)
+}
+
+func (w *testConnWrapper) Write(b []byte) (n int, err error) {
+	return w.conn.Write(b)
+}
+
+func (w *testConnWrapper) Close() error {
+	return w.conn.Close()
+}
+
+func (w *testConnWrapper) LocalAddr() net.Addr {
+	return w.conn.LocalAddr()
+}
+
+func (w *testConnWrapper) RemoteAddr() net.Addr {
+	return w.conn.RemoteAddr()
+}
+
+func (w *testConnWrapper) SetDeadline(t time.Time) error {
+	return w.conn.SetDeadline(t)
+}
+
+func (w *testConnWrapper) SetReadDeadline(t time.Time) error {
+	return w.conn.SetReadDeadline(t)
+}
+
+func (w *testConnWrapper) SetWriteDeadline(t time.Time) error {
+	return w.conn.SetWriteDeadline(t)
+}
+
+func TestConnectWithAfterNetConnect(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var wrappedConn net.Conn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		wrappedConn = &testConnWrapper{conn: conn}
+		return wrappedConn, nil
+	}
+	conn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+
+	require.Equal(t, wrappedConn, conn.Conn())
+	closeConn(t, conn)
+}
+
 func TestConnectWithValidateConnect(t *testing.T) {
 	t.Parallel()
 
