@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -511,7 +512,7 @@ func TestConnQueryFailure(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Query("select 'foo")
 		require.Error(t, err)
-		require.IsType(t, new(pgconn.PgError), err)
+		require.ErrorAs(t, err, new(*pgconn.PgError))
 	})
 }
 
@@ -755,7 +756,8 @@ func TestBeginTxContextCancel(t *testing.T) {
 
 		var n int
 		err = db.QueryRow("select count(*) from t").Scan(&n)
-		if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "42P01" {
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "42P01" {
 			t.Fatalf(`err => %v, want PgError{Code: "42P01"}`, err)
 		}
 	})
