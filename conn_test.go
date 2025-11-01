@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"io"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -11,7 +13,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/faultyconn"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
@@ -464,6 +468,67 @@ func TestPrepare(t *testing.T) {
 	if err != nil {
 		t.Errorf("conn.Deallocate failed: %v", err)
 	}
+}
+
+// https://github.com/jackc/pgx/issues/2223
+func TestPrepareHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
+	// Not parallel because it is a timing sensitive test.
+
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var faultyConn *faultyconn.Conn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		faultyConn = faultyconn.New(conn)
+		return faultyConn, nil
+	}
+
+	ctx := context.Background()
+	conn, err := pgx.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+	require.NotNil(t, faultyConn)
+
+	_, err = conn.Exec(ctx, "set statement_timeout = '100ms'")
+	require.NoError(t, err)
+
+	faultyConn.HandleFrontendMessage = func(backendWriter io.Writer, msg pgproto3.FrontendMessage) error {
+		if _, ok := msg.(*pgproto3.Describe); ok {
+			time.Sleep(200 * time.Millisecond)
+		}
+		buf, err := msg.Encode(nil)
+		if err != nil {
+			return err
+		}
+		_, err = backendWriter.Write(buf)
+		return err
+	}
+
+	psd, err := conn.Prepare(ctx, "test", "select $1::varchar")
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "57014", pgErr.Code)
+	require.Nil(t, psd)
+
+	faultyConn.HandleFrontendMessage = nil
+
+	_, err = conn.Exec(ctx, "set statement_timeout = default")
+	require.NoError(t, err)
+
+	var existsOnServer bool
+	err = conn.QueryRow(
+		ctx,
+		"select exists(select 1 from pg_prepared_statements where name = 'test')",
+		// Avoid using the prepared statement cache or it will clear the broken statement before we can check for its
+		// existence.
+		pgx.QueryExecModeExec,
+	).Scan(&existsOnServer)
+	require.NoError(t, err)
+	require.True(t, existsOnServer)
+
+	psd, err = conn.Prepare(ctx, "test", "select $1::varchar")
+	require.NoError(t, err)
+	require.NotNil(t, psd)
 }
 
 func TestPrepareBadSQLFailure(t *testing.T) {
