@@ -28,7 +28,6 @@ const (
 )
 
 var (
-	big0    *big.Int = big.NewInt(0)
 	big1    *big.Int = big.NewInt(1)
 	big10   *big.Int = big.NewInt(10)
 	big100  *big.Int = big.NewInt(100)
@@ -166,7 +165,7 @@ func (n *Numeric) toBigInt() (*big.Int, error) {
 	div.Exp(big10, big.NewInt(int64(-n.Exp)), nil)
 	remainder := &big.Int{}
 	num.DivMod(num, div, remainder)
-	if remainder.Cmp(big0) != 0 {
+	if remainder.Sign() != 0 {
 		return nil, fmt.Errorf("cannot convert %v to integer", n)
 	}
 	return num, nil
@@ -409,7 +408,7 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 	}
 
 	var sign int16
-	if n.Int.Cmp(big0) < 0 {
+	if n.Int.Sign() < 0 {
 		sign = 16384
 	}
 
@@ -447,12 +446,12 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 
 	var wholeDigits, fracDigits []int16
 
-	for wholePart.Cmp(big0) != 0 {
+	for wholePart.Sign() != 0 {
 		wholePart.DivMod(wholePart, bigNBase, remainder)
 		wholeDigits = append(wholeDigits, int16(remainder.Int64()))
 	}
 
-	if fracPart.Cmp(big0) != 0 {
+	if fracPart.Sign() != 0 {
 		for fracPart.Cmp(big1) != 0 {
 			fracPart.DivMod(fracPart, bigNBase, remainder)
 			fracDigits = append(fracDigits, int16(remainder.Int64()))
@@ -681,7 +680,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	if exp >= 0 {
 		for {
 			reduced.DivMod(accum, big10, remainder)
-			if remainder.Cmp(big0) != 0 {
+			if remainder.Sign() != 0 {
 				break
 			}
 			accum.Set(reduced)
