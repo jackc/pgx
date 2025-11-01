@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgconn/internal/bgreader"
 	"github.com/jackc/pgx/v5/pgproto3"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const (
@@ -1159,7 +1160,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 	pgConn.frontend.SendParse(&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs})
 	pgConn.frontend.SendBind(&pgproto3.Bind{ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
 
-	pgConn.execExtendedSuffix(result)
+	pgConn.execExtendedSuffix(result, nil, nil)
 
 	return result
 }
@@ -1184,7 +1185,37 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 
 	pgConn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
 
-	pgConn.execExtendedSuffix(result)
+	pgConn.execExtendedSuffix(result, nil, nil)
+
+	return result
+}
+
+// ExecPreparedStatementDescription enqueues the execution of a prepared statement via the PostgreSQL extended query
+// protocol.
+//
+// This differs from ExecPrepared in that it takes a *StatementDescription instead of just the prepared statement name.
+// Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
+// the result column descriptions.
+//
+// paramValues are the parameter values. It must be encoded in the format given by paramFormats.
+//
+// paramFormats is a slice of format codes determining for each paramValue column whether it is encoded in text or
+// binary format. If paramFormats is nil all params are text format. ExecPrepared will panic if len(paramFormats) is not
+// 0, 1, or len(paramValues).
+//
+// resultFormats is a slice of format codes determining for each result column whether it is encoded in text or binary
+// format. If resultFormats is nil all results will be in text format.
+//
+// ResultReader must be closed before PgConn can be used again.
+func (pgConn *PgConn) ExecPreparedStatementDescription(ctx context.Context, statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
+	result := pgConn.execExtendedPrefix(ctx, paramValues)
+	if result.closed {
+		return result
+	}
+
+	pgConn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+
+	pgConn.execExtendedSuffix(result, statementDescription, resultFormats)
 
 	return result
 }
@@ -1224,8 +1255,10 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	return result
 }
 
-func (pgConn *PgConn) execExtendedSuffix(result *ResultReader) {
-	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
+func (pgConn *PgConn) execExtendedSuffix(result *ResultReader, statementDescription *StatementDescription, resultFormats []int16) {
+	if statementDescription == nil {
+		pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
+	}
 	pgConn.frontend.SendExecute(&pgproto3.Execute{})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
 
@@ -1239,7 +1272,7 @@ func (pgConn *PgConn) execExtendedSuffix(result *ResultReader) {
 		return
 	}
 
-	result.readUntilRowDescription()
+	result.readUntilRowDescription(statementDescription, resultFormats)
 }
 
 // CopyTo executes the copy command sql and copies the results to w.
@@ -1656,13 +1689,36 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 
 // readUntilRowDescription ensures the ResultReader's fieldDescriptions are loaded. It does not return an error as any
 // error will be stored in the ResultReader.
-func (rr *ResultReader) readUntilRowDescription() {
+func (rr *ResultReader) readUntilRowDescription(statementDescription *StatementDescription, resultFormats []int16) {
 	for !rr.commandConcluded {
 		// Peek before receive to avoid consuming a DataRow if the result set does not include a RowDescription method.
 		// This should never happen under normal pgconn usage, but it is possible if SendBytes and ReceiveResults are
 		// manually used to construct a query that does not issue a describe statement.
 		msg, _ := rr.pgConn.peekMessage()
 		if _, ok := msg.(*pgproto3.DataRow); ok {
+			if statementDescription != nil {
+				rr.fieldDescriptions = statementDescription.Fields
+				// Adjust field descriptions for resultFormats
+				if len(resultFormats) == 0 {
+					// No format codes provided, default to text format
+					for i := range rr.fieldDescriptions {
+						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
+					}
+				} else if len(resultFormats) == 1 {
+					// Single format code applies to all columns
+					for i := range rr.fieldDescriptions {
+						rr.fieldDescriptions[i].Format = resultFormats[0]
+					}
+				} else if len(resultFormats) == len(rr.fieldDescriptions) {
+					// One format code per column
+					for i := range rr.fieldDescriptions {
+						rr.fieldDescriptions[i].Format = resultFormats[i]
+					}
+				} else {
+					// This should be impossible to reach as the mismatch would have been caught earlier.
+					rr.concludeCommand(CommandTag{}, fmt.Errorf("mismatched result format codes length"))
+				}
+			}
 			return
 		}
 
