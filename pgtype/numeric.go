@@ -662,15 +662,13 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 
 	reduced := &big.Int{}
 	remainder := &big.Int{}
-	if exp >= 0 {
-		for {
-			reduced.DivMod(accum, big10, remainder)
-			if remainder.Cmp(big0) != 0 {
-				break
-			}
-			accum.Set(reduced)
-			exp++
+	for {
+		reduced.DivMod(accum, big10, remainder)
+		if remainder.Cmp(big0) != 0 {
+			break
 		}
+		accum.Set(reduced)
+		exp++
 	}
 
 	if sign != 0 {
