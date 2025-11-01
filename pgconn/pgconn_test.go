@@ -1435,6 +1435,142 @@ func TestConnExecPreparedEmptySQL(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecPreparedStatementDescription(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	psd, err := pgConn.Prepare(ctx, "ps1", "select $1::text as msg", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, 1)
+	assert.Len(t, psd.Fields, 1)
+
+	result := pgConn.ExecPreparedStatementDescription(ctx, psd, [][]byte{[]byte("Hello, world")}, nil, nil)
+	require.Len(t, result.FieldDescriptions(), 1)
+	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
+
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+		assert.Equal(t, "Hello, world", string(result.Values()[0]))
+	}
+	assert.Equal(t, 1, rowCount)
+	commandTag, err := result.Close()
+	assert.Equal(t, "SELECT 1", commandTag.String())
+	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+type byteCounterConn struct {
+	conn         net.Conn
+	bytesRead    int
+	bytesWritten int
+}
+
+func (cbn *byteCounterConn) Read(b []byte) (n int, err error) {
+	n, err = cbn.conn.Read(b)
+	cbn.bytesRead += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Write(b []byte) (n int, err error) {
+	n, err = cbn.conn.Write(b)
+	cbn.bytesWritten += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Close() error {
+	return cbn.conn.Close()
+}
+
+func (cbn *byteCounterConn) LocalAddr() net.Addr {
+	return cbn.conn.LocalAddr()
+}
+
+func (cbn *byteCounterConn) RemoteAddr() net.Addr {
+	return cbn.conn.RemoteAddr()
+}
+
+func (cbn *byteCounterConn) SetDeadline(t time.Time) error {
+	return cbn.conn.SetDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetReadDeadline(t time.Time) error {
+	return cbn.conn.SetReadDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetWriteDeadline(t time.Time) error {
+	return cbn.conn.SetWriteDeadline(t)
+}
+
+func TestConnExecPreparedStatementDescriptionNetworkUsage(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var counterConn *byteCounterConn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		counterConn = &byteCounterConn{conn: conn}
+		return counterConn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+	require.NotNil(t, counterConn)
+
+	psd, err := pgConn.Prepare(ctx, "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, 1)
+	assert.Len(t, psd.Fields, 9)
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	result := pgConn.ExecPrepared(ctx,
+		psd.Name,
+		[][]byte{[]byte("1")},
+		nil,
+		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode},
+	).Read()
+	require.NoError(t, result.Err)
+	withDescribeBytesWritten := counterConn.bytesWritten
+	withDescribeBytesRead := counterConn.bytesRead
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	result = pgConn.ExecPreparedStatementDescription(
+		ctx,
+		psd,
+		[][]byte{[]byte("1")},
+		nil,
+		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode},
+	).Read()
+	require.NoError(t, result.Err)
+	noDescribeBytesWritten := counterConn.bytesWritten
+	noDescribeBytesRead := counterConn.bytesRead
+
+	assert.Equal(t, 61, withDescribeBytesWritten)
+	assert.Equal(t, 54, noDescribeBytesWritten)
+	assert.Equal(t, 391, withDescribeBytesRead)
+	assert.Equal(t, 153, noDescribeBytesRead)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
