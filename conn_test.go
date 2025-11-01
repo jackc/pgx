@@ -489,6 +489,8 @@ func TestPrepareHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
 	defer closeConn(t, conn)
 	require.NotNil(t, faultyConn)
 
+	pgxtest.SkipCockroachDB(t, conn, "Induced error does not occur on CockroachDB")
+
 	_, err = conn.Exec(ctx, "set statement_timeout = '100ms'")
 	require.NoError(t, err)
 
