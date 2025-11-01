@@ -343,6 +343,14 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		pgConn.conn = tlsConn
 	}
 
+	if config.AfterNetConnect != nil {
+		pgConn.conn, err = config.AfterNetConnect(ctx, config, pgConn.conn)
+		if err != nil {
+			pgConn.conn.Close()
+			return nil, newPerDialConnectError("AfterNetConnect failed", err)
+		}
+	}
+
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(config.BuildContextWatcherHandler(pgConn))
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
@@ -858,6 +866,10 @@ type StatementDescription struct {
 //
 // Prepare does not send a PREPARE statement to the server. It uses the PostgreSQL Parse and Describe protocol messages
 // directly.
+//
+// In extremely rare cases, Prepare may fail after the Parse is successful, but before the Describe is complete. In this
+// case, the returned error will be an error where errors.As with a *PrepareError succeeds and the *PrepareError has
+// ParseComplete set to true.
 func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) (*StatementDescription, error) {
 	if err := pgConn.lock(); err != nil {
 		return nil, err
@@ -885,7 +897,8 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 	psd := &StatementDescription{Name: name, SQL: sql}
 
-	var parseErr error
+	var ParseComplete bool
+	var pgErr *PgError
 
 readloop:
 	for {
@@ -896,20 +909,22 @@ readloop:
 		}
 
 		switch msg := msg.(type) {
+		case *pgproto3.ParseComplete:
+			ParseComplete = true
 		case *pgproto3.ParameterDescription:
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
 			psd.Fields = pgConn.convertRowDescription(nil, msg)
 		case *pgproto3.ErrorResponse:
-			parseErr = ErrorResponseToPgError(msg)
+			pgErr = ErrorResponseToPgError(msg)
 		case *pgproto3.ReadyForQuery:
 			break readloop
 		}
 	}
 
-	if parseErr != nil {
-		return nil, parseErr
+	if pgErr != nil {
+		return nil, &PrepareError{err: pgErr, ParseComplete: ParseComplete}
 	}
 	return psd, nil
 }

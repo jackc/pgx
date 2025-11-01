@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/faultyconn"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1058,6 +1062,73 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+}
+
+func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
+	// Not parallel because it is a timing sensitive test.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	var faultyConn *faultyconn.Conn
+	faultyConnTestRunner := pgxtest.DefaultConnTestRunner()
+	faultyConnTestRunner.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+			faultyConn = faultyconn.New(conn)
+			return faultyConn, nil
+		}
+		return config
+	}
+
+	// Only need to test modes that use Parse/Describe.
+	extendedQueryModes := []pgx.QueryExecMode{
+		pgx.QueryExecModeCacheStatement,
+		pgx.QueryExecModeCacheDescribe,
+		pgx.QueryExecModeDescribeExec,
+		pgx.QueryExecModeExec,
+	}
+
+	pgxtest.RunWithQueryExecModes(ctx, t, faultyConnTestRunner, extendedQueryModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Induced error does not occur on CockroachDB")
+
+		_, err := conn.Exec(ctx, "set statement_timeout = '100ms'")
+		require.NoError(t, err)
+
+		batch := &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select 2")
+
+		faultyConn.HandleFrontendMessage = func(backendWriter io.Writer, msg pgproto3.FrontendMessage) error {
+			if _, ok := msg.(*pgproto3.Describe); ok {
+				time.Sleep(200 * time.Millisecond)
+			}
+			buf, err := msg.Encode(nil)
+			if err != nil {
+				return err
+			}
+			_, err = backendWriter.Write(buf)
+			return err
+		}
+
+		err = conn.SendBatch(ctx, batch).Close()
+		require.Error(t, err)
+		var pgErr *pgconn.PgError
+		require.True(t, errors.As(err, &pgErr))
+		require.Equal(t, "57014", pgErr.Code)
+
+		faultyConn.HandleFrontendMessage = nil
+
+		_, err = conn.Exec(ctx, "set statement_timeout = default")
+		require.NoError(t, err)
+
+		batch = &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select 2")
+		err = conn.SendBatch(ctx, batch).Close()
+		require.NoError(t, err)
+	})
 }
 
 func ExampleConn_SendBatch() {

@@ -55,6 +55,13 @@ type Config struct {
 
 	SSLNegotiation string // sslnegotiation=postgres or sslnegotiation=direct
 
+	// AfterNetConnect is called after the network connection, including TLS if applicable, is established but before any
+	// PostgreSQL protocol communication. It takes the established net.Conn and returns a net.Conn that will be used in
+	// its place. It can be used to wrap the net.Conn (e.g. for logging, diagnostics, or testing). Its functionality has
+	// some overlap with DialFunc. However, DialFunc takes place before TLS is established and cannot be used to control
+	// the final net.Conn used for PostgreSQL protocol communication while AfterNetConnect can.
+	AfterNetConnect func(ctx context.Context, config *Config, conn net.Conn) (net.Conn, error)
+
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
 	// fallback config is tried. This allows implementing high availability behavior such as libpq does with target_session_attrs.
