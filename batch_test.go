@@ -1091,6 +1091,8 @@ func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
 	}
 
 	pgxtest.RunWithQueryExecModes(ctx, t, faultyConnTestRunner, extendedQueryModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Induced error does not occur on CockroachDB")
+
 		_, err := conn.Exec(ctx, "set statement_timeout = '100ms'")
 		require.NoError(t, err)
 
