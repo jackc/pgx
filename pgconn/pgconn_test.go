@@ -1530,6 +1530,10 @@ func TestConnExecPreparedStatementDescriptionNetworkUsage(t *testing.T) {
 	defer closeConn(t, pgConn)
 	require.NotNil(t, counterConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server uses different number of bytes for same operations")
+	}
+
 	psd, err := pgConn.Prepare(ctx, "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", nil)
 	require.NoError(t, err)
 	require.NotNil(t, psd)
