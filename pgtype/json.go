@@ -157,7 +157,7 @@ func (c *JSONCodec) planScan(m *Map, oid uint32, formatCode int16, target any, d
 	case BytesScanner:
 		return &scanPlanBinaryBytesToBytesScanner{}
 	case sql.Scanner:
-		return &scanPlanSQLScanner{formatCode: formatCode}
+		return &scanPlanCodecSQLScanner{c: c, m: m, oid: oid, formatCode: formatCode}
 	}
 
 	rv := reflect.ValueOf(target)
