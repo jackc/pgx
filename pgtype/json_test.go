@@ -360,3 +360,25 @@ func TestJSONCodecScanNullToPointerToSQLScanner(t *testing.T) {
 		require.Nil(t, dest)
 	})
 }
+
+type SQLScannerFunc func(src any) error
+
+func (f SQLScannerFunc) Scan(src any) error {
+	return f(src)
+}
+
+// https://github.com/jackc/pgx/issues/2403#issuecomment-3480454865
+//
+// Previously, when scanning a json/jsonb value into a sql.Scanner via database/sql the source value was a []byte.
+// However, when scanning into a sql.Scanner via pgx the source value was a string. This test ensures that the source
+// value is a []byte.
+func TestJSONCodecSQLScannerReceivesByteSlice(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		f := SQLScannerFunc(func(src any) error {
+			require.IsType(t, []byte{}, src)
+			return nil
+		})
+		err := conn.QueryRow(ctx, "select '{}'::json").Scan(&f)
+		require.NoError(t, err)
+	})
+}
