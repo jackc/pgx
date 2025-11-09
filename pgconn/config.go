@@ -82,6 +82,10 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// OAuthTokenProvider is a function that returns an OAuth token for authentication. If set, it will be used for
+	// OAUTHBEARER SASL authentication when the server requests it.
+	OAuthTokenProvider func(context.Context) (string, error)
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
