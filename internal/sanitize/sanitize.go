@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -126,7 +125,14 @@ func (q *Query) init(sql string) {
 	parts := q.Parts[:0]
 	if parts == nil {
 		// dirty, but fast heuristic to preallocate for ~90% usecases
-		n := strings.Count(sql, "$") + strings.Count(sql, "--") + 1
+		n := 1
+		for i := 0; i < len(sql); i++ {
+			if sql[i] == '$' {
+				n++
+			} else if sql[i] == '-' && i+1 < len(sql) && sql[i+1] == '-' {
+				n++
+			}
+		}
 		parts = make([]Part, 0, n)
 	}
 
@@ -147,18 +153,45 @@ func (q *Query) init(sql string) {
 func QuoteString(dst []byte, str string) []byte {
 	const quote = '\''
 
-	// Preallocate space for the worst case scenario
-	dst = slices.Grow(dst, len(str)*2+2)
+	if len(str) <= 64 {
+		// Short strings: use worst-case allocation (avoids double-scan overhead)
+		dst = slices.Grow(dst, len(str)*2+2)
+		dst = append(dst, quote)
+		for i := 0; i < len(str); i++ {
+			if str[i] == quote {
+				dst = append(dst, quote, quote)
+			} else {
+				dst = append(dst, str[i])
+			}
+		}
+		dst = append(dst, quote)
+		return dst
+	}
+
+	// Long strings: scan first to allocate exact size
+	quoteCount := 0
+	for i := 0; i < len(str); i++ {
+		if str[i] == quote {
+			quoteCount++
+		}
+	}
+
+	// Preallocate space for exact size
+	dst = slices.Grow(dst, len(str)+quoteCount+2)
 
 	// Add opening quote
 	dst = append(dst, quote)
 
 	// Iterate through the string without allocating
-	for i := 0; i < len(str); i++ {
-		if str[i] == quote {
-			dst = append(dst, quote, quote)
-		} else {
-			dst = append(dst, str[i])
+	if quoteCount == 0 {
+		dst = append(dst, str...)
+	} else {
+		for i := 0; i < len(str); i++ {
+			if str[i] == quote {
+				dst = append(dst, quote, quote)
+			} else {
+				dst = append(dst, str[i])
+			}
 		}
 	}
 
@@ -214,14 +247,53 @@ type stateFn func(*sqlLexer) stateFn
 
 func rawState(l *sqlLexer) stateFn {
 	for {
+		// ASCII fast-path
+		if l.pos < len(l.src) && l.src[l.pos] < 128 {
+			c := l.src[l.pos]
+			l.pos++
+
+			switch c {
+			case 'e', 'E':
+				if l.pos < len(l.src) && l.src[l.pos] == '\'' {
+					l.pos++
+					return escapeStringState
+				}
+			case '\'':
+				return singleQuoteState
+			case '"':
+				return doubleQuoteState
+			case '$':
+				if l.pos < len(l.src) {
+					next := l.src[l.pos]
+					if next >= '0' && next <= '9' {
+						if l.pos-l.start > 0 {
+							l.parts = append(l.parts, l.src[l.start:l.pos-1])
+						}
+						l.start = l.pos
+						return placeholderState
+					}
+				}
+			case '-':
+				if l.pos < len(l.src) && l.src[l.pos] == '-' {
+					l.pos++
+					return oneLineCommentState
+				}
+			case '/':
+				if l.pos < len(l.src) && l.src[l.pos] == '*' {
+					l.pos++
+					return multilineCommentState
+				}
+			}
+			continue
+		}
+
 		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
 		l.pos += width
 
 		switch r {
 		case 'e', 'E':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune == '\'' {
-				l.pos += width
+			if l.pos < len(l.src) && l.src[l.pos] == '\'' {
+				l.pos++
 				return escapeStringState
 			}
 		case '\'':
@@ -229,24 +301,24 @@ func rawState(l *sqlLexer) stateFn {
 		case '"':
 			return doubleQuoteState
 		case '$':
-			nextRune, _ := utf8.DecodeRuneInString(l.src[l.pos:])
-			if '0' <= nextRune && nextRune <= '9' {
-				if l.pos-l.start > 0 {
-					l.parts = append(l.parts, l.src[l.start:l.pos-width])
+			if l.pos < len(l.src) {
+				next := l.src[l.pos]
+				if next >= '0' && next <= '9' {
+					if l.pos-l.start > 0 {
+						l.parts = append(l.parts, l.src[l.start:l.pos-width])
+					}
+					l.start = l.pos
+					return placeholderState
 				}
-				l.start = l.pos
-				return placeholderState
 			}
 		case '-':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune == '-' {
-				l.pos += width
+			if l.pos < len(l.src) && l.src[l.pos] == '-' {
+				l.pos++
 				return oneLineCommentState
 			}
 		case '/':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune == '*' {
-				l.pos += width
+			if l.pos < len(l.src) && l.src[l.pos] == '*' {
+				l.pos++
 				return multilineCommentState
 			}
 		case utf8.RuneError:
@@ -263,16 +335,31 @@ func rawState(l *sqlLexer) stateFn {
 
 func singleQuoteState(l *sqlLexer) stateFn {
 	for {
+		// ASCII fast-path
+		if l.pos < len(l.src) && l.src[l.pos] < 128 {
+			c := l.src[l.pos]
+			l.pos++
+
+			if c == '\'' {
+				if l.pos < len(l.src) && l.src[l.pos] == '\'' {
+					l.pos++
+					continue
+				}
+				return rawState
+			}
+			continue
+		}
+
 		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
 		l.pos += width
 
 		switch r {
 		case '\'':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune != '\'' {
+			if l.pos < len(l.src) && l.src[l.pos] == '\'' {
+				l.pos++
+			} else {
 				return rawState
 			}
-			l.pos += width
 		case utf8.RuneError:
 			if width != replacementcharacterwidth {
 				if l.pos-l.start > 0 {
@@ -287,16 +374,31 @@ func singleQuoteState(l *sqlLexer) stateFn {
 
 func doubleQuoteState(l *sqlLexer) stateFn {
 	for {
+		// ASCII fast-path
+		if l.pos < len(l.src) && l.src[l.pos] < 128 {
+			c := l.src[l.pos]
+			l.pos++
+
+			if c == '"' {
+				if l.pos < len(l.src) && l.src[l.pos] == '"' {
+					l.pos++
+					continue
+				}
+				return rawState
+			}
+			continue
+		}
+
 		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
 		l.pos += width
 
 		switch r {
 		case '"':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune != '"' {
+			if l.pos < len(l.src) && l.src[l.pos] == '"' {
+				l.pos++
+			} else {
 				return rawState
 			}
-			l.pos += width
 		case utf8.RuneError:
 			if width != replacementcharacterwidth {
 				if l.pos-l.start > 0 {
@@ -315,18 +417,19 @@ func placeholderState(l *sqlLexer) stateFn {
 	num := 0
 
 	for {
-		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
-		l.pos += width
-
-		if '0' <= r && r <= '9' {
-			num *= 10
-			num += int(r - '0')
-		} else {
-			l.parts = append(l.parts, num)
-			l.pos -= width
-			l.start = l.pos
-			return rawState
+		if l.pos < len(l.src) {
+			c := l.src[l.pos]
+			if c >= '0' && c <= '9' {
+				l.pos++
+				num *= 10
+				num += int(c - '0')
+				continue
+			}
 		}
+
+		l.parts = append(l.parts, num)
+		l.start = l.pos
+		return rawState
 	}
 }
 
@@ -340,11 +443,11 @@ func escapeStringState(l *sqlLexer) stateFn {
 			_, width = utf8.DecodeRuneInString(l.src[l.pos:])
 			l.pos += width
 		case '\'':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune != '\'' {
+			if l.pos < len(l.src) && l.src[l.pos] == '\'' {
+				l.pos++
+			} else {
 				return rawState
 			}
-			l.pos += width
 		case utf8.RuneError:
 			if width != replacementcharacterwidth {
 				if l.pos-l.start > 0 {
@@ -359,6 +462,23 @@ func escapeStringState(l *sqlLexer) stateFn {
 
 func oneLineCommentState(l *sqlLexer) stateFn {
 	for {
+		// ASCII fast-path
+		if l.pos < len(l.src) && l.src[l.pos] < 128 {
+			c := l.src[l.pos]
+			l.pos++
+
+			if c == '\n' || c == '\r' {
+				return rawState
+			}
+
+			// Backslash needs to consume next char
+			if c == '\\' && l.pos < len(l.src) {
+				l.pos++
+			}
+			continue
+		}
+
+		// Non-ASCII: use UTF-8 decoding
 		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
 		l.pos += width
 
@@ -387,23 +507,18 @@ func multilineCommentState(l *sqlLexer) stateFn {
 
 		switch r {
 		case '/':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune == '*' {
-				l.pos += width
+			if l.pos < len(l.src) && l.src[l.pos] == '*' {
+				l.pos++
 				l.nested++
 			}
 		case '*':
-			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
-			if nextRune != '/' {
-				continue
+			if l.pos < len(l.src) && l.src[l.pos] == '/' {
+				l.pos++
+				if l.nested == 0 {
+					return rawState
+				}
+				l.nested--
 			}
-
-			l.pos += width
-			if l.nested == 0 {
-				return rawState
-			}
-			l.nested--
-
 		case utf8.RuneError:
 			if width != replacementcharacterwidth {
 				if l.pos-l.start > 0 {
