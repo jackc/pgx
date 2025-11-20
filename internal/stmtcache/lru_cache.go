@@ -12,14 +12,16 @@ type LRUCache struct {
 	m            map[string]*list.Element
 	l            *list.List
 	invalidStmts []*pgconn.StatementDescription
+	invalidSet   map[string]struct{}
 }
 
 // NewLRUCache creates a new LRUCache. cap is the maximum size of the cache.
 func NewLRUCache(cap int) *LRUCache {
 	return &LRUCache{
-		cap: cap,
-		m:   make(map[string]*list.Element),
-		l:   list.New(),
+		cap:        cap,
+		m:          make(map[string]*list.Element),
+		l:          list.New(),
+		invalidSet: make(map[string]struct{}),
 	}
 }
 
@@ -45,10 +47,8 @@ func (c *LRUCache) Put(sd *pgconn.StatementDescription) {
 	}
 
 	// The statement may have been invalidated but not yet handled. Do not readd it to the cache.
-	for _, invalidSD := range c.invalidStmts {
-		if invalidSD.SQL == sd.SQL {
-			return
-		}
+	if _, invalidated := c.invalidSet[sd.SQL]; invalidated {
+		return
 	}
 
 	if c.l.Len() == c.cap {
@@ -63,7 +63,9 @@ func (c *LRUCache) Put(sd *pgconn.StatementDescription) {
 func (c *LRUCache) Invalidate(sql string) {
 	if el, ok := c.m[sql]; ok {
 		delete(c.m, sql)
-		c.invalidStmts = append(c.invalidStmts, el.Value.(*pgconn.StatementDescription))
+		sd := el.Value.(*pgconn.StatementDescription)
+		c.invalidStmts = append(c.invalidStmts, sd)
+		c.invalidSet[sql] = struct{}{}
 		c.l.Remove(el)
 	}
 }
@@ -72,7 +74,9 @@ func (c *LRUCache) Invalidate(sql string) {
 func (c *LRUCache) InvalidateAll() {
 	el := c.l.Front()
 	for el != nil {
-		c.invalidStmts = append(c.invalidStmts, el.Value.(*pgconn.StatementDescription))
+		sd := el.Value.(*pgconn.StatementDescription)
+		c.invalidStmts = append(c.invalidStmts, sd)
+		c.invalidSet[sd.SQL] = struct{}{}
 		el = el.Next()
 	}
 
@@ -90,6 +94,7 @@ func (c *LRUCache) GetInvalidated() []*pgconn.StatementDescription {
 // never seen by the call to GetInvalidated.
 func (c *LRUCache) RemoveInvalidated() {
 	c.invalidStmts = nil
+	c.invalidSet = make(map[string]struct{})
 }
 
 // Len returns the number of cached prepared statement descriptions.
@@ -106,6 +111,7 @@ func (c *LRUCache) invalidateOldest() {
 	oldest := c.l.Back()
 	sd := oldest.Value.(*pgconn.StatementDescription)
 	c.invalidStmts = append(c.invalidStmts, sd)
+	c.invalidSet[sd.SQL] = struct{}{}
 	delete(c.m, sd.SQL)
 	c.l.Remove(oldest)
 }
