@@ -2,7 +2,7 @@ package pgconn_test
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"runtime"
 	"strconv"
@@ -37,7 +37,7 @@ func TestConnStress(t *testing.T) {
 	}
 
 	for i := 0; i < actionCount; i++ {
-		action := actions[rand.Intn(len(actions))]
+		action := actions[rand.IntN(len(actions))]
 		err := action.fn(pgConn)
 		require.Nilf(t, err, "%d: %s", i, action.name)
 	}
