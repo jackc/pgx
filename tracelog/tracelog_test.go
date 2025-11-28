@@ -112,7 +112,7 @@ func TestLoggerFunc(t *testing.T) {
 	logger := log.New(&buf, "", 0)
 
 	createAdapterFn := func(logger *log.Logger) tracelog.LoggerFunc {
-		return func(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]interface{}) {
+		return func(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]any) {
 			logger.Printf("%s", testMsg)
 		}
 	}
@@ -203,7 +203,7 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		var s string
-		for i := 0; i < 63; i++ {
+		for range 63 {
 			s += "0"
 		}
 		s += "😊"
@@ -570,7 +570,7 @@ func TestConcurrentUsage(t *testing.T) {
 	require.NoError(t, err)
 	config.ConnConfig.Tracer = tracer
 
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		func() {
 			pool, err := pgxpool.NewWithConfig(ctx, config)
 			require.NoError(t, err)
@@ -579,7 +579,7 @@ func TestConcurrentUsage(t *testing.T) {
 
 			eg := errgroup.Group{}
 
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				eg.Go(func() error {
 					_, err := pool.Exec(ctx, `select 1`)
 					return err

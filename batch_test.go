@@ -271,14 +271,14 @@ func TestConnSendBatchMany(t *testing.T) {
 
 		numInserts := 1000
 
-		for i := 0; i < numInserts; i++ {
+		for range numInserts {
 			batch.Queue("insert into ledger(description, amount) values($1, $2)", "q1", 1)
 		}
 		batch.Queue("select count(*) from ledger")
 
 		br := conn.SendBatch(ctx, batch)
 
-		for i := 0; i < numInserts; i++ {
+		for range numInserts {
 			ct, err := br.Exec()
 			assert.NoError(t, err)
 			assert.EqualValues(t, 1, ct.RowsAffected())
@@ -356,13 +356,13 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 		batch := &pgx.Batch{}
 
 		queryCount := 3
-		for i := 0; i < queryCount; i++ {
+		for range queryCount {
 			batch.Queue("ps1", 5)
 		}
 
 		br := conn.SendBatch(ctx, batch)
 
-		for i := 0; i < queryCount; i++ {
+		for range queryCount {
 			rows, err := br.Query()
 			if err != nil {
 				t.Fatal(err)
@@ -450,13 +450,13 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 	batch := &pgx.Batch{}
 
 	queryCount := 3
-	for i := 0; i < queryCount; i++ {
+	for range queryCount {
 		batch.Queue("ps1", 5)
 	}
 
 	br := conn.SendBatch(ctx, batch)
 
-	for i := 0; i < queryCount; i++ {
+	for range queryCount {
 		rows, err := br.Query()
 		if err != nil {
 			t.Fatal(err)
@@ -503,7 +503,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 			t.Error(err)
 		}
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !rows.Next() {
 				t.Error("expected a row to be available")
 			}
@@ -931,13 +931,13 @@ func TestConnSendBatchDescribeStatementCache(t *testing.T) {
 
 func testConnSendBatch(t *testing.T, ctx context.Context, conn *pgx.Conn, queryCount int) {
 	batch := &pgx.Batch{}
-	for j := 0; j < queryCount; j++ {
+	for range queryCount {
 		batch.Queue("select n from generate_series(0,5) n")
 	}
 
 	br := conn.SendBatch(ctx, batch)
 
-	for j := 0; j < queryCount; j++ {
+	for range queryCount {
 		rows, err := br.Query()
 		require.NoError(t, err)
 

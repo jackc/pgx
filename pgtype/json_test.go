@@ -177,7 +177,7 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, m)
 
-		m = map[string]interface{}{"foo": "bar"}
+		m = map[string]any{"foo": "bar"}
 		err = conn.QueryRow(ctx, "select null::json").Scan(&m)
 		require.NoError(t, err)
 		require.Nil(t, m)

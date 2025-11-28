@@ -33,7 +33,7 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	nArgumentCodes := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	argumentCodes := make([]uint16, nArgumentCodes)
-	for i := 0; i < nArgumentCodes; i++ {
+	for i := range nArgumentCodes {
 		// The argument format codes. Each must presently be zero (text) or one (binary).
 		ac := binary.BigEndian.Uint16(src[rp:])
 		if ac != 0 && ac != 1 {
@@ -48,7 +48,7 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	nArguments := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	arguments := make([][]byte, nArguments)
-	for i := 0; i < nArguments; i++ {
+	for i := range nArguments {
 		// The length of the argument value, in bytes (this count does not include itself). Can be zero.
 		// As a special case, -1 indicates a NULL argument value. No value bytes follow in the NULL case.
 		argumentLength := int(binary.BigEndian.Uint32(src[rp:]))

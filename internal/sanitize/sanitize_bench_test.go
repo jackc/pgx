@@ -37,10 +37,9 @@ func BenchmarkSanitize(b *testing.B) {
 		b.Fatalf("failed to create query: %v", err)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		benchmarkSanitizeResult, err = query.Sanitize(benchmarkArgs...)
 		if err != nil {
 			b.Fatalf("failed to sanitize query: %v", err)
@@ -53,7 +52,7 @@ var benchmarkNewSQLResult string
 func BenchmarkSanitizeSQL(b *testing.B) {
 	b.ReportAllocs()
 	var err error
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		benchmarkNewSQLResult, err = sanitize.SanitizeSQL(benchmarkQuery, benchmarkArgs...)
 		if err != nil {
 			b.Fatalf("failed to sanitize SQL: %v", err)

@@ -45,7 +45,6 @@ func TestConnect(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
@@ -76,7 +75,6 @@ func TestConnectWithOptions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
@@ -213,7 +211,6 @@ func TestConnectTimeout(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			script := &pgmock.Script{
@@ -292,7 +289,6 @@ func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ln, err := net.Listen("tcp", "127.0.0.1:")
@@ -1108,7 +1104,7 @@ func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
 	paramCount := math.MaxUint16
 	params := make([]string, 0, paramCount)
 	args := make([][]byte, 0, paramCount)
-	for i := 0; i < paramCount; i++ {
+	for i := range paramCount {
 		params = append(params, fmt.Sprintf("($%d::text)", i+1))
 		args = append(args, []byte(strconv.Itoa(i)))
 	}
@@ -1134,7 +1130,7 @@ func TestConnExecParamsTooManyParams(t *testing.T) {
 	paramCount := math.MaxUint16 + 1
 	params := make([]string, 0, paramCount)
 	args := make([][]byte, 0, paramCount)
-	for i := 0; i < paramCount; i++ {
+	for i := range paramCount {
 		params = append(params, fmt.Sprintf("($%d::text)", i+1))
 		args = append(args, []byte(strconv.Itoa(i)))
 	}
@@ -1308,7 +1304,7 @@ func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
 	paramCount := math.MaxUint16
 	params := make([]string, 0, paramCount)
 	args := make([][]byte, 0, paramCount)
-	for i := 0; i < paramCount; i++ {
+	for i := range paramCount {
 		params = append(params, fmt.Sprintf("($%d::text)", i+1))
 		args = append(args, []byte(strconv.Itoa(i)))
 	}
@@ -1340,7 +1336,7 @@ func TestConnExecPreparedTooManyParams(t *testing.T) {
 	paramCount := math.MaxUint16 + 1
 	params := make([]string, 0, paramCount)
 	args := make([][]byte, 0, paramCount)
-	for i := 0; i < paramCount; i++ {
+	for i := range paramCount {
 		params = append(params, fmt.Sprintf("($%d::text)", i+1))
 		args = append(args, []byte(strconv.Itoa(i)))
 	}
@@ -1908,7 +1904,7 @@ func TestConnCopyToLarge(t *testing.T) {
 
 	inputBytes := make([]byte, 0)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		_, err = pgConn.Exec(ctx, `insert into foo values (0, 1, 2, 'abc', 'efg', '2000-01-01', '{"abc":"def","foo":"bar"}', 'oooo')`).ReadAll()
 		require.NoError(t, err)
 		inputBytes = append(inputBytes, "0\t1\t2\tabc\tefg\t2000-01-01\t{\"abc\":\"def\",\"foo\":\"bar\"}\t\\\\x6f6f6f6f\n"...)
@@ -2016,11 +2012,11 @@ func TestConnCopyFrom(t *testing.T) {
 	srcBuf := &bytes.Buffer{}
 
 	inputRows := [][][]byte{}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		a := strconv.Itoa(i)
 		b := "foo " + a + " bar"
 		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
-		_, err = srcBuf.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		_, err = srcBuf.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 		require.NoError(t, err)
 	}
 
@@ -2062,7 +2058,7 @@ func TestConnCopyFromBinary(t *testing.T) {
 	buf = pgio.AppendInt32(buf, 0)
 
 	inputRows := [][][]byte{}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		// Number of elements in the tuple
 		buf = pgio.AppendInt16(buf, int16(2))
 		a := i
@@ -2114,10 +2110,10 @@ func TestConnCopyFromCanceled(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		for i := 0; i < 1000000; i++ {
+		for i := range 1000000 {
 			a := strconv.Itoa(i)
 			b := "foo " + a + " bar"
-			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			_, err := w.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 			if err != nil {
 				return
 			}
@@ -2161,10 +2157,10 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		for i := 0; i < 1000000; i++ {
+		for i := range 1000000 {
 			a := strconv.Itoa(i)
 			b := "foo " + a + " bar"
-			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			_, err := w.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 			if err != nil {
 				return
 			}
@@ -2203,7 +2199,7 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 	defer closeConn(t, closerConn)
 	errChan := make(chan error, 1)
 	time.AfterFunc(500*time.Millisecond, func() {
-		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{[]byte(fmt.Sprintf("%d", pgConn.PID()))}, nil, nil, nil).Read().Err
+		err := closerConn.ExecParams(ctx, "select pg_terminate_backend($1)", [][]byte{fmt.Appendf(nil, "%d", pgConn.PID())}, nil, nil, nil).Read().Err
 		errChan <- err
 	})
 
@@ -2215,10 +2211,10 @@ func TestConnCopyFromConnectionTerminated(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		for i := 0; i < 5_000; i++ {
+		for i := range 5_000 {
 			a := strconv.Itoa(i)
 			b := "foo " + a + " bar"
-			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			_, err := w.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 			if err != nil {
 				return
 			}
@@ -2269,11 +2265,11 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	gw := gzip.NewWriter(f)
 
 	inputRows := [][][]byte{}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		a := strconv.Itoa(i)
 		b := "foo " + a + " bar"
 		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
-		_, err = gw.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		_, err = gw.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 		require.NoError(t, err)
 	}
 
@@ -2326,11 +2322,11 @@ func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 	// Send data even though the COPY FROM command will be rejected with a syntax error. This ensures that this does not
 	// break the connection. See https://github.com/jackc/pgconn/pull/127 for context.
 	inputRows := [][][]byte{}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		a := strconv.Itoa(i)
 		b := "foo " + a + " bar"
 		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
-		_, err = srcBuf.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		_, err = srcBuf.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
 		require.NoError(t, err)
 	}
 
@@ -2400,8 +2396,8 @@ func TestConnCopyFromNoticeResponseReceivedMidStream(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	for i := 0; i < 1000; i++ {
-		buf.Write([]byte(fmt.Sprintf("%s\n", string(longString))))
+	for range 1000 {
+		buf.Write(fmt.Appendf(nil, "%s\n", string(longString)))
 	}
 
 	_, err = pgConn.CopyFrom(ctx, buf, "COPY sentences(t) FROM STDIN WITH (FORMAT csv)")
@@ -2747,7 +2743,7 @@ func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
 	paramCount := math.MaxUint16
 	params := make([]string, 0, paramCount)
 	args := make([][]byte, 0, paramCount)
-	for i := 0; i < paramCount; i++ {
+	for i := range paramCount {
 		params = append(params, fmt.Sprintf("($%d::text)", i+1))
 		args = append(args, []byte(strconv.Itoa(i)))
 	}
@@ -3834,7 +3830,6 @@ func TestSNISupport(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -3958,7 +3953,6 @@ func TestConnectWithDirectSSLNegotiation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -4315,7 +4309,7 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 		require.True(t, pgConn.IsClosed())
 	})
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		t.Run(fmt.Sprintf("Stress %d", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -4334,7 +4328,7 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 			require.NoError(t, err)
 			defer closeConn(t, pgConn)
 
-			for i := 0; i < 20; i++ {
+			for range 20 {
 				func() {
 					ctx, cancel := context.WithTimeout(context.Background(), 4*time.Millisecond)
 					defer cancel()

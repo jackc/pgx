@@ -178,7 +178,7 @@ func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst any) error {
 	}
 
 	points := make([]Vec2, pointCount)
-	for i := 0; i < len(points); i++ {
+	for i := range points {
 		x := binary.BigEndian.Uint64(src[rp:])
 		rp += 8
 		y := binary.BigEndian.Uint64(src[rp:])

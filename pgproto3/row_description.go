@@ -64,7 +64,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 
 	dst.Fields = dst.Fields[0:0]
 
-	for i := 0; i < fieldCount; i++ {
+	for range fieldCount {
 		var fd FieldDescription
 
 		idx := bytes.IndexByte(src[rp:], 0)

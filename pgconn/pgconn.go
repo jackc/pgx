@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"strconv"
@@ -374,9 +375,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	}
 
 	// Copy default run-time params
-	for k, v := range config.RuntimeParams {
-		startupMsg.Parameters[k] = v
-	}
+	maps.Copy(startupMsg.Parameters, config.RuntimeParams)
 
 	startupMsg.Parameters["user"] = config.User
 	if config.Database != "" {
@@ -1927,7 +1926,7 @@ func (pgConn *PgConn) flushWithPotentialWriteReadDeadlock() error {
 //
 // This should not be confused with the PostgreSQL protocol Sync message.
 func (pgConn *PgConn) SyncConn(ctx context.Context) error {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if pgConn.bgReader.Status() == bgreader.StatusStopped && pgConn.frontend.ReadBufferLen() == 0 {
 			return nil
 		}
