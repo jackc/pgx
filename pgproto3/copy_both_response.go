@@ -35,7 +35,7 @@ func (dst *CopyBothResponse) Decode(src []byte) error {
 	}
 
 	columnFormatCodes := make([]uint16, columnCount)
-	for i := 0; i < columnCount; i++ {
+	for i := range columnCount {
 		columnFormatCodes[i] = binary.BigEndian.Uint16(buf.Next(2))
 	}
 

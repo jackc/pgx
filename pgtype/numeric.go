@@ -193,14 +193,11 @@ func parseNumericString(str string) (n *big.Int, exp int32, err error) {
 }
 
 func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
-	digits := len(src) / 2
-	if digits > 4 {
-		digits = 4
-	}
+	digits := min(len(src)/2, 4)
 
 	rp := 0
 
-	for i := 0; i < digits; i++ {
+	for i := range digits {
 		if i > 0 {
 			accum *= nbase
 		}
@@ -279,14 +276,14 @@ func (n Numeric) numberTextBytes() []byte {
 	exp := int(n.Exp)
 	if exp > 0 {
 		buf.WriteString(intStr)
-		for i := 0; i < exp; i++ {
+		for range exp {
 			buf.WriteByte('0')
 		}
 	} else if exp < 0 {
 		if len(intStr) <= -exp {
 			buf.WriteString("0.")
 			leadingZeros := -exp - len(intStr)
-			for i := 0; i < leadingZeros; i++ {
+			for range leadingZeros {
 				buf.WriteByte('0')
 			}
 			buf.WriteString(intStr)
@@ -663,13 +660,13 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 
 		if dscaleInt > fracDecimalDigits {
 			multCount := dscaleInt - fracDecimalDigits
-			for i := 0; i < multCount; i++ {
+			for range multCount {
 				accum.Mul(accum, big10)
 				exp--
 			}
 		} else if dscaleInt < fracDecimalDigits {
 			divCount := fracDecimalDigits - dscaleInt
-			for i := 0; i < divCount; i++ {
+			for range divCount {
 				accum.Div(accum, big10)
 				exp++
 			}

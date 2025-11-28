@@ -892,7 +892,7 @@ func (a *anyMultiDimSliceArray) makeMultidimensionalSlice(sliceType reflect.Type
 
 	sliceLen := int(dimensions[0].Length)
 	slice := reflect.MakeSlice(sliceType, sliceLen, sliceLen)
-	for i := 0; i < sliceLen; i++ {
+	for i := range sliceLen {
 		subSlice := a.makeMultidimensionalSlice(sliceType.Elem(), dimensions[1:], flatSlice, flatSliceIdx+(i*int(dimensions[1].Length)))
 		slice.Index(i).Set(subSlice)
 	}

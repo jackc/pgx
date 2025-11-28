@@ -223,6 +223,8 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 			months += int32(scalar)
 		case "day", "days":
 			days = int32(scalar)
+		default:
+			return fmt.Errorf("bad interval format: %q", parts[i+1])
 		}
 	}
 

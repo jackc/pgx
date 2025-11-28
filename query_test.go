@@ -92,7 +92,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 
 	columnCount := 1000
 	sql := "select "
-	for i := 0; i < columnCount; i++ {
+	for i := range columnCount {
 		if i > 0 {
 			sql += ","
 		}
@@ -256,7 +256,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 	for rows.Next() {
 		rowCount++
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			values, err := rows.Values()
 			require.NoError(t, err)
 			require.Len(t, values, 5)
@@ -544,7 +544,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		func() {
 			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
 
@@ -1450,8 +1450,7 @@ func TestQueryContextSuccess(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	rows, err := conn.Query(ctx, "select 42::integer")
 	if err != nil {
@@ -1489,8 +1488,7 @@ func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
 
 	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	rows, err := conn.Query(ctx, "select 10/(10-n) from generate_series(1, 100) n")
 	if err != nil {
@@ -1526,8 +1524,7 @@ func TestQueryRowContextSuccess(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	var result int
 	err := conn.QueryRow(ctx, "select 42::integer").Scan(&result)
@@ -1547,8 +1544,7 @@ func TestQueryRowContextErrorWhileReceivingRow(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	var result int
 	err := conn.QueryRow(ctx, "select 10/0").Scan(&result)

@@ -65,7 +65,7 @@ func TestChunkReaderNextFuzz(t *testing.T) {
 
 	randomSizes := rand.New(rand.NewPCG(0, 0))
 
-	for i := 0; i < 100000; i++ {
+	for range 100000 {
 		size := randomSizes.IntN(16384) + 1
 		buf, err := r.Next(size)
 		if err != nil {
