@@ -179,7 +179,7 @@ func TestNumericCodecFuzz(t *testing.T) {
 	max.SetString("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 10)
 
 	tests := make([]pgxtest.ValueRoundTripTest, 0, 2000)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		for j := -50; j < 50; j++ {
 			byteLen := (max.BitLen() + 7) / 8
 			bytes := make([]byte, byteLen)

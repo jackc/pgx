@@ -202,7 +202,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	// one allocation for all *string, rather than one per string, just like text parsing
 	valueStrings := make([]string, pairCount)
 
-	for i := 0; i < pairCount; i++ {
+	for i := range pairCount {
 		if len(src[rp:]) < uint32Len {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}

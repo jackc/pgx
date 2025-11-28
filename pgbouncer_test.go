@@ -38,14 +38,14 @@ func TestPgbouncerSimpleProtocol(t *testing.T) {
 func testPgbouncer(t *testing.T, config *pgx.ConnConfig, workers, iterations int) {
 	doneChan := make(chan struct{})
 
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go func() {
 			defer func() { doneChan <- struct{}{} }()
 			conn, err := pgx.ConnectConfig(context.Background(), config)
 			require.Nil(t, err)
 			defer closeConn(t, conn)
 
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				var i32 int32
 				var i64 int64
 				var f32 float32
@@ -69,7 +69,7 @@ func testPgbouncer(t *testing.T, config *pgx.ConnConfig, workers, iterations int
 		}()
 	}
 
-	for i := 0; i < workers; i++ {
+	for range workers {
 		<-doneChan
 	}
 }

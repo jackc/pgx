@@ -186,7 +186,6 @@ func TestSQLOpen(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 
 		t.Run(tt.driverName, func(t *testing.T) {
 			db, err := sql.Open(tt.driverName, os.Getenv("PGX_TEST_DATABASE"))
@@ -1255,7 +1254,7 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	// If we don't succeed within this many iterations, something is certainly wrong
-	for i := 0; i < 100000; i++ {
+	for range 100000 {
 		connCopy := *config
 		stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
 
@@ -1316,7 +1315,7 @@ func TestCheckIdleConn(t *testing.T) {
 	defer closeDB(t, db)
 
 	var conns []*sql.Conn
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		c, err := db.Conn(context.Background())
 		require.NoError(t, err)
 		conns = append(conns, c)

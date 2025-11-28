@@ -571,7 +571,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 
 	errs := make(chan error, targetResources)
 
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		go func() {
 			err := p.p.CreateResource(ctx)
 			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
@@ -583,7 +583,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 	}
 
 	var firstError error
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		err := <-errs
 		if err != nil && firstError == nil {
 			cancel()
