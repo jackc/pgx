@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"math/big"
-	"math/rand"
+	"math/rand/v2"
 	"reflect"
 	"strconv"
 	"strings"
@@ -174,14 +174,24 @@ func TestNumericFloat64Valuer(t *testing.T) {
 func TestNumericCodecFuzz(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 
-	r := rand.New(rand.NewSource(0))
+	r := rand.New(rand.NewPCG(0, 0))
 	max := &big.Int{}
 	max.SetString("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 10)
 
 	tests := make([]pgxtest.ValueRoundTripTest, 0, 2000)
 	for range 10 {
 		for j := -50; j < 50; j++ {
-			num := (&big.Int{}).Rand(r, max)
+			byteLen := (max.BitLen() + 7) / 8
+			bytes := make([]byte, byteLen)
+			for k := 0; k < byteLen; {
+				val := r.Uint64()
+				for b := 0; b < 8 && k < byteLen; b++ {
+					bytes[k] = byte(val >> (b * 8))
+					k++
+				}
+			}
+			num := new(big.Int).SetBytes(bytes)
+			num.Mod(num, max)
 
 			n := pgtype.Numeric{Int: num, Exp: int32(j), Valid: true}
 			tests = append(tests, pgxtest.ValueRoundTripTest{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
