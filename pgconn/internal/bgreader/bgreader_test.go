@@ -101,7 +101,7 @@ type numberReader struct {
 
 func (nr *numberReader) Read(p []byte) (int, error) {
 	n := nr.rng.Intn(len(p))
-	for i := 0; i < n; i++ {
+	for i := range n {
 		p[i] = nr.v
 		nr.v++
 	}
@@ -130,7 +130,7 @@ func TestBGReaderStress(t *testing.T) {
 		default:
 			n, err := bgr.Read(buf)
 			require.NoError(t, err)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				require.Equal(t, expected, buf[i])
 				expected++
 			}

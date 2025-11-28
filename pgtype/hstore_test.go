@@ -325,7 +325,7 @@ func BenchmarkHstoreEncode(b *testing.B) {
 	for _, serializeConfig := range serializeConfigs {
 		var buf []byte
 		b.Run(serializeConfig.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				var err error
 				buf, err = serializeConfig.encodePlan.Encode(h, buf)
 				if err != nil {
@@ -375,7 +375,7 @@ func BenchmarkHstoreScan(b *testing.B) {
 	var h pgtype.Hstore
 	b.Run("databasesql.Scan", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			for _, str := range benchStrings {
 				err := h.Scan(str)
 				if err != nil {
@@ -397,7 +397,7 @@ func BenchmarkHstoreScan(b *testing.B) {
 	for _, scanConfig := range scanConfigs {
 		b.Run(scanConfig.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				for _, input := range scanConfig.inputBytes {
 					err := scanConfig.scanPlan.Scan(input, &h)
 					if err != nil {

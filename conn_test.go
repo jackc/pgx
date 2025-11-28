@@ -394,8 +394,7 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	commandTag, err := conn.Exec(ctx, "create temporary table foo(name varchar primary key);")
 	if err != nil {
@@ -553,7 +552,7 @@ func TestPrepareIdempotency(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			_, err := conn.Prepare(context.Background(), "test", "select 42::integer")
 			if err != nil {
 				t.Fatalf("%d. Unable to prepare statement: %v", i, err)
@@ -750,7 +749,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		mustExec(t, conn, "listen busysafe")
 		listening <- true
 
-		for i := 0; i < 5000; i++ {
+		for range 5000 {
 			var sum int32
 			var rowCount int32
 
@@ -796,7 +795,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 		<-listening
 
-		for i := 0; i < 100000; i++ {
+		for range 100000 {
 			mustExec(t, conn, "notify busysafe, 'hello'")
 		}
 	}()
@@ -880,7 +879,7 @@ func TestFatalTxError(t *testing.T) {
 	t.Parallel()
 
 	// Run timing sensitive test many times
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		func() {
 			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer closeConn(t, conn)
@@ -1562,7 +1561,7 @@ func TestRawValuesUnderlyingMemoryReused(t *testing.T) {
 		original := make([]byte, len(buf))
 		copy(original, buf)
 
-		for i := 0; i < 1_000_000; i++ {
+		for i := range 1_000_000 {
 			rows, err := conn.Query(ctx, `select $1::int`, i)
 			require.NoError(t, err)
 			rows.Close()

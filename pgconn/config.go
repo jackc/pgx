@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/url"
@@ -103,9 +104,7 @@ func (c *Config) Copy() *Config {
 	}
 	if newConf.RuntimeParams != nil {
 		newConf.RuntimeParams = make(map[string]string, len(c.RuntimeParams))
-		for k, v := range c.RuntimeParams {
-			newConf.RuntimeParams[k] = v
-		}
+		maps.Copy(newConf.RuntimeParams, c.RuntimeParams)
 	}
 	if newConf.Fallbacks != nil {
 		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
@@ -438,9 +437,7 @@ func mergeSettings(settingSets ...map[string]string) map[string]string {
 	settings := make(map[string]string)
 
 	for _, s2 := range settingSets {
-		for k, v := range s2 {
-			settings[k] = v
-		}
+		maps.Copy(settings, s2)
 	}
 
 	return settings
@@ -503,7 +500,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
 	var hosts []string
 	var ports []string
-	for _, host := range strings.Split(parsedURL.Host, ",") {
+	for host := range strings.SplitSeq(parsedURL.Host, ",") {
 		if host == "" {
 			continue
 		}

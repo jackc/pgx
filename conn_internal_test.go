@@ -41,7 +41,7 @@ func TestStmtCacheSizeLimit(t *testing.T) {
 
 	// run a set of unique queries that should overflow the cache
 	ctx := context.Background()
-	for i := 0; i < cacheLimit*2; i++ {
+	for i := range cacheLimit * 2 {
 		uniqueString := fmt.Sprintf("unique %d", i)
 		uniqueSQL := fmt.Sprintf("select '%s'", uniqueString)
 		var output string
