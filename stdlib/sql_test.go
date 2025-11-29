@@ -1254,7 +1254,7 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	// If we don't succeed within this many iterations, something is certainly wrong
-	for range 100000 {
+	for range 100_000 {
 		connCopy := *config
 		stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
 

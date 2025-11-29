@@ -795,7 +795,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 		<-listening
 
-		for range 100000 {
+		for range 100_000 {
 			mustExec(t, conn, "notify busysafe, 'hello'")
 		}
 	}()

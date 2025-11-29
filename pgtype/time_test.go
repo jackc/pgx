@@ -24,14 +24,14 @@ func TestTimeCodec(t *testing.T) {
 			isExpectedEq(pgtype.Time{Microseconds: 1, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86399999999, Valid: true},
+			pgtype.Time{Microseconds: 86_399_999_999, Valid: true},
 			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86399999999, Valid: true}),
+			isExpectedEq(pgtype.Time{Microseconds: 86_399_999_999, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86400000000, Valid: true},
+			pgtype.Time{Microseconds: 86_400_000_000, Valid: true},
 			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86400000000, Valid: true}),
+			isExpectedEq(pgtype.Time{Microseconds: 86_400_000_000, Valid: true}),
 		},
 		{
 			time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),

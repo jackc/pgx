@@ -18,7 +18,7 @@ func TestConnStress(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	actionCount := 10000
+	actionCount := 10_000
 	if s := os.Getenv("PGX_TEST_STRESS_FACTOR"); s != "" {
 		stressFactor, err := strconv.ParseInt(s, 10, 64)
 		require.Nil(t, err, "Failed to parse PGX_TEST_STRESS_FACTOR")
