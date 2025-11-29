@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	microsecondsPerSecond = 1000000
+	microsecondsPerSecond = 1_000_000
 	microsecondsPerMinute = 60 * microsecondsPerSecond
 	microsecondsPerHour   = 60 * microsecondsPerMinute
 	microsecondsPerDay    = 24 * microsecondsPerHour

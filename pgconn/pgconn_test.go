@@ -1600,7 +1600,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 
 	batch := &pgconn.Batch{}
 
-	queryCount := 100000
+	queryCount := 100_000
 	args := make([]string, queryCount)
 
 	for i := range args {
@@ -2110,7 +2110,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		for i := range 1000000 {
+		for i := range 1_000_000 {
 			a := strconv.Itoa(i)
 			b := "foo " + a + " bar"
 			_, err := w.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))
@@ -2157,7 +2157,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 
 	r, w := io.Pipe()
 	go func() {
-		for i := range 1000000 {
+		for i := range 1_000_000 {
 			a := strconv.Itoa(i)
 			b := "foo " + a + " bar"
 			_, err := w.Write(fmt.Appendf(nil, "%s,\"%s\"\n", a, b))

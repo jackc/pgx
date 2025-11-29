@@ -14,7 +14,7 @@ import (
 )
 
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
-const nbase = 10000
+const nbase = 10_000
 
 const (
 	pgNumericNaN     = 0x00000000c0000000

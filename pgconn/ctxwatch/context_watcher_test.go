@@ -112,7 +112,7 @@ func TestContextWatcherStress(t *testing.T) {
 		},
 	})
 
-	cycleCount := 100000
+	cycleCount := 100_000
 
 	for i := range cycleCount {
 		ctx, cancel := context.WithCancel(context.Background())

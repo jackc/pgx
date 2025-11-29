@@ -641,35 +641,35 @@ func BenchmarkWrite100RowsViaCopy(b *testing.B) {
 }
 
 func BenchmarkWrite1000RowsViaInsert(b *testing.B) {
-	benchmarkWriteNRowsViaInsert(b, 1000)
+	benchmarkWriteNRowsViaInsert(b, 1_000)
 }
 
 func BenchmarkWrite1000RowsViaMultiInsert(b *testing.B) {
-	benchmarkWriteNRowsViaMultiInsert(b, 1000)
+	benchmarkWriteNRowsViaMultiInsert(b, 1_000)
 }
 
 func BenchmarkWrite1000RowsViaBatchInsert(b *testing.B) {
-	benchmarkWriteNRowsViaBatchInsert(b, 1000)
+	benchmarkWriteNRowsViaBatchInsert(b, 1_000)
 }
 
 func BenchmarkWrite1000RowsViaCopy(b *testing.B) {
-	benchmarkWriteNRowsViaCopy(b, 1000)
+	benchmarkWriteNRowsViaCopy(b, 1_000)
 }
 
 func BenchmarkWrite10000RowsViaInsert(b *testing.B) {
-	benchmarkWriteNRowsViaInsert(b, 10000)
+	benchmarkWriteNRowsViaInsert(b, 10_000)
 }
 
 func BenchmarkWrite10000RowsViaMultiInsert(b *testing.B) {
-	benchmarkWriteNRowsViaMultiInsert(b, 10000)
+	benchmarkWriteNRowsViaMultiInsert(b, 10_000)
 }
 
 func BenchmarkWrite10000RowsViaBatchInsert(b *testing.B) {
-	benchmarkWriteNRowsViaBatchInsert(b, 10000)
+	benchmarkWriteNRowsViaBatchInsert(b, 10_000)
 }
 
 func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
-	benchmarkWriteNRowsViaCopy(b, 10000)
+	benchmarkWriteNRowsViaCopy(b, 10_000)
 }
 
 func BenchmarkMultipleQueriesNonBatchNoStatementCache(b *testing.B) {

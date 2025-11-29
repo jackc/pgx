@@ -18,19 +18,19 @@ func TestIntervalCodec(t *testing.T) {
 			isExpectedEq(pgtype.Interval{Microseconds: 1, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: 1000000, Valid: true},
+			pgtype.Interval{Microseconds: 1_000_000, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 1000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 1_000_000, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: 1000001, Valid: true},
+			pgtype.Interval{Microseconds: 1_000_001, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 1000001, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 1_000_001, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: 123202800000000, Valid: true},
+			pgtype.Interval{Microseconds: 123_202_800_000_000, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 123202800000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 123_202_800_000_000, Valid: true}),
 		},
 		{
 			pgtype.Interval{Days: 1, Valid: true},
@@ -48,9 +48,9 @@ func TestIntervalCodec(t *testing.T) {
 			isExpectedEq(pgtype.Interval{Months: 12, Valid: true}),
 		},
 		{
-			pgtype.Interval{Months: 13, Days: 15, Microseconds: 1000001, Valid: true},
+			pgtype.Interval{Months: 13, Days: 15, Microseconds: 1_000_001, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Months: 13, Days: 15, Microseconds: 1000001, Valid: true}),
+			isExpectedEq(pgtype.Interval{Months: 13, Days: 15, Microseconds: 1_000_001, Valid: true}),
 		},
 		{
 			pgtype.Interval{Microseconds: -1, Valid: true},
@@ -58,19 +58,19 @@ func TestIntervalCodec(t *testing.T) {
 			isExpectedEq(pgtype.Interval{Microseconds: -1, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: -1000000, Valid: true},
+			pgtype.Interval{Microseconds: -1_000_000, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: -1000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: -1_000_000, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: -1000001, Valid: true},
+			pgtype.Interval{Microseconds: -1_000_001, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: -1000001, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: -1_000_001, Valid: true}),
 		},
 		{
-			pgtype.Interval{Microseconds: -123202800000000, Valid: true},
+			pgtype.Interval{Microseconds: -123_202_800_000_000, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: -123202800000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: -123_202_800_000_000, Valid: true}),
 		},
 		{
 			pgtype.Interval{Days: -1, Valid: true},
@@ -88,24 +88,24 @@ func TestIntervalCodec(t *testing.T) {
 			isExpectedEq(pgtype.Interval{Months: -12, Valid: true}),
 		},
 		{
-			pgtype.Interval{Months: -13, Days: -15, Microseconds: -1000001, Valid: true},
+			pgtype.Interval{Months: -13, Days: -15, Microseconds: -1_000_001, Valid: true},
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Months: -13, Days: -15, Microseconds: -1000001, Valid: true}),
+			isExpectedEq(pgtype.Interval{Months: -13, Days: -15, Microseconds: -1_000_001, Valid: true}),
 		},
 		{
 			"1 second",
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 1000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 1_000_000, Valid: true}),
 		},
 		{
 			"1.000001 second",
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 1000001, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 1_000_001, Valid: true}),
 		},
 		{
 			"34223 hours",
 			new(pgtype.Interval),
-			isExpectedEq(pgtype.Interval{Microseconds: 123202800000000, Valid: true}),
+			isExpectedEq(pgtype.Interval{Microseconds: 123_202_800_000_000, Valid: true}),
 		},
 		{
 			"1 day",
@@ -131,7 +131,7 @@ func TestIntervalCodec(t *testing.T) {
 		{
 			pgtype.Interval{Months: 1, Days: 1, Valid: true},
 			new(time.Duration),
-			isExpectedEq(time.Duration(2678400000000000)),
+			isExpectedEq(time.Duration(2_678_400_000_000_000)),
 		},
 		{pgtype.Interval{}, new(pgtype.Interval), isExpectedEq(pgtype.Interval{})},
 		{nil, new(pgtype.Interval), isExpectedEq(pgtype.Interval{})},
@@ -147,8 +147,8 @@ func TestIntervalTextEncode(t *testing.T) {
 	}{
 		{source: pgtype.Interval{Months: 2, Days: 1, Microseconds: 0, Valid: true}, result: "2 mon 1 day 00:00:00"},
 		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 0, Valid: true}, result: "00:00:00"},
-		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 6 * 60 * 1000000, Valid: true}, result: "00:06:00"},
-		{source: pgtype.Interval{Months: 0, Days: 1, Microseconds: 6*60*1000000 + 30, Valid: true}, result: "1 day 00:06:00.000030"},
+		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 6 * 60 * 1_000_000, Valid: true}, result: "00:06:00"},
+		{source: pgtype.Interval{Months: 0, Days: 1, Microseconds: 6*60*1_000_000 + 30, Valid: true}, result: "1 day 00:06:00.000030"},
 	}
 	for i, tt := range successfulTests {
 		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.source, nil)
