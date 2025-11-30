@@ -21,7 +21,7 @@ func BenchmarkQuery<%= format_name %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go
   defaultConnTestRunner.RunTest(context.Background(), b, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
     b.ResetTimer()
     var v [<%= columns %>]<%= go_type %>
-    for i := 0; i < b.N; i++ {
+    for b.Loop() {
       rows, _ := conn.Query(
         ctx,
         `select <% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>n::<%= pg_type %> + <%= col_idx%><% end %> from generate_series(1, <%= rows %>) n`,
@@ -45,7 +45,7 @@ func BenchmarkQuery<%= format_name %>FormatDecode_PG_Int4Array_With_Go_Int4Array
   defaultConnTestRunner.RunTest(context.Background(), b, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
     b.ResetTimer()
     var v []int32
-    for i := 0; i < b.N; i++ {
+    for b.Loop() {
       rows, _ := conn.Query(
         ctx,
         `select array_agg(n) from generate_series(1, <%= array_size %>) n`,

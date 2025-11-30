@@ -90,21 +90,24 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	columnCount := 1000
-	sql := "select "
+	var (
+		columnCount = 1000
+		sqlVar      = "select "
+	)
 	for i := range columnCount {
 		if i > 0 {
-			sql += ","
+			sqlVar += ","
 		}
-		sql += fmt.Sprintf(" %d", i)
+		sqlVar += fmt.Sprintf(" %d", i)
 	}
-	sql += " from generate_series(1,5)"
+	sqlVar += " from generate_series(1,5)"
 
-	dest := make([]int, columnCount)
+	var (
+		dest     = make([]int, columnCount)
+		rowCount int
+	)
 
-	var rowCount int
-
-	rows, err := conn.Query(context.Background(), sql)
+	rows, err := conn.Query(context.Background(), sqlVar)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -546,9 +549,9 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 	for range 100 {
 		func() {
-			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
+			sqlVar := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
 
-			rows, err := conn.Query(context.Background(), sql)
+			rows, err := conn.Query(context.Background(), sqlVar)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1904,13 +1907,15 @@ func TestConnSimpleProtocol(t *testing.T) {
 			{[]float64{1, 2, 3}},
 		}
 		for i, tt := range tests {
-			var actual []float64
-			err := conn.QueryRow(
-				context.Background(),
-				"select $1::float8[]",
-				pgx.QueryExecModeSimpleProtocol,
-				tt.expected,
-			).Scan(&actual)
+			var (
+				actual []float64
+				err    = conn.QueryRow(
+					context.Background(),
+					"select $1::float8[]",
+					pgx.QueryExecModeSimpleProtocol,
+					tt.expected,
+				).Scan(&actual)
+			)
 			assert.NoErrorf(t, err, "%d", i)
 			assert.Equalf(t, tt.expected, actual, "%d", i)
 		}
@@ -1918,45 +1923,45 @@ func TestConnSimpleProtocol(t *testing.T) {
 
 	// Test high-level type
 
-	{
-		if conn.PgConn().ParameterStatus("crdb_version") == "" {
-			// CockroachDB doesn't support circle type.
-			expected := pgtype.Circle{P: pgtype.Vec2{X: 1, Y: 2}, R: 1.5, Valid: true}
-			actual := expected
-			err := conn.QueryRow(
-				context.Background(),
-				"select $1::circle",
-				pgx.QueryExecModeSimpleProtocol,
-				&expected,
-			).Scan(&actual)
-			if err != nil {
-				t.Error(err)
-			}
-			if expected != actual {
-				t.Errorf("expected %v got %v", expected, actual)
-			}
+	if conn.PgConn().ParameterStatus("crdb_version") == "" {
+		// CockroachDB doesn't support circle type.
+		expected := pgtype.Circle{P: pgtype.Vec2{X: 1, Y: 2}, R: 1.5, Valid: true}
+		actual := expected
+		err := conn.QueryRow(
+			context.Background(),
+			"select $1::circle",
+			pgx.QueryExecModeSimpleProtocol,
+			&expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
 		}
 	}
 
 	// Test multiple args in single query
 
 	{
-		expectedInt64 := int64(234423)
-		expectedFloat64 := float64(-0.2312)
-		expectedBool := true
-		expectedBytes := []byte{255, 0, 23, 16, 87, 45, 9, 23, 45, 223}
-		expectedString := "test"
-		var actualInt64 int64
-		var actualFloat64 float64
-		var actualBool bool
-		var actualBytes []byte
-		var actualString string
-		err := conn.QueryRow(
-			context.Background(),
-			"select $1::int8, $2::float8, $3::boolean, $4::bytea, $5::text",
-			pgx.QueryExecModeSimpleProtocol,
-			expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
-		).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
+		var (
+			expectedInt64   = int64(234423)
+			expectedFloat64 = float64(-0.2312)
+			expectedBool    = true
+			expectedBytes   = []byte{255, 0, 23, 16, 87, 45, 9, 23, 45, 223}
+			expectedString  = "test"
+			actualInt64     int64
+			actualFloat64   float64
+			actualBool      bool
+			actualBytes     []byte
+			actualString    string
+			err             = conn.QueryRow(
+				context.Background(),
+				"select $1::int8, $2::float8, $3::boolean, $4::bytea, $5::text",
+				pgx.QueryExecModeSimpleProtocol,
+				expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
+			).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
+		)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1980,14 +1985,16 @@ func TestConnSimpleProtocol(t *testing.T) {
 	// Test dangerous cases
 
 	{
-		expected := "foo';drop table users;"
-		var actual string
-		err := conn.QueryRow(
-			context.Background(),
-			"select $1",
-			pgx.QueryExecModeSimpleProtocol,
-			expected,
-		).Scan(&actual)
+		var (
+			expected = "foo';drop table users;"
+			actual   string
+			err      = conn.QueryRow(
+				context.Background(),
+				"select $1",
+				pgx.QueryExecModeSimpleProtocol,
+				expected,
+			).Scan(&actual)
+		)
 		if err != nil {
 			t.Error(err)
 		}

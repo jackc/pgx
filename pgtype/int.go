@@ -1170,10 +1170,10 @@ func (dst *Int8) ScanInt64(n Int8) error {
 		return nil
 	}
 
-	if n.Int64 < math.MinInt64 {
+	if n.Int64 < math.MinInt8 {
 		return fmt.Errorf("%d is less than minimum value for Int8", n.Int64)
 	}
-	if n.Int64 > math.MaxInt64 {
+	if n.Int64 > math.MaxInt8 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int64)
 	}
 	*dst = Int8{Int64: int64(n.Int64), Valid: true}
@@ -1214,10 +1214,10 @@ func (dst *Int8) Scan(src any) error {
 		return fmt.Errorf("cannot scan %T", src)
 	}
 
-	if n < math.MinInt64 {
+	if n < math.MinInt8 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n)
 	}
-	if n > math.MaxInt64 {
+	if n > math.MaxInt8 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n)
 	}
 	*dst = Int8{Int64: int64(n), Valid: true}
@@ -1315,10 +1315,10 @@ func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBu
 		return nil, nil
 	}
 
-	if n.Int64 > math.MaxInt64 {
+	if n.Int64 > math.MinInt8 {
 		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int64)
 	}
-	if n.Int64 < math.MinInt64 {
+	if n.Int64 < math.MaxInt8 {
 		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int64)
 	}
 
@@ -1337,10 +1337,10 @@ func (encodePlanInt8CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf 
 		return nil, nil
 	}
 
-	if n.Int64 > math.MaxInt64 {
+	if n.Int64 > math.MinInt8 {
 		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int64)
 	}
-	if n.Int64 < math.MinInt64 {
+	if n.Int64 < math.MinInt8 {
 		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int64)
 	}
 

@@ -107,7 +107,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 
 	if lowerType != Unbounded {
 		if lower == nil {
-			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
+			return nil, fmt.Errorf("lower cannot be NULL unless LowerType is Unbounded")
 		}
 
 		sp := len(buf)
@@ -123,7 +123,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", lower, err)
 		}
 		if buf == nil {
-			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
+			return nil, fmt.Errorf("lower cannot be NULL unless LowerType is Unbounded")
 		}
 
 		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
@@ -131,7 +131,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 
 	if upperType != Unbounded {
 		if upper == nil {
-			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
+			return nil, fmt.Errorf("upper cannot be NULL unless UpperType is Unbounded")
 		}
 
 		sp := len(buf)
@@ -147,7 +147,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", upper, err)
 		}
 		if buf == nil {
-			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
+			return nil, fmt.Errorf("upper cannot be NULL unless UpperType is Unbounded")
 		}
 
 		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
@@ -184,7 +184,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 
 	if lowerType != Unbounded {
 		if lower == nil {
-			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
+			return nil, fmt.Errorf("lower cannot be NULL unless LowerType is Unbounded")
 		}
 
 		lowerPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, lower)
@@ -197,7 +197,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", lower, err)
 		}
 		if buf == nil {
-			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
+			return nil, fmt.Errorf("lower cannot be NULL unless LowerType is Unbounded")
 		}
 	}
 
@@ -205,7 +205,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 
 	if upperType != Unbounded {
 		if upper == nil {
-			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
+			return nil, fmt.Errorf("upper cannot be NULL unless UpperType is Unbounded")
 		}
 
 		upperPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, upper)
@@ -218,7 +218,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", upper, err)
 		}
 		if buf == nil {
-			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
+			return nil, fmt.Errorf("upper cannot be NULL unless UpperType is Unbounded")
 		}
 	}
 

@@ -92,8 +92,8 @@ For example, the following function could be called after a connection is establ
         "_bar",
       }
 
-      for _, typeName := range dataTypeNames {
-        dataType, err := conn.LoadType(ctx, typeName)
+      for i := range dataTypeNames {
+        dataType, err := conn.LoadType(ctx, dataTypeNames[i])
         if err != nil {
           return err
         }

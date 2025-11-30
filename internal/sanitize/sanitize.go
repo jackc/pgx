@@ -46,8 +46,8 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 	buf := bufPool.get()
 	defer bufPool.put(buf)
 
-	for _, part := range q.Parts {
-		switch part := part.(type) {
+	for i := range q.Parts {
+		switch part := q.Parts[i].(type) {
 		case string:
 			buf.WriteString(part)
 		case int:
@@ -97,8 +97,8 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 		}
 	}
 
-	for i, used := range argUse {
-		if !used {
+	for i := range argUse {
+		if !argUse[i] {
 			return "", fmt.Errorf("unused argument: %d", i)
 		}
 	}
@@ -154,7 +154,7 @@ func QuoteString(dst []byte, str string) []byte {
 	dst = append(dst, quote)
 
 	// Iterate through the string without allocating
-	for i := 0; i < len(str); i++ {
+	for i := range len(str) {
 		if str[i] == quote {
 			dst = append(dst, quote, quote)
 		} else {

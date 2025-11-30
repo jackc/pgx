@@ -61,8 +61,8 @@ func rewriteQuery(na map[string]any, sql string, isStrict bool) (newSQL string, 
 	}
 
 	sb := strings.Builder{}
-	for _, p := range l.parts {
-		switch p := p.(type) {
+	for i := range l.parts {
+		switch p := l.parts[i].(type) {
 		case string:
 			sb.WriteString(p)
 		case namedArg:
@@ -72,9 +72,9 @@ func rewriteQuery(na map[string]any, sql string, isStrict bool) (newSQL string, 
 	}
 
 	newArgs = make([]any, len(l.nameToOrdinal))
-	for name, ordinal := range l.nameToOrdinal {
+	for name := range l.nameToOrdinal {
 		var found bool
-		newArgs[ordinal-1], found = na[string(name)]
+		newArgs[l.nameToOrdinal[name]-1], found = na[string(name)]
 		if isStrict && !found {
 			return "", nil, fmt.Errorf("argument %s found in sql query but not present in StrictNamedArgs", name)
 		}

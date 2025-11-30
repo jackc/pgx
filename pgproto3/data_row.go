@@ -69,14 +69,14 @@ func (src *DataRow) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many values")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Values)))
-	for _, v := range src.Values {
-		if v == nil {
+	for i := range src.Values {
+		if src.Values[i] == nil {
 			dst = pgio.AppendInt32(dst, -1)
 			continue
 		}
 
-		dst = pgio.AppendInt32(dst, int32(len(v)))
-		dst = append(dst, v...)
+		dst = pgio.AppendInt32(dst, int32(len(src.Values[i])))
+		dst = append(dst, src.Values[i]...)
 	}
 
 	return finishMessage(dst, sp)
@@ -85,23 +85,23 @@ func (src *DataRow) Encode(dst []byte) ([]byte, error) {
 // MarshalJSON implements encoding/json.Marshaler.
 func (src DataRow) MarshalJSON() ([]byte, error) {
 	formattedValues := make([]map[string]string, len(src.Values))
-	for i, v := range src.Values {
-		if v == nil {
+	for i := range src.Values {
+		if src.Values[i] == nil {
 			continue
 		}
 
 		var hasNonPrintable bool
-		for _, b := range v {
-			if b < 32 {
+		for j := range src.Values[i] {
+			if src.Values[i][j] < 32 {
 				hasNonPrintable = true
 				break
 			}
 		}
 
 		if hasNonPrintable {
-			formattedValues[i] = map[string]string{"binary": hex.EncodeToString(v)}
+			formattedValues[i] = map[string]string{"binary": hex.EncodeToString(src.Values[i])}
 		} else {
-			formattedValues[i] = map[string]string{"text": string(v)}
+			formattedValues[i] = map[string]string{"text": string(src.Values[i])}
 		}
 	}
 
@@ -129,9 +129,9 @@ func (dst *DataRow) UnmarshalJSON(data []byte) error {
 	}
 
 	dst.Values = make([][]byte, len(msg.Values))
-	for n, parameter := range msg.Values {
+	for i := range msg.Values {
 		var err error
-		dst.Values[n], err = getValueFromJSON(parameter)
+		dst.Values[i], err = getValueFromJSON(msg.Values[i])
 		if err != nil {
 			return err
 		}

@@ -100,15 +100,15 @@ func (encodePlanHstoreCodecBinary) Encode(value any, buf []byte) (newBuf []byte,
 
 	buf = pgio.AppendInt32(buf, int32(len(hstore)))
 
-	for k, v := range hstore {
-		buf = pgio.AppendInt32(buf, int32(len(k)))
-		buf = append(buf, k...)
+	for i := range hstore {
+		buf = pgio.AppendInt32(buf, int32(len(i)))
+		buf = append(buf, i...)
 
-		if v == nil {
+		if hstore[i] == nil {
 			buf = pgio.AppendInt32(buf, -1)
 		} else {
-			buf = pgio.AppendInt32(buf, int32(len(*v)))
-			buf = append(buf, (*v)...)
+			buf = pgio.AppendInt32(buf, int32(len(*hstore[i])))
+			buf = append(buf, (*hstore[i])...)
 		}
 	}
 
@@ -136,7 +136,7 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 
 	firstPair := true
 
-	for k, v := range hstore {
+	for i := range hstore {
 		if firstPair {
 			firstPair = false
 		} else {
@@ -147,15 +147,15 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 		// this avoids a Mac OS X Postgres hstore parsing bug:
 		// https://www.postgresql.org/message-id/CA%2BHWA9awUW0%2BRV_gO9r1ABZwGoZxPztcJxPy8vMFSTbTfi4jig%40mail.gmail.com
 		buf = append(buf, '"')
-		buf = append(buf, quoteArrayReplacer.Replace(k)...)
+		buf = append(buf, quoteArrayReplacer.Replace(i)...)
 		buf = append(buf, '"')
 		buf = append(buf, "=>"...)
 
-		if v == nil {
+		if hstore[i] == nil {
 			buf = append(buf, "NULL"...)
 		} else {
 			buf = append(buf, '"')
-			buf = append(buf, quoteArrayReplacer.Replace(*v)...)
+			buf = append(buf, quoteArrayReplacer.Replace(*hstore[i])...)
 			buf = append(buf, '"')
 		}
 	}

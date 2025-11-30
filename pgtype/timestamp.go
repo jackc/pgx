@@ -218,12 +218,15 @@ func (encodePlanTimestampCodecText) Encode(value any, buf []byte) (newBuf []byte
 		s = t.Truncate(time.Microsecond).Format(pgTimestampFormat)
 
 		if bc {
-			s = s + " BC"
+			s += " BC"
 		}
+
 	case Infinity:
 		s = "infinity"
+
 	case NegativeInfinity:
 		s = "-infinity"
+
 	}
 
 	buf = append(buf, s...)

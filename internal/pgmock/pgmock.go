@@ -18,8 +18,8 @@ type Script struct {
 }
 
 func (s *Script) Run(backend *pgproto3.Backend) error {
-	for _, step := range s.Steps {
-		err := step.Step(backend)
+	for i := range s.Steps {
+		err := s.Steps[i].Step(backend)
 		if err != nil {
 			return err
 		}
@@ -33,8 +33,8 @@ func (s *Script) Step(backend *pgproto3.Backend) error {
 }
 
 type expectMessageStep struct {
-	want pgproto3.FrontendMessage
-	any  bool
+	want   pgproto3.FrontendMessage
+	anyVar bool
 }
 
 func (e *expectMessageStep) Step(backend *pgproto3.Backend) error {
@@ -43,7 +43,7 @@ func (e *expectMessageStep) Step(backend *pgproto3.Backend) error {
 		return err
 	}
 
-	if e.any && reflect.TypeOf(msg) == reflect.TypeOf(e.want) {
+	if e.anyVar && reflect.TypeOf(msg) == reflect.TypeOf(e.want) {
 		return nil
 	}
 
@@ -84,12 +84,12 @@ func ExpectAnyMessage(want pgproto3.FrontendMessage) Step {
 	return expectMessage(want, true)
 }
 
-func expectMessage(want pgproto3.FrontendMessage, any bool) Step {
+func expectMessage(want pgproto3.FrontendMessage, anyVar bool) Step {
 	if want, ok := want.(*pgproto3.StartupMessage); ok {
-		return &expectStartupMessageStep{want: want, any: any}
+		return &expectStartupMessageStep{want: want, any: anyVar}
 	}
 
-	return &expectMessageStep{want: want, any: any}
+	return &expectMessageStep{want: want, anyVar: anyVar}
 }
 
 type sendMessageStep struct {

@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"math"
 	"net"
@@ -108,11 +107,11 @@ func (c *Config) Copy() *Config {
 	}
 	if newConf.Fallbacks != nil {
 		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
-		for i, fallback := range c.Fallbacks {
+		for i := range c.Fallbacks {
 			newFallback := new(FallbackConfig)
-			*newFallback = *fallback
+			*newFallback = *c.Fallbacks[i]
 			if newFallback.TLSConfig != nil {
-				newFallback.TLSConfig = fallback.TLSConfig.Clone()
+				newFallback.TLSConfig = c.Fallbacks[i].TLSConfig.Clone()
 			}
 			newConf.Fallbacks[i] = newFallback
 		}
@@ -289,9 +288,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		User:                 settings["user"],
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
-		BuildFrontend: func(r io.Reader, w io.Writer) *pgproto3.Frontend {
-			return pgproto3.NewFrontend(r, w)
-		},
+		BuildFrontend:        pgproto3.NewFrontend,
 		BuildContextWatcherHandler: func(pgConn *PgConn) ctxwatch.Handler {
 			return &DeadlineContextWatcherHandler{Conn: pgConn.conn}
 		},
@@ -348,19 +345,20 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		config.KerberosSpn = settings["krbspn"]
 	}
 
-	for k, v := range settings {
+	for k := range settings {
 		if _, present := notRuntimeParams[k]; present {
 			continue
 		}
-		config.RuntimeParams[k] = v
+		config.RuntimeParams[k] = settings[k]
 	}
 
-	fallbacks := []*FallbackConfig{}
+	var (
+		fallbacks = []*FallbackConfig{}
+		hosts     = strings.Split(settings["host"], ",")
+		ports     = strings.Split(settings["port"], ",")
+	)
 
-	hosts := strings.Split(settings["host"], ",")
-	ports := strings.Split(settings["port"], ",")
-
-	for i, host := range hosts {
+	for i := range hosts {
 		var portStr string
 		if i < len(ports) {
 			portStr = ports[i]
@@ -376,21 +374,21 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		var tlsConfigs []*tls.Config
 
 		// Ignore TLS settings if Unix domain socket like libpq
-		if network, _ := NetworkAddress(host, port); network == "unix" {
+		if network, _ := NetworkAddress(hosts[i], port); network == "unix" {
 			tlsConfigs = append(tlsConfigs, nil)
 		} else {
 			var err error
-			tlsConfigs, err = configTLS(settings, host, options)
+			tlsConfigs, err = configTLS(settings, hosts[i], options)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to configure TLS", err: err}
 			}
 		}
 
-		for _, tlsConfig := range tlsConfigs {
+		for j := range tlsConfigs {
 			fallbacks = append(fallbacks, &FallbackConfig{
-				Host:      host,
+				Host:      hosts[i],
 				Port:      port,
-				TLSConfig: tlsConfig,
+				TLSConfig: tlsConfigs[j],
 			})
 		}
 	}
@@ -436,8 +434,8 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 func mergeSettings(settingSets ...map[string]string) map[string]string {
 	settings := make(map[string]string)
 
-	for _, s2 := range settingSets {
-		maps.Copy(settings, s2)
+	for i := range settingSets {
+		maps.Copy(settings, settingSets[i])
 	}
 
 	return settings
@@ -469,10 +467,10 @@ func parseEnvSettings() map[string]string {
 		"PGOPTIONS":            "options",
 	}
 
-	for envname, realname := range nameMap {
+	for envname := range nameMap {
 		value := os.Getenv(envname)
 		if value != "" {
-			settings[realname] = value
+			settings[nameMap[envname]] = value
 		}
 	}
 
@@ -553,22 +551,24 @@ func isIPOnly(host string) bool {
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 func parseKeywordValueSettings(s string) (map[string]string, error) {
-	settings := make(map[string]string)
 
-	nameMap := map[string]string{
-		"dbname": "database",
-	}
+	var (
+		settings = make(map[string]string)
+		nameMap  = map[string]string{"dbname": "database"}
+	)
 
-	for len(s) > 0 {
-		var key, val string
-		eqIdx := strings.IndexRune(s, '=')
+	for s != "" {
+		var (
+			key, val string
+			eqIdx    = strings.IndexRune(s, '=')
+		)
 		if eqIdx < 0 {
 			return nil, errors.New("invalid keyword/value")
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
 		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
-		if len(s) == 0 {
+		if s == "" {
 		} else if s[0] != '\'' {
 			end := 0
 			for ; end < len(s); end++ {
@@ -582,7 +582,7 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 					}
 				}
 			}
-			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
 			if end == len(s) {
 				s = ""
 			} else {
@@ -602,7 +602,7 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			if end == len(s) {
 				return nil, errors.New("unterminated quoted string in connection info string")
 			}
-			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
 			if end == len(s) {
 				s = ""
 			} else {
@@ -654,14 +654,17 @@ func parseServiceSettings(servicefilePath, serviceName string) (map[string]strin
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
 func configTLS(settings map[string]string, thisHost string, parseConfigOptions ParseConfigOptions) ([]*tls.Config, error) {
-	host := thisHost
-	sslmode := settings["sslmode"]
-	sslrootcert := settings["sslrootcert"]
-	sslcert := settings["sslcert"]
-	sslkey := settings["sslkey"]
-	sslpassword := settings["sslpassword"]
-	sslsni := settings["sslsni"]
-	sslnegotiation := settings["sslnegotiation"]
+
+	var (
+		host           = thisHost
+		sslmode        = settings["sslmode"]
+		sslrootcert    = settings["sslrootcert"]
+		sslcert        = settings["sslcert"]
+		sslkey         = settings["sslkey"]
+		sslpassword    = settings["sslpassword"]
+		sslsni         = settings["sslsni"]
+		sslnegotiation = settings["sslnegotiation"]
+	)
 
 	// Match libpq default behavior
 	if sslmode == "" {
@@ -740,8 +743,8 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		tlsConfig.InsecureSkipVerify = true
 		tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
 			certs := make([]*x509.Certificate, len(certificates))
-			for i, asn1Data := range certificates {
-				cert, err := x509.ParseCertificate(asn1Data)
+			for i := range certificates {
+				cert, err := x509.ParseCertificate(certificates[i])
 				if err != nil {
 					return errors.New("failed to parse certificate from server: " + err.Error())
 				}
@@ -755,8 +758,8 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			}
 			// Skip the first cert because it's the leaf. All others
 			// are intermediates.
-			for _, cert := range certs[1:] {
-				opts.Intermediates.AddCert(cert)
+			for i := range certs[1:] {
+				opts.Intermediates.AddCert(certs[1:][i])
 			}
 			_, err := certs[0].Verify(opts)
 			return err
@@ -780,9 +783,11 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		if block == nil {
 			return nil, errors.New("failed to decode sslkey")
 		}
-		var pemKey []byte
-		var decryptedKey []byte
-		var decryptedError error
+		var (
+			pemKey         []byte
+			decryptedKey   []byte
+			decryptedError error
+		)
 		// If PEM is encrypted, attempt to decrypt using pass phrase
 		if x509.IsEncryptedPEMBlock(block) {
 			// Attempt decryption with pass phrase

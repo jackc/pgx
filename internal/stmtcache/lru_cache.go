@@ -16,9 +16,9 @@ type LRUCache struct {
 }
 
 // NewLRUCache creates a new LRUCache. cap is the maximum size of the cache.
-func NewLRUCache(cap int) *LRUCache {
+func NewLRUCache(capVar int) *LRUCache {
 	return &LRUCache{
-		cap:        cap,
+		cap:        capVar,
 		m:          make(map[string]*list.Element),
 		l:          list.New(),
 		invalidSet: make(map[string]struct{}),

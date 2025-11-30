@@ -21,7 +21,7 @@ func (l LtreeCodec) PreferredFormat() int16 {
 func (l LtreeCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case TextFormatCode:
-		return (TextCodec)(l).PlanEncode(m, oid, format, value)
+		return TextCodec(l).PlanEncode(m, oid, format, value)
 	case BinaryFormatCode:
 		switch value.(type) {
 		case string:
@@ -72,7 +72,7 @@ func (encodeLtreeCodecBinaryTextValuer) Encode(value any, buf []byte) (newBuf []
 func (l LtreeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case TextFormatCode:
-		return (TextCodec)(l).PlanScan(m, oid, format, target)
+		return TextCodec(l).PlanScan(m, oid, format, target)
 	case BinaryFormatCode:
 		switch target.(type) {
 		case *string:
@@ -113,10 +113,10 @@ func (scanPlanBinaryLtreeToTextScanner) Scan(src []byte, target any) error {
 
 // DecodeDatabaseSQLValue returns src decoded into a value compatible with the sql.Scanner interface.
 func (l LtreeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return (TextCodec)(l).DecodeDatabaseSQLValue(m, oid, format, src)
+	return TextCodec(l).DecodeDatabaseSQLValue(m, oid, format, src)
 }
 
 // DecodeValue returns src decoded into its default format.
 func (l LtreeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
-	return (TextCodec)(l).DecodeValue(m, oid, format, src)
+	return TextCodec(l).DecodeValue(m, oid, format, src)
 }

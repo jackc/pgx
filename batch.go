@@ -493,14 +493,14 @@ func (br *emptyBatchResults) Close() error {
 func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
 	if err != nil && conn != nil && b != nil {
 		if sc := conn.statementCache; sc != nil {
-			for _, bi := range b.QueuedQueries {
-				sc.Invalidate(bi.SQL)
+			for i := range b.QueuedQueries {
+				sc.Invalidate(b.QueuedQueries[i].SQL)
 			}
 		}
 
 		if sc := conn.descriptionCache; sc != nil {
-			for _, bi := range b.QueuedQueries {
-				sc.Invalidate(bi.SQL)
+			for i := range b.QueuedQueries {
+				sc.Invalidate(b.QueuedQueries[i].SQL)
 			}
 		}
 	}

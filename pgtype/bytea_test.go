@@ -31,10 +31,10 @@ func isExpectedEqBytes(a any) func(any) bool {
 
 func TestByteaCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "bytea", []pgxtest.ValueRoundTripTest{
-		{[]byte{1, 2, 3}, new([]byte), isExpectedEqBytes([]byte{1, 2, 3})},
-		{[]byte{}, new([]byte), isExpectedEqBytes([]byte{})},
-		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
+		{Param: []byte{1, 2, 3}, Result: new([]byte), Test: isExpectedEqBytes([]byte{1, 2, 3})},
+		{Param: []byte{}, Result: new([]byte), Test: isExpectedEqBytes([]byte{})},
+		{Param: []byte(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
 	})
 }
 
@@ -57,9 +57,11 @@ func TestDriverBytes(t *testing.T) {
 		require.NoError(t, err)
 		defer rows.Close()
 
-		rowCount := 0
-		resultBuf := argBuf
-		detectedResultMutation := false
+		var (
+			rowCount               = 0
+			resultBuf              = argBuf
+			detectedResultMutation = false
+		)
 		for rows.Next() {
 			rowCount++
 
@@ -125,8 +127,10 @@ func TestByteaCodecDecodeDatabaseSQLValue(t *testing.T) {
 				buf = make([]byte, len(src))
 				copy(buf, src)
 				return nil
+
 			default:
 				return fmt.Errorf("expected []byte, got %T", src)
+
 			}
 		}))
 		require.NoError(t, err)

@@ -122,40 +122,40 @@ func (src *Bind) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many parameter format codes")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterFormatCodes)))
-	for _, fc := range src.ParameterFormatCodes {
-		dst = pgio.AppendInt16(dst, fc)
+	for i := range src.ParameterFormatCodes {
+		dst = pgio.AppendInt16(dst, src.ParameterFormatCodes[i])
 	}
 
 	if len(src.Parameters) > math.MaxUint16 {
 		return nil, errors.New("too many parameters")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Parameters)))
-	for _, p := range src.Parameters {
-		if p == nil {
+	for i := range src.Parameters {
+		if src.Parameters[i] == nil {
 			dst = pgio.AppendInt32(dst, -1)
 			continue
 		}
 
-		dst = pgio.AppendInt32(dst, int32(len(p)))
-		dst = append(dst, p...)
+		dst = pgio.AppendInt32(dst, int32(len(src.Parameters[i])))
+		dst = append(dst, src.Parameters[i]...)
 	}
 
 	if len(src.ResultFormatCodes) > math.MaxUint16 {
 		return nil, errors.New("too many result format codes")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ResultFormatCodes)))
-	for _, fc := range src.ResultFormatCodes {
-		dst = pgio.AppendInt16(dst, fc)
+	for i := range src.ResultFormatCodes {
+		dst = pgio.AppendInt16(dst, src.ResultFormatCodes[i])
 	}
 
 	return finishMessage(dst, sp)
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src Bind) MarshalJSON() ([]byte, error) {
+func (src *Bind) MarshalJSON() ([]byte, error) {
 	formattedParameters := make([]map[string]string, len(src.Parameters))
-	for i, p := range src.Parameters {
-		if p == nil {
+	for i := range src.Parameters {
+		if src.Parameters[i] == nil {
 			continue
 		}
 
@@ -167,9 +167,9 @@ func (src Bind) MarshalJSON() ([]byte, error) {
 		}
 
 		if textFormat {
-			formattedParameters[i] = map[string]string{"text": string(p)}
+			formattedParameters[i] = map[string]string{"text": string(src.Parameters[i])}
 		} else {
-			formattedParameters[i] = map[string]string{"binary": hex.EncodeToString(p)}
+			formattedParameters[i] = map[string]string{"binary": hex.EncodeToString(src.Parameters[i])}
 		}
 	}
 
@@ -213,10 +213,10 @@ func (dst *Bind) UnmarshalJSON(data []byte) error {
 	dst.ParameterFormatCodes = msg.ParameterFormatCodes
 	dst.Parameters = make([][]byte, len(msg.Parameters))
 	dst.ResultFormatCodes = msg.ResultFormatCodes
-	for n, parameter := range msg.Parameters {
-		dst.Parameters[n], err = getValueFromJSON(parameter)
+	for i := range msg.Parameters {
+		dst.Parameters[i], err = getValueFromJSON(msg.Parameters[i])
 		if err != nil {
-			return fmt.Errorf("cannot get param %d: %w", n, err)
+			return fmt.Errorf("cannot get param %d: %w", i, err)
 		}
 	}
 	return nil

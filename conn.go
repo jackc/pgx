@@ -314,7 +314,7 @@ func (c *Conn) Close(ctx context.Context) error {
 //
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same name and sql arguments. This
 // allows a code path to Prepare and Query/Exec without concern for if the statement has already been prepared.
-func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error) {
+func (c *Conn) Prepare(ctx context.Context, name, sqlVar string) (sd *pgconn.StatementDescription, err error) {
 	if c.failedDescribeStatement != "" {
 		err = c.Deallocate(ctx, c.failedDescribeStatement)
 		if err != nil {
@@ -324,12 +324,12 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	}
 
 	if c.prepareTracer != nil {
-		ctx = c.prepareTracer.TracePrepareStart(ctx, c, TracePrepareStartData{Name: name, SQL: sql})
+		ctx = c.prepareTracer.TracePrepareStart(ctx, c, TracePrepareStartData{Name: name, SQL: sqlVar})
 	}
 
 	if name != "" {
 		var ok bool
-		if sd, ok = c.preparedStatements[name]; ok && sd.SQL == sql {
+		if sd, ok = c.preparedStatements[name]; ok && sd.SQL == sqlVar {
 			if c.prepareTracer != nil {
 				c.prepareTracer.TracePrepareEnd(ctx, c, TracePrepareEndData{AlreadyPrepared: true})
 			}
@@ -344,16 +344,16 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	}
 
 	var psName, psKey string
-	if name == sql {
-		digest := sha256.Sum256([]byte(sql))
+	if name == sqlVar {
+		digest := sha256.Sum256([]byte(sqlVar))
 		psName = "stmt_" + hex.EncodeToString(digest[0:24])
-		psKey = sql
+		psKey = sqlVar
 	} else {
 		psName = name
 		psKey = name
 	}
 
-	sd, err = c.pgConn.Prepare(ctx, psName, sql, nil)
+	sd, err = c.pgConn.Prepare(ctx, psName, sqlVar, nil)
 	if err != nil {
 		var pErr *pgconn.PrepareError
 		if errors.As(err, &pErr) {
@@ -467,16 +467,16 @@ func (c *Conn) Config() *ConnConfig { return c.config.Copy() }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
-func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+func (c *Conn) Exec(ctx context.Context, sqlVar string, arguments ...any) (pgconn.CommandTag, error) {
 	if c.queryTracer != nil {
-		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sql, Args: arguments})
+		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sqlVar, Args: arguments})
 	}
 
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
 		return pgconn.CommandTag{}, err
 	}
 
-	commandTag, err := c.exec(ctx, sql, arguments...)
+	commandTag, err := c.exec(ctx, sqlVar, arguments...)
 
 	if c.queryTracer != nil {
 		c.queryTracer.TraceQueryEnd(ctx, c, TraceQueryEndData{CommandTag: commandTag, Err: err})
@@ -485,9 +485,12 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 	return commandTag, err
 }
 
-func (c *Conn) exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
-	mode := c.config.DefaultQueryExecMode
-	var queryRewriter QueryRewriter
+func (c *Conn) exec(ctx context.Context, sqlVar string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
+
+	var (
+		mode          = c.config.DefaultQueryExecMode
+		queryRewriter QueryRewriter
+	)
 
 optionLoop:
 	for len(arguments) > 0 {
@@ -495,16 +498,19 @@ optionLoop:
 		case QueryExecMode:
 			mode = arg
 			arguments = arguments[1:]
+
 		case QueryRewriter:
 			queryRewriter = arg
 			arguments = arguments[1:]
+
 		default:
 			break optionLoop
+
 		}
 	}
 
 	if queryRewriter != nil {
-		sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+		sqlVar, arguments, err = queryRewriter.RewriteQuery(ctx, c, sqlVar, arguments)
 		if err != nil {
 			return pgconn.CommandTag{}, fmt.Errorf("rewrite query failed: %w", err)
 		}
@@ -515,7 +521,7 @@ optionLoop:
 		mode = QueryExecModeSimpleProtocol
 	}
 
-	if sd, ok := c.preparedStatements[sql]; ok {
+	if sd, ok := c.preparedStatements[sqlVar]; ok {
 		return c.execPrepared(ctx, sd, arguments)
 	}
 
@@ -524,9 +530,9 @@ optionLoop:
 		if c.statementCache == nil {
 			return pgconn.CommandTag{}, errDisabledStatementCache
 		}
-		sd := c.statementCache.Get(sql)
+		sd := c.statementCache.Get(sqlVar)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, stmtcache.StatementName(sql), sql)
+			sd, err = c.Prepare(ctx, stmtcache.StatementName(sqlVar), sqlVar)
 			if err != nil {
 				return pgconn.CommandTag{}, err
 			}
@@ -534,13 +540,14 @@ optionLoop:
 		}
 
 		return c.execPrepared(ctx, sd, arguments)
+
 	case QueryExecModeCacheDescribe:
 		if c.descriptionCache == nil {
 			return pgconn.CommandTag{}, errDisabledDescriptionCache
 		}
-		sd := c.descriptionCache.Get(sql)
+		sd := c.descriptionCache.Get(sqlVar)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, "", sql)
+			sd, err = c.Prepare(ctx, "", sqlVar)
 			if err != nil {
 				return pgconn.CommandTag{}, err
 			}
@@ -548,30 +555,35 @@ optionLoop:
 		}
 
 		return c.execParams(ctx, sd, arguments)
+
 	case QueryExecModeDescribeExec:
-		sd, err := c.Prepare(ctx, "", sql)
+		sd, err := c.Prepare(ctx, "", sqlVar)
 		if err != nil {
 			return pgconn.CommandTag{}, err
 		}
 		return c.execPrepared(ctx, sd, arguments)
+
 	case QueryExecModeExec:
-		return c.execSQLParams(ctx, sql, arguments)
+		return c.execSQLParams(ctx, sqlVar, arguments)
+
 	case QueryExecModeSimpleProtocol:
-		return c.execSimpleProtocol(ctx, sql, arguments)
+		return c.execSimpleProtocol(ctx, sqlVar, arguments)
+
 	default:
 		return pgconn.CommandTag{}, fmt.Errorf("unknown QueryExecMode: %v", mode)
+
 	}
 }
 
-func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []any) (commandTag pgconn.CommandTag, err error) {
+func (c *Conn) execSimpleProtocol(ctx context.Context, sqlVar string, arguments []any) (commandTag pgconn.CommandTag, err error) {
 	if len(arguments) > 0 {
-		sql, err = c.sanitizeForSimpleQuery(sql, arguments...)
+		sqlVar, err = c.sanitizeForSimpleQuery(sqlVar, arguments...)
 		if err != nil {
 			return pgconn.CommandTag{}, err
 		}
 	}
 
-	mrr := c.pgConn.Exec(ctx, sql)
+	mrr := c.pgConn.Exec(ctx, sqlVar)
 	for mrr.NextResult() {
 		commandTag, _ = mrr.ResultReader().Close()
 	}
@@ -601,25 +613,25 @@ func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription
 	return result.CommandTag, result.Err
 }
 
-func (c *Conn) execSQLParams(ctx context.Context, sql string, args []any) (pgconn.CommandTag, error) {
+func (c *Conn) execSQLParams(ctx context.Context, sqlVar string, args []any) (pgconn.CommandTag, error) {
 	err := c.eqb.Build(c.typeMap, nil, args)
 	if err != nil {
 		return pgconn.CommandTag{}, err
 	}
 
-	result := c.pgConn.ExecParams(ctx, sql, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats).Read()
+	result := c.pgConn.ExecParams(ctx, sqlVar, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats).Read()
 	c.eqb.reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 	return result.CommandTag, result.Err
 }
 
-func (c *Conn) getRows(ctx context.Context, sql string, args []any) *baseRows {
+func (c *Conn) getRows(ctx context.Context, sqlVar string, args []any) *baseRows {
 	r := &baseRows{}
 
 	r.ctx = ctx
 	r.queryTracer = c.queryTracer
 	r.typeMap = c.typeMap
 	r.startTime = time.Now()
-	r.sql = sql
+	r.sql = sqlVar
 	r.args = args
 	r.conn = c
 
@@ -710,7 +722,7 @@ type QueryResultFormatsByOID map[uint32]int16
 
 // QueryRewriter rewrites a query when used as the first arguments to a query method.
 type QueryRewriter interface {
-	RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any, err error)
+	RewriteQuery(ctx context.Context, conn *Conn, sqlVar string, args []any) (newSQL string, newArgs []any, err error)
 }
 
 // Query sends a query to the server and returns a Rows to read the results. Only errors encountered sending the query
@@ -734,9 +746,9 @@ type QueryRewriter interface {
 // For extra control over how the query is executed, the types QueryExecMode, QueryResultFormats, and
 // QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
 // needed. See the documentation for those types for details.
-func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
+func (c *Conn) Query(ctx context.Context, sqlVar string, args ...any) (Rows, error) {
 	if c.queryTracer != nil {
-		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sql, Args: args})
+		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sqlVar, Args: args})
 	}
 
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
@@ -753,29 +765,37 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error)
 
 optionLoop:
 	for len(args) > 0 {
+
 		switch arg := args[0].(type) {
 		case QueryResultFormats:
 			resultFormats = arg
 			args = args[1:]
+
 		case QueryResultFormatsByOID:
 			resultFormatsByOID = arg
 			args = args[1:]
+
 		case QueryExecMode:
 			mode = arg
 			args = args[1:]
+
 		case QueryRewriter:
 			queryRewriter = arg
 			args = args[1:]
+
 		default:
 			break optionLoop
 		}
+
 	}
 
 	if queryRewriter != nil {
-		var err error
-		originalSQL := sql
-		originalArgs := args
-		sql, args, err = queryRewriter.RewriteQuery(ctx, c, sql, args)
+		var (
+			err          error
+			originalSQL  = sqlVar
+			originalArgs = args
+		)
+		sqlVar, args, err = queryRewriter.RewriteQuery(ctx, c, sqlVar, args)
 		if err != nil {
 			rows := c.getRows(ctx, originalSQL, originalArgs)
 			err = fmt.Errorf("rewrite query failed: %w", err)
@@ -785,18 +805,21 @@ optionLoop:
 	}
 
 	// Bypass any statement caching.
-	if sql == "" {
+	if sqlVar == "" {
 		mode = QueryExecModeSimpleProtocol
 	}
 
 	c.eqb.reset()
-	rows := c.getRows(ctx, sql, args)
 
-	var err error
-	sd, explicitPreparedStatement := c.preparedStatements[sql]
-	if sd != nil || mode == QueryExecModeCacheStatement || mode == QueryExecModeCacheDescribe || mode == QueryExecModeDescribeExec {
+	var (
+		rows                          = c.getRows(ctx, sqlVar, args)
+		err                           error
+		sd, explicitPreparedStatement = c.preparedStatements[sqlVar]
+	)
+	switch {
+	case sd != nil || mode == QueryExecModeCacheStatement || mode == QueryExecModeCacheDescribe || mode == QueryExecModeDescribeExec:
 		if sd == nil {
-			sd, err = c.getStatementDescription(ctx, mode, sql)
+			sd, err = c.getStatementDescription(ctx, mode, sqlVar)
 			if err != nil {
 				rows.fatal(err)
 				return rows, err
@@ -828,26 +851,28 @@ optionLoop:
 		}
 
 		if !explicitPreparedStatement && mode == QueryExecModeCacheDescribe {
-			rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.ParamValues, sd.ParamOIDs, c.eqb.ParamFormats, resultFormats)
+			rows.resultReader = c.pgConn.ExecParams(ctx, sqlVar, c.eqb.ParamValues, sd.ParamOIDs, c.eqb.ParamFormats, resultFormats)
 		} else {
 			rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, resultFormats)
 		}
-	} else if mode == QueryExecModeExec {
+
+	case mode == QueryExecModeExec:
 		err := c.eqb.Build(c.typeMap, nil, args)
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
 		}
 
-		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats)
-	} else if mode == QueryExecModeSimpleProtocol {
-		sql, err = c.sanitizeForSimpleQuery(sql, args...)
+		rows.resultReader = c.pgConn.ExecParams(ctx, sqlVar, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats)
+
+	case mode == QueryExecModeSimpleProtocol:
+		sqlVar, err = c.sanitizeForSimpleQuery(sqlVar, args...)
 		if err != nil {
 			rows.fatal(err)
 			return rows, err
 		}
 
-		mrr := c.pgConn.Exec(ctx, sql)
+		mrr := c.pgConn.Exec(ctx, sqlVar)
 		if mrr.NextResult() {
 			rows.resultReader = mrr.ResultReader()
 			rows.multiResultReader = mrr
@@ -858,10 +883,12 @@ optionLoop:
 		}
 
 		return rows, nil
-	} else {
+
+	default:
 		err = fmt.Errorf("unknown QueryExecMode: %v", mode)
 		rows.fatal(err)
 		return rows, rows.err
+
 	}
 
 	c.eqb.reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
@@ -877,16 +904,16 @@ optionLoop:
 func (c *Conn) getStatementDescription(
 	ctx context.Context,
 	mode QueryExecMode,
-	sql string,
+	sqlVar string,
 ) (sd *pgconn.StatementDescription, err error) {
 	switch mode {
 	case QueryExecModeCacheStatement:
 		if c.statementCache == nil {
 			return nil, errDisabledStatementCache
 		}
-		sd = c.statementCache.Get(sql)
+		sd = c.statementCache.Get(sqlVar)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, stmtcache.StatementName(sql), sql)
+			sd, err = c.Prepare(ctx, stmtcache.StatementName(sqlVar), sqlVar)
 			if err != nil {
 				return nil, err
 			}
@@ -896,16 +923,16 @@ func (c *Conn) getStatementDescription(
 		if c.descriptionCache == nil {
 			return nil, errDisabledDescriptionCache
 		}
-		sd = c.descriptionCache.Get(sql)
+		sd = c.descriptionCache.Get(sqlVar)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, "", sql)
+			sd, err = c.Prepare(ctx, "", sqlVar)
 			if err != nil {
 				return nil, err
 			}
 			c.descriptionCache.Put(sd)
 		}
 	case QueryExecModeDescribeExec:
-		return c.Prepare(ctx, "", sql)
+		return c.Prepare(ctx, "", sqlVar)
 	}
 	return sd, err
 }
@@ -913,8 +940,8 @@ func (c *Conn) getStatementDescription(
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
 // querying is deferred until calling Scan on the returned Row. That Row will
 // error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
-	rows, _ := c.Query(ctx, sql, args...)
+func (c *Conn) QueryRow(ctx context.Context, sqlVar string, args ...any) Row {
+	rows, _ := c.Query(ctx, sqlVar, args...)
 	return (*connRow)(rows.(*baseRows))
 }
 
@@ -943,10 +970,12 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 		return &batchResults{ctx: ctx, conn: c, err: err}
 	}
 
-	for _, bi := range b.QueuedQueries {
-		var queryRewriter QueryRewriter
-		sql := bi.SQL
-		arguments := bi.Arguments
+	for i := range b.QueuedQueries {
+		var (
+			queryRewriter QueryRewriter
+			sqlVar        = b.QueuedQueries[i].SQL
+			arguments     = b.QueuedQueries[i].Arguments
+		)
 
 	optionLoop:
 		for len(arguments) > 0 {
@@ -962,14 +991,14 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 
 		if queryRewriter != nil {
 			var err error
-			sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+			sqlVar, arguments, err = queryRewriter.RewriteQuery(ctx, c, sqlVar, arguments)
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("rewrite query failed: %w", err)}
 			}
 		}
 
-		bi.SQL = sql
-		bi.Arguments = arguments
+		b.QueuedQueries[i].SQL = sqlVar
+		b.QueuedQueries[i].Arguments = arguments
 	}
 
 	// TODO: changing mode per batch? Update Batch.Queue function comment when implemented
@@ -979,9 +1008,9 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 	}
 
 	// All other modes use extended protocol and thus can use prepared statements.
-	for _, bi := range b.QueuedQueries {
-		if sd, ok := c.preparedStatements[bi.SQL]; ok {
-			bi.sd = sd
+	for i := range b.QueuedQueries {
+		if sd, ok := c.preparedStatements[b.QueuedQueries[i].SQL]; ok {
+			b.QueuedQueries[i].sd = sd
 		}
 	}
 
@@ -1001,15 +1030,15 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 
 func (c *Conn) sendBatchQueryExecModeSimpleProtocol(ctx context.Context, b *Batch) *batchResults {
 	var sb strings.Builder
-	for i, bi := range b.QueuedQueries {
+	for i := range b.QueuedQueries {
 		if i > 0 {
 			sb.WriteByte(';')
 		}
-		sql, err := c.sanitizeForSimpleQuery(bi.SQL, bi.Arguments...)
+		sqlVar, err := c.sanitizeForSimpleQuery(b.QueuedQueries[i].SQL, b.QueuedQueries[i].Arguments...)
 		if err != nil {
 			return &batchResults{ctx: ctx, conn: c, err: err}
 		}
-		sb.WriteString(sql)
+		sb.WriteString(sqlVar)
 	}
 	mrr := c.pgConn.Exec(ctx, sb.String())
 	return &batchResults{
@@ -1024,21 +1053,21 @@ func (c *Conn) sendBatchQueryExecModeSimpleProtocol(ctx context.Context, b *Batc
 func (c *Conn) sendBatchQueryExecModeExec(ctx context.Context, b *Batch) *batchResults {
 	batch := &pgconn.Batch{}
 
-	for _, bi := range b.QueuedQueries {
-		sd := bi.sd
+	for i := range b.QueuedQueries {
+		sd := b.QueuedQueries[i].sd
 		if sd != nil {
-			err := c.eqb.Build(c.typeMap, sd, bi.Arguments)
+			err := c.eqb.Build(c.typeMap, sd, b.QueuedQueries[i].Arguments)
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
 
 			batch.ExecPrepared(sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, c.eqb.ResultFormats)
 		} else {
-			err := c.eqb.Build(c.typeMap, nil, bi.Arguments)
+			err := c.eqb.Build(c.typeMap, nil, b.QueuedQueries[i].Arguments)
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
-			batch.ExecParams(bi.SQL, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats)
+			batch.ExecParams(b.QueuedQueries[i].SQL, c.eqb.ParamValues, nil, c.eqb.ParamFormats, c.eqb.ResultFormats)
 		}
 	}
 
@@ -1063,22 +1092,22 @@ func (c *Conn) sendBatchQueryExecModeCacheStatement(ctx context.Context, b *Batc
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.QueuedQueries {
-		if bi.sd == nil {
-			sd := c.statementCache.Get(bi.SQL)
+	for i := range b.QueuedQueries {
+		if b.QueuedQueries[i].sd == nil {
+			sd := c.statementCache.Get(b.QueuedQueries[i].SQL)
 			if sd != nil {
-				bi.sd = sd
+				b.QueuedQueries[i].sd = sd
 			} else {
-				if idx, present := distinctNewQueriesIdxMap[bi.SQL]; present {
-					bi.sd = distinctNewQueries[idx]
+				if idx, present := distinctNewQueriesIdxMap[b.QueuedQueries[i].SQL]; present {
+					b.QueuedQueries[i].sd = distinctNewQueries[idx]
 				} else {
 					sd = &pgconn.StatementDescription{
-						Name: stmtcache.StatementName(bi.SQL),
-						SQL:  bi.SQL,
+						Name: stmtcache.StatementName(b.QueuedQueries[i].SQL),
+						SQL:  b.QueuedQueries[i].SQL,
 					}
 					distinctNewQueriesIdxMap[sd.SQL] = len(distinctNewQueries)
 					distinctNewQueries = append(distinctNewQueries, sd)
-					bi.sd = sd
+					b.QueuedQueries[i].sd = sd
 				}
 			}
 		}
@@ -1095,21 +1124,21 @@ func (c *Conn) sendBatchQueryExecModeCacheDescribe(ctx context.Context, b *Batch
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.QueuedQueries {
-		if bi.sd == nil {
-			sd := c.descriptionCache.Get(bi.SQL)
+	for i := range b.QueuedQueries {
+		if b.QueuedQueries[i].sd == nil {
+			sd := c.descriptionCache.Get(b.QueuedQueries[i].SQL)
 			if sd != nil {
-				bi.sd = sd
+				b.QueuedQueries[i].sd = sd
 			} else {
-				if idx, present := distinctNewQueriesIdxMap[bi.SQL]; present {
-					bi.sd = distinctNewQueries[idx]
+				if idx, present := distinctNewQueriesIdxMap[b.QueuedQueries[i].SQL]; present {
+					b.QueuedQueries[i].sd = distinctNewQueries[idx]
 				} else {
 					sd = &pgconn.StatementDescription{
-						SQL: bi.SQL,
+						SQL: b.QueuedQueries[i].SQL,
 					}
 					distinctNewQueriesIdxMap[sd.SQL] = len(distinctNewQueries)
 					distinctNewQueries = append(distinctNewQueries, sd)
-					bi.sd = sd
+					b.QueuedQueries[i].sd = sd
 				}
 			}
 		}
@@ -1122,17 +1151,17 @@ func (c *Conn) sendBatchQueryExecModeDescribeExec(ctx context.Context, b *Batch)
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.QueuedQueries {
-		if bi.sd == nil {
-			if idx, present := distinctNewQueriesIdxMap[bi.SQL]; present {
-				bi.sd = distinctNewQueries[idx]
+	for i := range b.QueuedQueries {
+		if b.QueuedQueries[i].sd == nil {
+			if idx, present := distinctNewQueriesIdxMap[b.QueuedQueries[i].SQL]; present {
+				b.QueuedQueries[i].sd = distinctNewQueries[idx]
 			} else {
 				sd := &pgconn.StatementDescription{
-					SQL: bi.SQL,
+					SQL: b.QueuedQueries[i].SQL,
 				}
 				distinctNewQueriesIdxMap[sd.SQL] = len(distinctNewQueries)
 				distinctNewQueries = append(distinctNewQueries, sd)
-				bi.sd = sd
+				b.QueuedQueries[i].sd = sd
 			}
 		}
 	}
@@ -1151,23 +1180,23 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	// Prepare any needed queries
 	if len(distinctNewQueries) > 0 {
 		err := func() (err error) {
-			for _, sd := range distinctNewQueries {
-				pipeline.SendPrepare(sd.Name, sd.SQL, nil)
+			for i := range distinctNewQueries {
+				pipeline.SendPrepare(distinctNewQueries[i].Name, distinctNewQueries[i].SQL, nil)
 			}
 
 			// Store all statements we are preparing into the cache. It's fine if it overflows because HandleInvalidated will
 			// clean them up later.
 			if sdCache != nil {
-				for _, sd := range distinctNewQueries {
-					sdCache.Put(sd)
+				for i := range distinctNewQueries {
+					sdCache.Put(distinctNewQueries[i])
 				}
 			}
 
 			// If something goes wrong preparing the statements, we need to invalidate the cache entries we just added.
 			defer func() {
 				if err != nil && sdCache != nil {
-					for _, sd := range distinctNewQueries {
-						sdCache.Invalidate(sd.SQL)
+					for i := range distinctNewQueries {
+						sdCache.Invalidate(distinctNewQueries[i].SQL)
 					}
 				}
 			}()
@@ -1177,7 +1206,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 				return err
 			}
 
-			for _, sd := range distinctNewQueries {
+			for i := range distinctNewQueries {
 				results, err := pipeline.GetResults()
 				if err != nil {
 					return err
@@ -1189,8 +1218,8 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 				}
 
 				// Fill in the previously empty / pending statement descriptions.
-				sd.ParamOIDs = resultSD.ParamOIDs
-				sd.Fields = resultSD.Fields
+				distinctNewQueries[i].ParamOIDs = resultSD.ParamOIDs
+				distinctNewQueries[i].Fields = resultSD.Fields
 			}
 
 			results, err := pipeline.GetResults()
@@ -1211,18 +1240,18 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	}
 
 	// Queue the queries.
-	for _, bi := range b.QueuedQueries {
-		err := c.eqb.Build(c.typeMap, bi.sd, bi.Arguments)
+	for i := range b.QueuedQueries {
+		err := c.eqb.Build(c.typeMap, b.QueuedQueries[i].sd, b.QueuedQueries[i].Arguments)
 		if err != nil {
 			// we wrap the error so we the user can understand which query failed inside the batch
-			err = fmt.Errorf("error building query %s: %w", bi.SQL, err)
+			err = fmt.Errorf("error building query %s: %w", b.QueuedQueries[i].SQL, err)
 			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 		}
 
-		if bi.sd.Name == "" {
-			pipeline.SendQueryParams(bi.sd.SQL, c.eqb.ParamValues, bi.sd.ParamOIDs, c.eqb.ParamFormats, c.eqb.ResultFormats)
+		if b.QueuedQueries[i].sd.Name == "" {
+			pipeline.SendQueryParams(b.QueuedQueries[i].sd.SQL, c.eqb.ParamValues, b.QueuedQueries[i].sd.ParamOIDs, c.eqb.ParamFormats, c.eqb.ResultFormats)
 		} else {
-			pipeline.SendQueryPrepared(bi.sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, c.eqb.ResultFormats)
+			pipeline.SendQueryPrepared(b.QueuedQueries[i].sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, c.eqb.ResultFormats)
 		}
 	}
 
@@ -1239,7 +1268,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	}
 }
 
-func (c *Conn) sanitizeForSimpleQuery(sql string, args ...any) (string, error) {
+func (c *Conn) sanitizeForSimpleQuery(sqlVar string, args ...any) (string, error) {
 	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
 		return "", errors.New("simple protocol queries must be run with standard_conforming_strings=on")
 	}
@@ -1248,16 +1277,18 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...any) (string, error) {
 		return "", errors.New("simple protocol queries must be run with client_encoding=UTF8")
 	}
 
-	var err error
-	valueArgs := make([]any, len(args))
-	for i, a := range args {
-		valueArgs[i], err = convertSimpleArgument(c.typeMap, a)
+	var (
+		err       error
+		valueArgs = make([]any, len(args))
+	)
+	for i := range args {
+		valueArgs[i], err = convertSimpleArgument(c.typeMap, args[i])
 		if err != nil {
 			return "", err
 		}
 	}
 
-	return sanitize.SanitizeSQL(sql, valueArgs...)
+	return sanitize.SanitizeSQL(sqlVar, valueArgs...)
 }
 
 // LoadType inspects the database for typeName and produces a pgtype.Type suitable for registration. typeName must be
@@ -1431,8 +1462,8 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 	pipeline := c.pgConn.StartPipeline(ctx)
 	defer pipeline.Close()
 
-	for _, sd := range invalidatedStatements {
-		pipeline.SendDeallocate(sd.Name)
+	for i := range invalidatedStatements {
+		pipeline.SendDeallocate(invalidatedStatements[i].Name)
 	}
 
 	err := pipeline.Sync()
@@ -1446,8 +1477,8 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 	}
 
 	c.statementCache.RemoveInvalidated()
-	for _, sd := range invalidatedStatements {
-		delete(c.preparedStatements, sd.Name)
+	for i := range invalidatedStatements {
+		delete(c.preparedStatements, invalidatedStatements[i].Name)
 	}
 
 	return nil

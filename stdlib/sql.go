@@ -204,19 +204,19 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 	return nil
 }
 
-func GetConnector(config pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector {
+func GetConnector(config *pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector {
 	c := connector{
-		ConnConfig:    config,
+		ConnConfig:    *config,
 		BeforeConnect: func(context.Context, *pgx.ConnConfig) error { return nil }, // noop before connect by default
 		AfterConnect:  func(context.Context, *pgx.Conn) error { return nil },       // noop after connect by default
 		ResetSession:  func(context.Context, *pgx.Conn) error { return nil },       // noop reset session by default
 		driver:        pgxDriver,
 	}
 
-	for _, opt := range opts {
-		opt(&c)
+	for i := range opts {
+		opts[i](&c)
 	}
-	return c
+	return &c
 }
 
 // GetPoolConnector creates a new driver.Connector from the given *pgxpool.Pool. By using this be sure to set the
@@ -230,14 +230,14 @@ func GetPoolConnector(pool *pgxpool.Pool, opts ...OptionOpenDB) driver.Connector
 		driver:       pgxDriver,
 	}
 
-	for _, opt := range opts {
-		opt(&c)
+	for i := range opts {
+		opts[i](&c)
 	}
 
-	return c
+	return &c
 }
 
-func OpenDB(config pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
+func OpenDB(config *pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
 	c := GetConnector(config, opts...)
 	return sql.OpenDB(c)
 }
@@ -264,11 +264,11 @@ type connector struct {
 }
 
 // Connect implement driver.Connector interface
-func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 	var (
 		connConfig pgx.ConnConfig
 		conn       *pgx.Conn
-		close      func(context.Context) error
+		closeVar   func(context.Context) error
 		err        error
 	)
 
@@ -276,7 +276,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 		// Create a shallow copy of the config, so that BeforeConnect can safely modify it
 		connConfig = c.ConnConfig
 
-		if err = c.BeforeConnect(ctx, &connConfig); err != nil {
+		if err := c.BeforeConnect(ctx, &connConfig); err != nil {
 			return nil, err
 		}
 
@@ -284,11 +284,11 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 			return nil, err
 		}
 
-		if err = c.AfterConnect(ctx, conn); err != nil {
+		if err := c.AfterConnect(ctx, conn); err != nil {
 			return nil, err
 		}
 
-		close = conn.Close
+		closeVar = conn.Close
 	} else {
 		var pconn *pgxpool.Conn
 
@@ -299,7 +299,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 
 		conn = pconn.Conn()
 
-		close = func(_ context.Context) error {
+		closeVar = func(_ context.Context) error {
 			pconn.Release()
 			return nil
 		}
@@ -307,7 +307,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 
 	return &Conn{
 		conn:             conn,
-		close:            close,
+		close:            closeVar,
 		driver:           c.driver,
 		connConfig:       connConfig,
 		resetSessionFunc: c.ResetSession,
@@ -317,7 +317,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 }
 
 // Driver implement driver.Connector interface
-func (c connector) Driver() driver.Driver {
+func (c *connector) Driver() driver.Driver {
 	return c.driver
 }
 
@@ -489,7 +489,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		pgxOpts.AccessMode = pgx.ReadOnly
 	}
 
-	tx, err := c.conn.BeginTx(ctx, pgxOpts)
+	tx, err := c.conn.BeginTx(ctx, &pgxOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -646,8 +646,8 @@ func (r *Rows) Columns() []string {
 	if r.columnNames == nil {
 		fields := r.rows.FieldDescriptions()
 		r.columnNames = make([]string, len(fields))
-		for i, fd := range fields {
-			r.columnNames[i] = string(fd.Name)
+		for i := range fields {
+			r.columnNames[i] = fields[i].Name
 		}
 	}
 
@@ -699,30 +699,41 @@ func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 
 // ColumnTypeScanType returns the value type that can be used to scan types into.
 func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
-	fd := r.rows.FieldDescriptions()[index]
 
+	fd := r.rows.FieldDescriptions()[index]
 	switch fd.DataTypeOID {
 	case pgtype.Float8OID:
 		return reflect.TypeOf(float64(0))
+
 	case pgtype.Float4OID:
 		return reflect.TypeOf(float32(0))
+
 	case pgtype.Int8OID:
 		return reflect.TypeOf(int64(0))
+
 	case pgtype.Int4OID:
 		return reflect.TypeOf(int32(0))
+
 	case pgtype.Int2OID:
 		return reflect.TypeOf(int16(0))
+
 	case pgtype.BoolOID:
 		return reflect.TypeOf(false)
+
 	case pgtype.NumericOID:
 		return reflect.TypeOf(float64(0))
+
 	case pgtype.DateOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
 		return reflect.TypeOf(time.Time{})
+
 	case pgtype.ByteaOID:
 		return reflect.TypeOf([]byte(nil))
+
 	default:
 		return reflect.TypeOf("")
+
 	}
+
 }
 
 func (r *Rows) Close() error {
@@ -731,34 +742,47 @@ func (r *Rows) Close() error {
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
-	m := r.conn.conn.TypeMap()
-	fieldDescriptions := r.rows.FieldDescriptions()
 
+	var (
+		m                 = r.conn.conn.TypeMap()
+		fieldDescriptions = r.rows.FieldDescriptions()
+	)
 	if r.valueFuncs == nil {
 		r.valueFuncs = make([]rowValueFunc, len(fieldDescriptions))
 
-		for i, fd := range fieldDescriptions {
-			dataTypeOID := fd.DataTypeOID
-			format := fd.Format
+		for i := range fieldDescriptions {
 
-			switch fd.DataTypeOID {
+			var (
+				dataTypeOID = fieldDescriptions[i].DataTypeOID
+				format      = fieldDescriptions[i].Format
+			)
+
+			switch fieldDescriptions[i].DataTypeOID {
 			case pgtype.BoolOID:
-				var d bool
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        bool
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
+
 			case pgtype.ByteaOID:
-				var d []byte
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        []byte
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
+
 			case pgtype.CIDOID, pgtype.OIDOID, pgtype.XIDOID:
-				var d pgtype.Uint32
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        pgtype.Uint32
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -766,9 +790,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+
 			case pgtype.DateOID:
-				var d pgtype.Date
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        pgtype.Date
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -776,44 +803,62 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+
 			case pgtype.Float4OID:
-				var d float32
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        float32
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return float64(d), err
 				}
+
 			case pgtype.Float8OID:
-				var d float64
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        float64
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
+
 			case pgtype.Int2OID:
-				var d int16
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        int16
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return int64(d), err
 				}
+
 			case pgtype.Int4OID:
-				var d int32
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        int32
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return int64(d), err
 				}
+
 			case pgtype.Int8OID:
-				var d int64
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        int64
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
+
 			case pgtype.JSONOID, pgtype.JSONBOID:
-				var d []byte
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        []byte
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -821,9 +866,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d, nil
 				}
+
 			case pgtype.TimestampOID:
-				var d pgtype.Timestamp
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        pgtype.Timestamp
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -831,9 +879,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+
 			case pgtype.TimestamptzOID:
-				var d pgtype.Timestamptz
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        pgtype.Timestamptz
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -841,9 +892,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+
 			case pgtype.XMLOID:
-				var d []byte
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        []byte
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -851,13 +905,17 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d, nil
 				}
+
 			default:
-				var d string
-				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				var (
+					d        string
+					scanPlan = m.PlanScan(dataTypeOID, format, &d)
+				)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
+
 			}
 		}
 	}
@@ -878,10 +936,11 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 	}
 
-	for i, rv := range r.rows.RawValues() {
-		if rv != nil {
+	rvs := r.rows.RawValues()
+	for i := range rvs {
+		if rvs[i] != nil {
 			var err error
-			dest[i], err = r.valueFuncs[i](rv)
+			dest[i], err = r.valueFuncs[i](rvs[i])
 			if err != nil {
 				return fmt.Errorf("convert field %d failed: %w", i, err)
 			}
@@ -894,9 +953,9 @@ func (r *Rows) Next(dest []driver.Value) error {
 }
 
 func convertNamedArguments(args []any, argsV []driver.NamedValue) {
-	for i, v := range argsV {
-		if v.Value != nil {
-			args[i] = v.Value.(any)
+	for i := range argsV {
+		if argsV[i].Value != nil {
+			args[i] = argsV[i].Value.(any)
 		} else {
 			args[i] = nil
 		}

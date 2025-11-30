@@ -220,8 +220,8 @@ type Map struct {
 // Copy returns a new Map containing the same registered types.
 func (m *Map) Copy() *Map {
 	newMap := NewMap()
-	for _, type_ := range m.oidToType {
-		newMap.RegisterType(type_)
+	for i := range m.oidToType {
+		newMap.RegisterType(m.oidToType[i])
 	}
 	return newMap
 }
@@ -261,8 +261,8 @@ func NewMap() *Map {
 
 // RegisterTypes registers multiple data types in the sequence they are provided.
 func (m *Map) RegisterTypes(types []*Type) {
-	for _, t := range types {
-		m.RegisterType(t)
+	for i := range types {
+		m.RegisterType(types[i])
 	}
 }
 
@@ -314,8 +314,8 @@ func (m *Map) TypeForName(name string) (*Type, bool) {
 func (m *Map) buildReflectTypeToType() {
 	m.reflectTypeToType = make(map[reflect.Type]*Type)
 
-	for reflectType, name := range m.reflectTypeToName {
-		if dt, ok := m.TypeForName(name); ok {
+	for reflectType := range m.reflectTypeToName {
+		if dt, ok := m.TypeForName(m.reflectTypeToName[reflectType]); ok {
 			m.reflectTypeToType[reflectType] = dt
 		}
 	}
@@ -1124,8 +1124,8 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) Scan
 		}
 	}
 
-	for _, f := range m.TryWrapScanPlanFuncs {
-		if wrapperPlan, nextDst, ok := f(target); ok {
+	for i := range m.TryWrapScanPlanFuncs {
+		if wrapperPlan, nextDst, ok := m.TryWrapScanPlanFuncs[i](target); ok {
 			if nextPlan := m.planScan(oid, formatCode, nextDst, depth+1); nextPlan != nil {
 				if _, failed := nextPlan.(*scanPlanFail); !failed {
 					wrapperPlan.SetNext(nextPlan)
@@ -1249,8 +1249,8 @@ func (m *Map) planEncode(oid uint32, format int16, value any, depth int) EncodeP
 		}
 	}
 
-	for _, f := range m.TryWrapEncodePlanFuncs {
-		if wrapperPlan, nextValue, ok := f(value); ok {
+	for i := range m.TryWrapEncodePlanFuncs {
+		if wrapperPlan, nextValue, ok := m.TryWrapEncodePlanFuncs[i](value); ok {
 			if nextPlan := m.planEncodeDepth(oid, format, nextValue, depth+1); nextPlan != nil {
 				wrapperPlan.SetNext(nextPlan)
 				return wrapperPlan
@@ -1791,7 +1791,7 @@ func (plan *wrapAnyStructEncodePlan) Encode(value any, buf []byte) (newBuf []byt
 func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 	structType := structValue.Type()
 	exportedFields := make([]reflect.Value, 0, structValue.NumField())
-	for i := 0; i < structType.NumField(); i++ {
+	for i := range structType.NumField() {
 		sf := structType.Field(i)
 		if sf.IsExported() {
 			exportedFields = append(exportedFields, structValue.Field(i))

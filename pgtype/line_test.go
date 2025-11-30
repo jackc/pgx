@@ -31,28 +31,28 @@ func TestLineTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, nil, "line", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Line{
+			Param: pgtype.Line{
 				A: 1.23, B: 4.56, C: 7.89012345,
 				Valid: true,
 			},
-			new(pgtype.Line),
-			isExpectedEq(pgtype.Line{
+			Result: new(pgtype.Line),
+			Test: isExpectedEq(pgtype.Line{
 				A: 1.23, B: 4.56, C: 7.89012345,
 				Valid: true,
 			}),
 		},
 		{
-			pgtype.Line{
+			Param: pgtype.Line{
 				A: -1.23, B: -4.56, C: -7.89,
 				Valid: true,
 			},
-			new(pgtype.Line),
-			isExpectedEq(pgtype.Line{
+			Result: new(pgtype.Line),
+			Test: isExpectedEq(pgtype.Line{
 				A: -1.23, B: -4.56, C: -7.89,
 				Valid: true,
 			}),
 		},
-		{pgtype.Line{}, new(pgtype.Line), isExpectedEq(pgtype.Line{})},
-		{nil, new(pgtype.Line), isExpectedEq(pgtype.Line{})},
+		{Param: pgtype.Line{}, Result: new(pgtype.Line), Test: isExpectedEq(pgtype.Line{})},
+		{Param: nil, Result: new(pgtype.Line), Test: isExpectedEq(pgtype.Line{})},
 	})
 }

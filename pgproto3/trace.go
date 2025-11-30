@@ -171,16 +171,16 @@ func (t *tracer) traceBackendKeyData(sender byte, encodedLen int32, msg *Backend
 func (t *tracer) traceBind(sender byte, encodedLen int32, msg *Bind) {
 	t.writeTrace(sender, encodedLen, "Bind", func() {
 		fmt.Fprintf(t.buf, "\t %s %s %d", traceDoubleQuotedString([]byte(msg.DestinationPortal)), traceDoubleQuotedString([]byte(msg.PreparedStatement)), len(msg.ParameterFormatCodes))
-		for _, fc := range msg.ParameterFormatCodes {
-			fmt.Fprintf(t.buf, " %d", fc)
+		for i := range msg.ParameterFormatCodes {
+			fmt.Fprintf(t.buf, " %d", msg.ParameterFormatCodes[i])
 		}
 		fmt.Fprintf(t.buf, " %d", len(msg.Parameters))
-		for _, p := range msg.Parameters {
-			fmt.Fprintf(t.buf, " %s", traceSingleQuotedString(p))
+		for i := range msg.Parameters {
+			fmt.Fprintf(t.buf, " %s", traceSingleQuotedString(msg.Parameters[i]))
 		}
 		fmt.Fprintf(t.buf, " %d", len(msg.ResultFormatCodes))
-		for _, fc := range msg.ResultFormatCodes {
-			fmt.Fprintf(t.buf, " %d", fc)
+		for i := range msg.ResultFormatCodes {
+			fmt.Fprintf(t.buf, " %d", msg.ResultFormatCodes[i])
 		}
 	})
 }
@@ -236,11 +236,11 @@ func (t *tracer) traceCopyOutResponse(sender byte, encodedLen int32, msg *CopyOu
 func (t *tracer) traceDataRow(sender byte, encodedLen int32, msg *DataRow) {
 	t.writeTrace(sender, encodedLen, "DataRow", func() {
 		fmt.Fprintf(t.buf, "\t %d", len(msg.Values))
-		for _, v := range msg.Values {
-			if v == nil {
+		for i := range msg.Values {
+			if msg.Values[i] == nil {
 				t.buf.WriteString(" -1")
 			} else {
-				fmt.Fprintf(t.buf, " %d %s", len(v), traceSingleQuotedString(v))
+				fmt.Fprintf(t.buf, " %d %s", len(msg.Values[i]), traceSingleQuotedString(msg.Values[i]))
 			}
 		}
 	})
@@ -309,8 +309,8 @@ func (t *tracer) traceParameterStatus(sender byte, encodedLen int32, msg *Parame
 func (t *tracer) traceParse(sender byte, encodedLen int32, msg *Parse) {
 	t.writeTrace(sender, encodedLen, "Parse", func() {
 		fmt.Fprintf(t.buf, "\t %s %s %d", traceDoubleQuotedString([]byte(msg.Name)), traceDoubleQuotedString([]byte(msg.Query)), len(msg.ParameterOIDs))
-		for _, oid := range msg.ParameterOIDs {
-			fmt.Fprintf(t.buf, " %d", oid)
+		for i := range msg.ParameterOIDs {
+			fmt.Fprintf(t.buf, " %d", msg.ParameterOIDs[i])
 		}
 	})
 }
@@ -338,8 +338,8 @@ func (t *tracer) traceReadyForQuery(sender byte, encodedLen int32, msg *ReadyFor
 func (t *tracer) traceRowDescription(sender byte, encodedLen int32, msg *RowDescription) {
 	t.writeTrace(sender, encodedLen, "RowDescription", func() {
 		fmt.Fprintf(t.buf, "\t %d", len(msg.Fields))
-		for _, fd := range msg.Fields {
-			fmt.Fprintf(t.buf, ` %s %d %d %d %d %d %d`, traceDoubleQuotedString(fd.Name), fd.TableOID, fd.TableAttributeNumber, fd.DataTypeOID, fd.DataTypeSize, fd.TypeModifier, fd.Format)
+		for i := range msg.Fields {
+			fmt.Fprintf(t.buf, ` %s %d %d %d %d %d %d`, traceDoubleQuotedString(msg.Fields[i].Name), msg.Fields[i].TableOID, msg.Fields[i].TableAttributeNumber, msg.Fields[i].DataTypeOID, msg.Fields[i].DataTypeSize, msg.Fields[i].TypeModifier, msg.Fields[i].Format)
 		}
 	})
 }
@@ -403,11 +403,11 @@ func traceSingleQuotedString(buf []byte) string {
 	sb := &strings.Builder{}
 
 	sb.WriteByte('\'')
-	for _, b := range buf {
-		if b < 32 || b > 126 {
-			fmt.Fprintf(sb, `\x%x`, b)
+	for i := range buf {
+		if buf[i] < 32 || buf[i] > 126 {
+			fmt.Fprintf(sb, `\x%x`, buf[i])
 		} else {
-			sb.WriteByte(b)
+			sb.WriteByte(buf[i])
 		}
 	}
 	sb.WriteByte('\'')

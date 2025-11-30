@@ -259,7 +259,7 @@ type testQueryRewriter struct {
 	args []any
 }
 
-func (qr *testQueryRewriter) RewriteQuery(ctx context.Context, conn *pgx.Conn, sql string, args []any) (newSQL string, newArgs []any, err error) {
+func (qr *testQueryRewriter) RewriteQuery(ctx context.Context, conn *pgx.Conn, sqlVar string, args []any) (newSQL string, newArgs []any, err error) {
 	return qr.sql, qr.args, nil
 }
 
@@ -601,17 +601,17 @@ func TestPrepareWithDigestedName(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		sql := "select $1::text"
-		sd, err := conn.Prepare(ctx, sql, sql)
+		sqlVar := "select $1::text"
+		sd, err := conn.Prepare(ctx, sqlVar, sqlVar)
 		require.NoError(t, err)
 		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
 
 		var s string
-		err = conn.QueryRow(ctx, sql, "hello").Scan(&s)
+		err = conn.QueryRow(ctx, sqlVar, "hello").Scan(&s)
 		require.NoError(t, err)
 		require.Equal(t, "hello", s)
 
-		err = conn.Deallocate(ctx, sql)
+		err = conn.Deallocate(ctx, sqlVar)
 		require.NoError(t, err)
 	})
 }
@@ -627,26 +627,26 @@ func TestDeallocateInAbortedTransaction(t *testing.T) {
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		sql := "select $1::text"
-		sd, err := tx.Prepare(ctx, sql, sql)
+		sqlVar := "select $1::text"
+		sd, err := tx.Prepare(ctx, sqlVar, sqlVar)
 		require.NoError(t, err)
 		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
 
 		var s string
-		err = tx.QueryRow(ctx, sql, "hello").Scan(&s)
+		err = tx.QueryRow(ctx, sqlVar, "hello").Scan(&s)
 		require.NoError(t, err)
 		require.Equal(t, "hello", s)
 
 		_, err = tx.Exec(ctx, "select 1/0") // abort transaction with divide by zero error
 		require.Error(t, err)
 
-		err = conn.Deallocate(ctx, sql)
+		err = conn.Deallocate(ctx, sqlVar)
 		require.NoError(t, err)
 
 		err = tx.Rollback(ctx)
 		require.NoError(t, err)
 
-		sd, err = conn.Prepare(ctx, sql, sql)
+		sd, err = conn.Prepare(ctx, sqlVar, sqlVar)
 		require.NoError(t, err)
 		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
 	})

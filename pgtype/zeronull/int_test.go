@@ -13,19 +13,19 @@ import (
 func TestInt2Transcode(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int2", []pgxtest.ValueRoundTripTest{
 		{
-			(zeronull.Int2)(1),
-			new(zeronull.Int2),
-			isExpectedEq((zeronull.Int2)(1)),
+			Param:  (zeronull.Int2)(1),
+			Result: new(zeronull.Int2),
+			Test:   isExpectedEq((zeronull.Int2)(1)),
 		},
 		{
-			nil,
-			new(zeronull.Int2),
-			isExpectedEq((zeronull.Int2)(0)),
+			Param:  nil,
+			Result: new(zeronull.Int2),
+			Test:   isExpectedEq((zeronull.Int2)(0)),
 		},
 		{
-			(zeronull.Int2)(0),
-			new(any),
-			isExpectedEq(nil),
+			Param:  (zeronull.Int2)(0),
+			Result: new(any),
+			Test:   isExpectedEq(nil),
 		},
 	})
 }

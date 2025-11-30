@@ -109,7 +109,7 @@ func (c *Conn) Begin(ctx context.Context) (pgx.Tx, error) {
 }
 
 // BeginTx starts a transaction block from the *Conn with txOptions determining the transaction mode.
-func (c *Conn) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
+func (c *Conn) BeginTx(ctx context.Context, txOptions *pgx.TxOptions) (pgx.Tx, error) {
 	return c.Conn().BeginTx(ctx, txOptions)
 }
 

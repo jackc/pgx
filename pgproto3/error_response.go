@@ -208,9 +208,9 @@ func (src *ErrorResponse) appendFields(dst []byte) []byte {
 		dst = append(dst, 0)
 	}
 
-	for k, v := range src.UnknownFields {
-		dst = append(dst, k)
-		dst = append(dst, v...)
+	for i := range src.UnknownFields {
+		dst = append(dst, i)
+		dst = append(dst, src.UnknownFields[i]...)
 		dst = append(dst, 0)
 	}
 
@@ -220,7 +220,7 @@ func (src *ErrorResponse) appendFields(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src ErrorResponse) MarshalJSON() ([]byte, error) {
+func (src *ErrorResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type                string
 		Severity            string

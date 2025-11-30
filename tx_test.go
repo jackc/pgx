@@ -171,13 +171,13 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer c1.Exec(ctx, `drop table tx_serializable_sums`)
 
-	tx1, err := c1.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx1, err := c1.BeginTx(ctx, &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("Begin failed: %v", err)
 	}
 	defer tx1.Rollback(ctx)
 
-	tx2, err := c2.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx2, err := c2.BeginTx(ctx, &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("Begin failed: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestBeginIsoLevels(t *testing.T) {
 
 	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
-		tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{IsoLevel: iso})
+		tx, err := conn.BeginTx(context.Background(), &pgx.TxOptions{IsoLevel: iso})
 		if err != nil {
 			t.Fatalf("conn.Begin failed: %v", err)
 		}
@@ -360,7 +360,7 @@ func TestBeginReadOnly(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	tx, err := conn.BeginTx(context.Background(), &pgx.TxOptions{AccessMode: pgx.ReadOnly})
 	if err != nil {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestBeginTxBeginQuery(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		tx, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "begin read only"})
+		tx, err := conn.BeginTx(ctx, &pgx.TxOptions{BeginQuery: "begin read only"})
 		require.NoError(t, err)
 		defer tx.Rollback(ctx)
 

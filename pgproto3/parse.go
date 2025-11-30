@@ -66,8 +66,8 @@ func (src *Parse) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many parameter oids")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterOIDs)))
-	for _, oid := range src.ParameterOIDs {
-		dst = pgio.AppendUint32(dst, oid)
+	for i := range src.ParameterOIDs {
+		dst = pgio.AppendUint32(dst, src.ParameterOIDs[i])
 	}
 
 	return finishMessage(dst, sp)

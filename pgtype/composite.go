@@ -38,8 +38,8 @@ type CompositeCodec struct {
 }
 
 func (c *CompositeCodec) FormatSupported(format int16) bool {
-	for _, f := range c.Fields {
-		if !f.Type.Codec.FormatSupported(format) {
+	for i := range c.Fields {
+		if !c.Fields[i].Type.Codec.FormatSupported(format) {
 			return false
 		}
 	}
@@ -82,8 +82,8 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value a
 	}
 
 	builder := NewCompositeBinaryBuilder(plan.m, buf)
-	for i, field := range plan.cc.Fields {
-		builder.AppendValue(field.Type.OID, getter.Index(i))
+	for i := range plan.cc.Fields {
+		builder.AppendValue(plan.cc.Fields[i].Type.OID, getter.Index(i))
 	}
 
 	return builder.Finish()
@@ -102,8 +102,8 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value any
 	}
 
 	b := NewCompositeTextBuilder(plan.m, buf)
-	for i, field := range plan.cc.Fields {
-		b.AppendValue(field.Type.OID, getter.Index(i))
+	for i := range plan.cc.Fields {
+		b.AppendValue(plan.cc.Fields[i].Type.OID, getter.Index(i))
 	}
 
 	return b.Finish()
@@ -139,13 +139,13 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 	}
 
 	scanner := NewCompositeBinaryScanner(plan.m, src)
-	for i, field := range plan.cc.Fields {
+	for i := range plan.cc.Fields {
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.m.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
+				fieldPlan := plan.m.PlanScan(plan.cc.Fields[i].Type.OID, BinaryFormatCode, fieldTarget)
 				if fieldPlan == nil {
-					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.Type.OID)
+					return fmt.Errorf("unable to encode %v into OID %d in binary format", plan.cc.Fields[i], plan.cc.Fields[i].Type.OID)
 				}
 
 				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
@@ -178,13 +178,13 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 	}
 
 	scanner := NewCompositeTextScanner(plan.m, src)
-	for i, field := range plan.cc.Fields {
+	for i := range plan.cc.Fields {
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.m.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
+				fieldPlan := plan.m.PlanScan(plan.cc.Fields[i].Type.OID, TextFormatCode, fieldTarget)
 				if fieldPlan == nil {
-					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.Type.OID)
+					return fmt.Errorf("unable to encode %v into OID %d in text format", plan.cc.Fields[i], plan.cc.Fields[i].Type.OID)
 				}
 
 				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
@@ -293,7 +293,7 @@ type CompositeBinaryScanner struct {
 func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
 	rp := 0
 	if len(src[rp:]) < 4 {
-		return &CompositeBinaryScanner{err: fmt.Errorf("Record incomplete %v", src)}
+		return &CompositeBinaryScanner{err: fmt.Errorf("record incomplete %v", src)}
 	}
 
 	fieldCount := int32(binary.BigEndian.Uint32(src[rp:]))
@@ -319,7 +319,7 @@ func (cfs *CompositeBinaryScanner) Next() bool {
 	}
 
 	if len(cfs.src[cfs.rp:]) < 8 {
-		cfs.err = fmt.Errorf("Record incomplete %v", cfs.src)
+		cfs.err = fmt.Errorf("record incomplete %v", cfs.src)
 		return false
 	}
 	cfs.fieldOID = binary.BigEndian.Uint32(cfs.src[cfs.rp:])
@@ -330,7 +330,7 @@ func (cfs *CompositeBinaryScanner) Next() bool {
 
 	if fieldLen >= 0 {
 		if len(cfs.src[cfs.rp:]) < fieldLen {
-			cfs.err = fmt.Errorf("Record incomplete rp=%d src=%v", cfs.rp, cfs.src)
+			cfs.err = fmt.Errorf("record incomplete rp=%d src=%v", cfs.rp, cfs.src)
 			return false
 		}
 		cfs.fieldBytes = cfs.src[cfs.rp : cfs.rp+fieldLen]

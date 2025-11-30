@@ -26,8 +26,8 @@ func NewLogger(l TestingLogger) *Logger {
 func (l *Logger) Log(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]any) {
 	logArgs := make([]any, 0, 2+len(data))
 	logArgs = append(logArgs, level, msg)
-	for k, v := range data {
-		logArgs = append(logArgs, fmt.Sprintf("%s=%v", k, v))
+	for i := range data {
+		logArgs = append(logArgs, fmt.Sprintf("%s=%v", i, data[i]))
 	}
 	l.l.Log(logArgs...)
 }

@@ -103,9 +103,9 @@ func (encodePlanPolygonCodecBinary) Encode(value any, buf []byte) (newBuf []byte
 
 	buf = pgio.AppendInt32(buf, int32(len(polygon.P)))
 
-	for _, p := range polygon.P {
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
+	for i := range polygon.P {
+		buf = pgio.AppendUint64(buf, math.Float64bits(polygon.P[i].X))
+		buf = pgio.AppendUint64(buf, math.Float64bits(polygon.P[i].Y))
 	}
 
 	return buf, nil
@@ -125,13 +125,13 @@ func (encodePlanPolygonCodecText) Encode(value any, buf []byte) (newBuf []byte, 
 
 	buf = append(buf, '(')
 
-	for i, p := range polygon.P {
+	for i := range polygon.P {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
-			strconv.FormatFloat(p.X, 'f', -1, 64),
-			strconv.FormatFloat(p.Y, 'f', -1, 64),
+			strconv.FormatFloat(polygon.P[i].X, 'f', -1, 64),
+			strconv.FormatFloat(polygon.P[i].Y, 'f', -1, 64),
 		)...)
 	}
 

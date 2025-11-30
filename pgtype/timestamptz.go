@@ -217,12 +217,14 @@ func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []by
 		s = t.Format(pgTimestamptzSecondFormat)
 
 		if bc {
-			s = s + " BC"
+			s += " BC"
 		}
 	case Infinity:
 		s = "infinity"
+
 	case NegativeInfinity:
 		s = "-infinity"
+
 	}
 
 	buf = append(buf, s...)

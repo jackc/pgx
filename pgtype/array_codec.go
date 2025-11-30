@@ -123,8 +123,8 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 			buf = append(buf, ',')
 		}
 
-		for _, dec := range dimElemCounts {
-			if i%dec == 0 {
+		for j := range dimElemCounts {
+			if i%dimElemCounts[j] == 0 {
 				buf = append(buf, '{')
 			}
 		}
@@ -152,8 +152,8 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 			buf = append(buf, quoteArrayElementIfNeeded(string(elemBuf))...)
 		}
 
-		for _, dec := range dimElemCounts {
-			if (i+1)%dec == 0 {
+		for j := range dimElemCounts {
+			if (i+1)%dimElemCounts[j] == 0 {
 				buf = append(buf, '}')
 			}
 		}
@@ -308,11 +308,11 @@ func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array Array
 		elementScanPlan = m.PlanScan(c.ElementType.OID, TextFormatCode, array.ScanIndex(0))
 	}
 
-	for i, s := range uta.Elements {
+	for i := range uta.Elements {
 		elem := array.ScanIndex(i)
 		var elemSrc []byte
-		if s != "NULL" || uta.Quoted[i] {
-			elemSrc = []byte(s)
+		if uta.Elements[i] != "NULL" || uta.Quoted[i] {
+			elemSrc = []byte(uta.Elements[i])
 		}
 
 		err = elementScanPlan.Scan(elemSrc, elem)
@@ -386,15 +386,15 @@ func isRagged(slice reflect.Value) bool {
 		return false
 	}
 
-	sliceLen := slice.Len()
-	innerLen := 0
+	var (
+		sliceLen = slice.Len()
+		innerLen = 0
+	)
 	for i := range sliceLen {
 		if i == 0 {
 			innerLen = slice.Index(i).Len()
-		} else {
-			if slice.Index(i).Len() != innerLen {
-				return true
-			}
+		} else if slice.Index(i).Len() != innerLen {
+			return true
 		}
 		if isRagged(slice.Index(i)) {
 			return true

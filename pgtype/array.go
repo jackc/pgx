@@ -34,8 +34,8 @@ func cardinality(dimensions []ArrayDimension) int {
 	}
 
 	elementCount := int(dimensions[0].Length)
-	for _, d := range dimensions[1:] {
-		elementCount *= int(d.Length)
+	for i := range dimensions[1:] {
+		elementCount *= int(dimensions[1:][i].Length)
 	}
 
 	return elementCount
@@ -334,8 +334,8 @@ func arrayParseInteger(buf *bytes.Buffer) (int32, error) {
 
 func encodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
 	var customDimensions bool
-	for _, dim := range dimensions {
-		if dim.LowerBound != 1 {
+	for i := range dimensions {
+		if dimensions[i].LowerBound != 1 {
 			customDimensions = true
 		}
 	}
@@ -344,11 +344,11 @@ func encodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
 		return buf
 	}
 
-	for _, dim := range dimensions {
+	for i := range dimensions {
 		buf = append(buf, '[')
-		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound), 10)...)
+		buf = append(buf, strconv.FormatInt(int64(dimensions[i].LowerBound), 10)...)
 		buf = append(buf, ':')
-		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound+dim.Length-1), 10)...)
+		buf = append(buf, strconv.FormatInt(int64(dimensions[i].LowerBound+dimensions[i].Length-1), 10)...)
 		buf = append(buf, ']')
 	}
 

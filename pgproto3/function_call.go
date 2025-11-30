@@ -81,20 +81,20 @@ func (src *FunctionCall) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many arg format codes")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ArgFormatCodes)))
-	for _, argFormatCode := range src.ArgFormatCodes {
-		dst = pgio.AppendUint16(dst, argFormatCode)
+	for i := range src.ArgFormatCodes {
+		dst = pgio.AppendUint16(dst, src.ArgFormatCodes[i])
 	}
 
 	if len(src.Arguments) > math.MaxUint16 {
 		return nil, errors.New("too many arguments")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Arguments)))
-	for _, argument := range src.Arguments {
-		if argument == nil {
+	for i := range src.Arguments {
+		if src.Arguments[i] == nil {
 			dst = pgio.AppendInt32(dst, -1)
 		} else {
-			dst = pgio.AppendInt32(dst, int32(len(argument)))
-			dst = append(dst, argument...)
+			dst = pgio.AppendInt32(dst, int32(len(src.Arguments[i])))
+			dst = append(dst, src.Arguments[i]...)
 		}
 	}
 	dst = pgio.AppendUint16(dst, src.ResultFormatCode)

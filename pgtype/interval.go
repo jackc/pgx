@@ -185,7 +185,7 @@ func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst any) error {
 	}
 
 	if len(src) != 16 {
-		return fmt.Errorf("Received an invalid size for an interval: %d", len(src))
+		return fmt.Errorf("received an invalid size for an interval: %d", len(src))
 	}
 
 	microseconds := int64(binary.BigEndian.Uint64(src))
@@ -264,7 +264,7 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 				return fmt.Errorf("bad interval decimal format: %s", secFrac)
 			}
 
-			for i := 0; i < 6-len(secFrac); i++ {
+			for range 6 - len(secFrac) {
 				uSeconds *= 10
 			}
 		}

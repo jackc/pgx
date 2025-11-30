@@ -10,11 +10,11 @@ import (
 
 func TestBoolCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "bool", []pgxtest.ValueRoundTripTest{
-		{true, new(bool), isExpectedEq(true)},
-		{false, new(bool), isExpectedEq(false)},
-		{true, new(pgtype.Bool), isExpectedEq(pgtype.Bool{Bool: true, Valid: true})},
-		{pgtype.Bool{}, new(pgtype.Bool), isExpectedEq(pgtype.Bool{})},
-		{nil, new(*bool), isExpectedEq((*bool)(nil))},
+		{Param: true, Result: new(bool), Test: isExpectedEq(true)},
+		{Param: false, Result: new(bool), Test: isExpectedEq(false)},
+		{Param: true, Result: new(pgtype.Bool), Test: isExpectedEq(pgtype.Bool{Bool: true, Valid: true})},
+		{Param: pgtype.Bool{}, Result: new(pgtype.Bool), Test: isExpectedEq(pgtype.Bool{})},
+		{Param: nil, Result: new(*bool), Test: isExpectedEq((*bool)(nil))},
 	})
 }
 
