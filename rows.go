@@ -99,8 +99,8 @@ func (r *connRow) Scan(dest ...any) (err error) {
 		return rows.Err()
 	}
 
-	for _, d := range dest {
-		if _, ok := d.(*pgtype.DriverBytes); ok {
+	for i := range dest {
+		if _, ok := dest[i].(*pgtype.DriverBytes); ok {
 			rows.Close()
 			return fmt.Errorf("cannot scan into *pgtype.DriverBytes from QueryRow")
 		}
@@ -268,17 +268,17 @@ func (rows *baseRows) Scan(dest ...any) error {
 		}
 	}
 
-	for i, dst := range dest {
-		if dst == nil {
+	for i := range dest {
+		if dest[i] == nil {
 			continue
 		}
 
-		if rows.scanTypes[i] != reflect.TypeOf(dst) {
+		if rows.scanTypes[i] != reflect.TypeOf(dest[i]) {
 			rows.scanPlans[i] = m.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 			rows.scanTypes[i] = reflect.TypeOf(dest[i])
 		}
 
-		err := rows.scanPlans[i].Scan(values[i], dst)
+		err := rows.scanPlans[i].Scan(values[i], dest[i])
 		if err != nil {
 			err = ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 			rows.fatal(err)
@@ -372,12 +372,12 @@ func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgconn.FieldDescription, v
 		return fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
 	}
 
-	for i, d := range dest {
-		if d == nil {
+	for i := range dest {
+		if dest[i] == nil {
 			continue
 		}
 
-		err := typeMap.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
+		err := typeMap.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dest[i])
 		if err != nil {
 			return ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 		}
@@ -470,7 +470,7 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	var err error
 
 	if !rows.Next() {
-		if err = rows.Err(); err != nil {
+		if err := rows.Err(); err != nil {
 			return value, err
 		}
 		return value, ErrNoRows
@@ -501,7 +501,7 @@ func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	)
 
 	if !rows.Next() {
-		if err = rows.Err(); err != nil {
+		if err := rows.Err(); err != nil {
 			return value, err
 		}
 
@@ -617,7 +617,7 @@ func computeStructFields(
 ) []structRowField {
 	tail := len(*fieldStack)
 	*fieldStack = append(*fieldStack, 0)
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		sf := t.Field(i)
 		(*fieldStack)[tail] = i
 		// Handle anonymous struct embedding, but do not try to handle embedded pointers.
@@ -733,8 +733,8 @@ func lookupNamedStructFields(
 		make([]structRowField, len(fldDescs)),
 		&fieldStack,
 	)
-	for i, f := range fields {
-		if f.path == nil {
+	for i := range fields {
+		if fields[i].path == nil {
 			return nil, fmt.Errorf(
 				"struct doesn't have corresponding row field %s",
 				fldDescs[i].Name,
@@ -758,15 +758,15 @@ func joinFieldNames(fldDescs []pgconn.FieldDescription) string {
 	}
 
 	totalSize := len(fldDescs) - 1 // Space for separator bytes.
-	for _, d := range fldDescs {
-		totalSize += len(d.Name)
+	for i := range fldDescs {
+		totalSize += len(fldDescs[i].Name)
 	}
 	var b strings.Builder
 	b.Grow(totalSize)
 	b.WriteString(fldDescs[0].Name)
-	for _, d := range fldDescs[1:] {
+	for i := range fldDescs[1:] {
 		b.WriteByte(0) // Join with NUL byte as it's (presumably) not a valid column character.
-		b.WriteString(d.Name)
+		b.WriteString(fldDescs[1:][i].Name)
 	}
 	return b.String()
 }
@@ -780,7 +780,7 @@ func computeNamedStructFields(
 	var missingField string
 	tail := len(*fieldStack)
 	*fieldStack = append(*fieldStack, 0)
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		sf := t.Field(i)
 		(*fieldStack)[tail] = i
 		if sf.PkgPath != "" && !sf.Anonymous {
@@ -837,13 +837,13 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 	if normalize {
 		field = strings.ReplaceAll(field, "_", "")
 	}
-	for i, desc := range fldDescs {
+	for i := range fldDescs {
 		if normalize {
-			if strings.EqualFold(strings.ReplaceAll(desc.Name, "_", ""), field) {
+			if strings.EqualFold(strings.ReplaceAll(fldDescs[i].Name, "_", ""), field) {
 				return i
 			}
 		} else {
-			if desc.Name == field {
+			if fldDescs[i].Name == field {
 				return i
 			}
 		}
@@ -864,8 +864,8 @@ type structRowField struct {
 func setupStructScanTargets(receiver any, fields []structRowField) []any {
 	scanTargets := make([]any, len(fields))
 	v := reflect.ValueOf(receiver).Elem()
-	for i, f := range fields {
-		scanTargets[i] = v.FieldByIndex(f.path).Addr().Interface()
+	for i := range fields {
+		scanTargets[i] = v.FieldByIndex(fields[i].path).Addr().Interface()
 	}
 	return scanTargets
 }

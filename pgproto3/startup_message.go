@@ -69,10 +69,10 @@ func (src *StartupMessage) Encode(dst []byte) ([]byte, error) {
 	dst = pgio.AppendInt32(dst, -1)
 
 	dst = pgio.AppendUint32(dst, src.ProtocolVersion)
-	for k, v := range src.Parameters {
-		dst = append(dst, k...)
+	for i := range src.Parameters {
+		dst = append(dst, i...)
 		dst = append(dst, 0)
-		dst = append(dst, v...)
+		dst = append(dst, src.Parameters[i]...)
 		dst = append(dst, 0)
 	}
 	dst = append(dst, 0)

@@ -106,7 +106,7 @@ func skipPostgreSQLVersionLessThan(t testing.TB, minVersion int64) {
 	defer conn.Close(context.Background())
 
 	serverVersionStr := conn.PgConn().ParameterStatus("server_version")
-	serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
+	serverVersionStr = regexp.MustCompile(`^\d+`).FindString(serverVersionStr)
 	// if not PostgreSQL do nothing
 	if serverVersionStr == "" {
 		return

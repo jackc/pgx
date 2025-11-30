@@ -51,8 +51,8 @@ func (src *AuthenticationSASL) Encode(dst []byte) ([]byte, error) {
 	dst, sp := beginMessage(dst, 'R')
 	dst = pgio.AppendUint32(dst, AuthTypeSASL)
 
-	for _, s := range src.AuthMechanisms {
-		dst = append(dst, []byte(s)...)
+	for i := range src.AuthMechanisms {
+		dst = append(dst, []byte(src.AuthMechanisms[i])...)
 		dst = append(dst, 0)
 	}
 	dst = append(dst, 0)

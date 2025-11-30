@@ -52,8 +52,8 @@ func (src *CopyBothResponse) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many column format codes")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ColumnFormatCodes)))
-	for _, fc := range src.ColumnFormatCodes {
-		dst = pgio.AppendUint16(dst, fc)
+	for i := range src.ColumnFormatCodes {
+		dst = pgio.AppendUint16(dst, src.ColumnFormatCodes[i])
 	}
 
 	return finishMessage(dst, sp)

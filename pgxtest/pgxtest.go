@@ -156,7 +156,7 @@ func SkipCockroachDB(t testing.TB, conn *pgx.Conn, msg string) {
 
 func SkipPostgreSQLVersionLessThan(t testing.TB, conn *pgx.Conn, minVersion int64) {
 	serverVersionStr := conn.PgConn().ParameterStatus("server_version")
-	serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
+	serverVersionStr = regexp.MustCompile(`^\d+`).FindString(serverVersionStr)
 	// if not PostgreSQL do nothing
 	if serverVersionStr == "" {
 		return

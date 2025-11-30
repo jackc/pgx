@@ -36,7 +36,7 @@ func TestConnStress(t *testing.T) {
 		{"Batch", stressBatch},
 	}
 
-	for i := 0; i < actionCount; i++ {
+	for i := range actionCount {
 		action := actions[rand.IntN(len(actions))]
 		err := action.fn(pgConn)
 		require.Nilf(t, err, "%d: %s", i, action.name)

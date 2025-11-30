@@ -299,7 +299,7 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 		}
 
 		// BC matched
-		if len(match[4]) > 0 {
+		if match[4] != "" {
 			year = -year + 1
 		}
 

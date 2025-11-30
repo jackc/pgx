@@ -110,9 +110,9 @@ func (encodePlanPathCodecBinary) Encode(value any, buf []byte) (newBuf []byte, e
 
 	buf = pgio.AppendInt32(buf, int32(len(path.P)))
 
-	for _, p := range path.P {
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
+	for i := range path.P {
+		buf = pgio.AppendUint64(buf, math.Float64bits(path.P[i].X))
+		buf = pgio.AppendUint64(buf, math.Float64bits(path.P[i].Y))
 	}
 
 	return buf, nil
@@ -140,13 +140,13 @@ func (encodePlanPathCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 	}
 	buf = append(buf, startByte)
 
-	for i, p := range path.P {
+	for i := range path.P {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
-			strconv.FormatFloat(p.X, 'f', -1, 64),
-			strconv.FormatFloat(p.Y, 'f', -1, 64),
+			strconv.FormatFloat(path.P[i].X, 'f', -1, 64),
+			strconv.FormatFloat(path.P[i].Y, 'f', -1, 64),
 		)...)
 	}
 

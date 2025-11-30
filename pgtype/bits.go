@@ -115,7 +115,7 @@ func (encodePlanBitsCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 		return nil, nil
 	}
 
-	for i := int32(0); i < bits.Len; i++ {
+	for i := range bits.Len {
 		byteIdx := i / 8
 		bitMask := byte(128 >> byte(i%8))
 		char := byte('0')
@@ -199,11 +199,11 @@ func (scanPlanTextAnyToBitsScanner) Scan(src []byte, dst any) error {
 	}
 	buf := make([]byte, byteLen)
 
-	for i, b := range src {
-		if b == '1' {
+	for i := range src {
+		if src[i] == '1' {
 			byteIdx := i / 8
 			bitIdx := uint(i % 8)
-			buf[byteIdx] = buf[byteIdx] | (128 >> bitIdx)
+			buf[byteIdx] |= (128 >> bitIdx)
 		}
 	}
 

@@ -15,7 +15,7 @@ func NullAssignTo(dst any) error {
 	dstVal := dstPtr.Elem()
 
 	switch dstVal.Kind() {
-	case reflect.Ptr, reflect.Slice, reflect.Map:
+	case reflect.Pointer, reflect.Slice, reflect.Map:
 		dstVal.Set(reflect.Zero(dstVal.Type()))
 		return nil
 	}
@@ -41,32 +41,32 @@ func GetAssignToDstType(dst any) (any, bool) {
 	dstPtr := reflect.ValueOf(dst)
 
 	// AssignTo dst must always be a pointer
-	if dstPtr.Kind() != reflect.Ptr {
+	if dstPtr.Kind() != reflect.Pointer {
 		return nil, false
 	}
 
 	dstVal := dstPtr.Elem()
 
 	// if dst is a pointer to pointer, allocate space try again with the dereferenced pointer
-	if dstVal.Kind() == reflect.Ptr {
+	if dstVal.Kind() == reflect.Pointer {
 		dstVal.Set(reflect.New(dstVal.Type().Elem()))
 		return dstVal.Interface(), true
 	}
 
 	// if dst is pointer to a base type that has been renamed
 	if baseValType, ok := kindTypes[dstVal.Kind()]; ok {
-		return toInterface(dstPtr, reflect.PtrTo(baseValType))
+		return toInterface(dstPtr, reflect.PointerTo(baseValType))
 	}
 
 	if dstVal.Kind() == reflect.Slice {
 		if baseElemType, ok := kindTypes[dstVal.Type().Elem().Kind()]; ok {
-			return toInterface(dstPtr, reflect.PtrTo(reflect.SliceOf(baseElemType)))
+			return toInterface(dstPtr, reflect.PointerTo(reflect.SliceOf(baseElemType)))
 		}
 	}
 
 	if dstVal.Kind() == reflect.Array {
 		if baseElemType, ok := kindTypes[dstVal.Type().Elem().Kind()]; ok {
-			return toInterface(dstPtr, reflect.PtrTo(reflect.ArrayOf(dstVal.Len(), baseElemType)))
+			return toInterface(dstPtr, reflect.PointerTo(reflect.ArrayOf(dstVal.Len(), baseElemType)))
 		}
 	}
 
@@ -76,7 +76,7 @@ func GetAssignToDstType(dst any) (any, bool) {
 			nested := dstVal.Type().Field(0).Type
 			if nested.Kind() == reflect.Array {
 				if baseElemType, ok := kindTypes[nested.Elem().Kind()]; ok {
-					return toInterface(dstPtr, reflect.PtrTo(reflect.ArrayOf(nested.Len(), baseElemType)))
+					return toInterface(dstPtr, reflect.PointerTo(reflect.ArrayOf(nested.Len(), baseElemType)))
 				}
 			}
 			if _, ok := kindTypes[nested.Kind()]; ok && dstPtr.CanInterface() {

@@ -162,7 +162,7 @@ type derivedTypeInfo struct {
 func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Type, error) {
 	m := c.TypeMap()
 	if len(typeNames) == 0 {
-		return nil, fmt.Errorf("No type names were supplied.")
+		return nil, fmt.Errorf("no type names were supplied.")
 	}
 
 	// Disregard server version errors. This will result in
@@ -171,7 +171,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	sql := buildLoadDerivedTypesSQL(serverVersion, typeNames)
 	rows, err := c.Query(ctx, sql, QueryExecModeSimpleProtocol, typeNames)
 	if err != nil {
-		return nil, fmt.Errorf("While generating load types query: %w", err)
+		return nil, fmt.Errorf("while generating load types query: %w", err)
 	}
 	defer rows.Close()
 	result := make([]*pgtype.Type, 0, 100)
@@ -179,31 +179,31 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		ti := derivedTypeInfo{}
 		err = rows.Scan(&ti.TypeName, &ti.NspName, &ti.Typtype, &ti.Typbasetype, &ti.Typelem, &ti.Oid, &ti.Rngtypid, &ti.Rngsubtype, &ti.Attnames, &ti.Atttypids)
 		if err != nil {
-			return nil, fmt.Errorf("While scanning type information: %w", err)
+			return nil, fmt.Errorf("while scanning type information: %w", err)
 		}
 		var type_ *pgtype.Type
 		switch ti.Typtype {
 		case "b": // array
 			dt, ok := m.TypeForOID(ti.Typelem)
 			if !ok {
-				return nil, fmt.Errorf("Array element OID %v not registered while loading pgtype %q", ti.Typelem, ti.TypeName)
+				return nil, fmt.Errorf("array element OID %v not registered while loading pgtype %q", ti.Typelem, ti.TypeName)
 			}
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.ArrayCodec{ElementType: dt}}
 		case "c": // composite
 			var fields []pgtype.CompositeCodecField
-			for i, fieldName := range ti.Attnames {
+			for i := range ti.Attnames {
 				dt, ok := m.TypeForOID(ti.Atttypids[i])
 				if !ok {
-					return nil, fmt.Errorf("Unknown field for composite type %q:  field %q (OID %v) is not already registered.", ti.TypeName, fieldName, ti.Atttypids[i])
+					return nil, fmt.Errorf("unknown field for composite type %q:  field %q (OID %v) is not already registered.", ti.TypeName, ti.Attnames[i], ti.Atttypids[i])
 				}
-				fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, Type: dt})
+				fields = append(fields, pgtype.CompositeCodecField{Name: ti.Attnames[i], Type: dt})
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.CompositeCodec{Fields: fields}}
 		case "d": // domain
 			dt, ok := m.TypeForOID(ti.Typbasetype)
 			if !ok {
-				return nil, fmt.Errorf("Domain base type OID %v was not already registered, needed for %q", ti.Typbasetype, ti.TypeName)
+				return nil, fmt.Errorf("domain base type OID %v was not already registered, needed for %q", ti.Typbasetype, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: dt.Codec}
@@ -212,19 +212,19 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		case "r": // range
 			dt, ok := m.TypeForOID(ti.Rngsubtype)
 			if !ok {
-				return nil, fmt.Errorf("Range element OID %v was not already registered, needed for %q", ti.Rngsubtype, ti.TypeName)
+				return nil, fmt.Errorf("range element OID %v was not already registered, needed for %q", ti.Rngsubtype, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.RangeCodec{ElementType: dt}}
 		case "m": // multirange
 			dt, ok := m.TypeForOID(ti.Rngtypid)
 			if !ok {
-				return nil, fmt.Errorf("Multirange element OID %v was not already registered, needed for %q", ti.Rngtypid, ti.TypeName)
+				return nil, fmt.Errorf("multirange element OID %v was not already registered, needed for %q", ti.Rngtypid, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.MultirangeCodec{ElementType: dt}}
 		default:
-			return nil, fmt.Errorf("Unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
+			return nil, fmt.Errorf("unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
 		}
 
 		// the type_ is imposible to be null
@@ -242,10 +242,10 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 // serverVersion returns the postgresql server version.
 func serverVersion(c *Conn) (int64, error) {
 	serverVersionStr := c.PgConn().ParameterStatus("server_version")
-	serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
+	serverVersionStr = regexp.MustCompile(`^\d+`).FindString(serverVersionStr)
 	// if not PostgreSQL do nothing
 	if serverVersionStr == "" {
-		return 0, fmt.Errorf("Cannot identify server version in %q", serverVersionStr)
+		return 0, fmt.Errorf("cannot identify server version in %q", serverVersionStr)
 	}
 
 	version, err := strconv.ParseInt(serverVersionStr, 10, 64)

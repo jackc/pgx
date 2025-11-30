@@ -264,11 +264,13 @@ func (n *Numeric) UnmarshalJSON(src []byte) error {
 
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
 func (n Numeric) numberTextBytes() []byte {
-	intStr := n.Int.String()
 
-	buf := &bytes.Buffer{}
+	var (
+		intStr = n.Int.String()
+		buf    = &bytes.Buffer{}
+	)
 
-	if len(intStr) > 0 && intStr[:1] == "-" {
+	if intStr != "" && intStr[:1] == "-" {
 		intStr = intStr[1:]
 		buf.WriteByte('-')
 	}
@@ -627,7 +629,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 
 	accum := &big.Int{}
 
-	for i := 0; i < int(ndigits+3)/4; i++ {
+	for i := range int(ndigits+3) / 4 {
 		int64accum, bytesRead, digitsRead := nbaseDigitsToInt64(src[rp:])
 		rp += bytesRead
 

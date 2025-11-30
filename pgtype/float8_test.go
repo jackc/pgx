@@ -10,15 +10,15 @@ import (
 
 func TestFloat8Codec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float8", []pgxtest.ValueRoundTripTest{
-		{pgtype.Float8{Float64: -1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: -1, Valid: true})},
-		{pgtype.Float8{Float64: 0, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: 0, Valid: true})},
-		{pgtype.Float8{Float64: 1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: 1, Valid: true})},
-		{float64(0.00001), new(float64), isExpectedEq(float64(0.00001))},
-		{float64(9999.99), new(float64), isExpectedEq(float64(9999.99))},
-		{pgtype.Float8{}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{})},
-		{int64(1), new(int64), isExpectedEq(int64(1))},
-		{"1.23", new(string), isExpectedEq("1.23")},
-		{nil, new(*float64), isExpectedEq((*float64)(nil))},
+		{Param: pgtype.Float8{Float64: -1, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: -1, Valid: true})},
+		{Param: pgtype.Float8{Float64: 0, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: 0, Valid: true})},
+		{Param: pgtype.Float8{Float64: 1, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: 1, Valid: true})},
+		{Param: float64(0.00001), Result: new(float64), Test: isExpectedEq(float64(0.00001))},
+		{Param: float64(9999.99), Result: new(float64), Test: isExpectedEq(float64(9999.99))},
+		{Param: pgtype.Float8{}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{})},
+		{Param: int64(1), Result: new(int64), Test: isExpectedEq(int64(1))},
+		{Param: "1.23", Result: new(string), Test: isExpectedEq("1.23")},
+		{Param: nil, Result: new(*float64), Test: isExpectedEq((*float64)(nil))},
 	})
 }
 

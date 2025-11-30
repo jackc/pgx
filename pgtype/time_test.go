@@ -14,37 +14,37 @@ import (
 func TestTimeCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "time", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Time{Microseconds: 0, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 0, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 1, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 1, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 1, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 1, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86_399_999_999, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86_399_999_999, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 86_399_999_999, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 86_399_999_999, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86_400_000_000, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86_400_000_000, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 86_400_000_000, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 86_400_000_000, Valid: true}),
 		},
 		{
-			time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
+			Param:  time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 0, Valid: true},
-			new(time.Time),
-			isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Param:  pgtype.Time{Microseconds: 0, Valid: true},
+			Result: new(time.Time),
+			Test:   isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
-		{pgtype.Time{}, new(pgtype.Time), isExpectedEq(pgtype.Time{})},
-		{nil, new(pgtype.Time), isExpectedEq(pgtype.Time{})},
+		{Param: pgtype.Time{}, Result: new(pgtype.Time), Test: isExpectedEq(pgtype.Time{})},
+		{Param: nil, Result: new(pgtype.Time), Test: isExpectedEq(pgtype.Time{})},
 	})
 }
 
@@ -66,12 +66,12 @@ func TestTimeTextScanner(t *testing.T) {
 
 	const mirco = "789123"
 	const woFraction = int64(4*time.Hour + 5*time.Minute + 6*time.Second) // time without fraction
-	for i := 0; i <= len(mirco); i++ {
+	for i := range len(mirco) + 1 {
 		assert.NoError(t, pgTime.Scan("04:05:06."+mirco[:i]))
 		assert.Equal(t, true, pgTime.Valid)
 
 		frac, _ := strconv.ParseInt(mirco[:i], 10, 64)
-		for k := i; k < 6; k++ {
+		for range 6 {
 			frac *= 10
 		}
 		assert.Equal(t, woFraction+frac*int64(time.Microsecond), pgTime.Microseconds*int64(time.Microsecond))

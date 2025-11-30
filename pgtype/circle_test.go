@@ -13,16 +13,16 @@ func TestCircleTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "circle", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true},
-			new(pgtype.Circle),
-			isExpectedEq(pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true}),
+			Param:  pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true},
+			Result: new(pgtype.Circle),
+			Test:   isExpectedEq(pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true}),
 		},
 		{
-			pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true},
-			new(pgtype.Circle),
-			isExpectedEq(pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true}),
+			Param:  pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true},
+			Result: new(pgtype.Circle),
+			Test:   isExpectedEq(pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true}),
 		},
-		{pgtype.Circle{}, new(pgtype.Circle), isExpectedEq(pgtype.Circle{})},
-		{nil, new(pgtype.Circle), isExpectedEq(pgtype.Circle{})},
+		{Param: pgtype.Circle{}, Result: new(pgtype.Circle), Test: isExpectedEq(pgtype.Circle{})},
+		{Param: nil, Result: new(pgtype.Circle), Test: isExpectedEq(pgtype.Circle{})},
 	})
 }

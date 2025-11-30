@@ -42,7 +42,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 
 	var n int64
 
-	for i := 0; b.Loop(); i++ {
+	for i := range b.N {
 		err = conn.QueryRow(context.Background(), "ps1", i).Scan(&n)
 		if err != nil {
 			b.Fatal(err)
@@ -68,7 +68,7 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 
 	var n int64
 
-	for i := 0; b.Loop(); i++ {
+	for i := range b.N {
 		err = db.QueryRow(context.Background(), "ps1", i).Scan(&n)
 		if err != nil {
 			b.Fatal(err)

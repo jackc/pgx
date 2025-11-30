@@ -528,25 +528,27 @@ func (p *Pool) checkHealth() {
 // checkConnsHealth will check all idle connections, destroy a connection if
 // it's idle or too old, and returns true if any were destroyed
 func (p *Pool) checkConnsHealth() bool {
-	var destroyed bool
-	totalConns := p.Stat().TotalConns()
-	resources := p.p.AcquireAllIdle()
-	for _, res := range resources {
+	var (
+		destroyed  bool
+		totalConns = p.Stat().TotalConns()
+		resources  = p.p.AcquireAllIdle()
+	)
+	for i := range resources {
 		// We're okay going under minConns if the lifetime is up
-		if p.isExpired(res) && totalConns >= p.minConns {
+		if p.isExpired(resources[i]) && totalConns >= p.minConns {
 			atomic.AddInt64(&p.lifetimeDestroyCount, 1)
-			res.Destroy()
+			resources[i].Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
 			totalConns--
-		} else if res.IdleDuration() > p.maxConnIdleTime && totalConns > p.minConns {
+		} else if resources[i].IdleDuration() > p.maxConnIdleTime && totalConns > p.minConns {
 			atomic.AddInt64(&p.idleDestroyCount, 1)
-			res.Destroy()
+			resources[i].Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
 			totalConns--
 		} else {
-			res.ReleaseUnused()
+			resources[i].ReleaseUnused()
 		}
 	}
 	return destroyed
@@ -671,18 +673,21 @@ func (p *Pool) AcquireFunc(ctx context.Context, f func(*Conn) error) error {
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
 func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
-	resources := p.p.AcquireAllIdle()
-	conns := make([]*Conn, 0, len(resources))
-	for _, res := range resources {
-		cr := res.Value()
+
+	var (
+		resources = p.p.AcquireAllIdle()
+		conns     = make([]*Conn, 0, len(resources))
+	)
+	for i := range resources {
+		cr := resources[i].Value()
 		if p.prepareConn != nil {
 			ok, err := p.prepareConn(ctx, cr.conn)
 			if !ok || err != nil {
-				res.Destroy()
+				resources[i].Destroy()
 				continue
 			}
 		}
-		conns = append(conns, cr.getConn(p, res))
+		conns = append(conns, cr.getConn(p, resources[i]))
 	}
 
 	return conns
@@ -786,14 +791,14 @@ func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 // *pgxpool.Tx is returned, which implements the pgx.Tx interface.
 // Commit or Rollback must be called on the returned transaction to finalize the transaction block.
 func (p *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
-	return p.BeginTx(ctx, pgx.TxOptions{})
+	return p.BeginTx(ctx, &pgx.TxOptions{})
 }
 
 // BeginTx acquires a connection from the Pool and starts a transaction with pgx.TxOptions determining the transaction mode.
 // Unlike database/sql, the context only affects the begin command. i.e. there is no auto-rollback on context cancellation.
 // *pgxpool.Tx is returned, which implements the pgx.Tx interface.
 // Commit or Rollback must be called on the returned transaction to finalize the transaction block.
-func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
+func (p *Pool) BeginTx(ctx context.Context, txOptions *pgx.TxOptions) (pgx.Tx, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err

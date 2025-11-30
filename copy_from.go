@@ -123,17 +123,21 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		})
 	}
 
-	quotedTableName := ct.tableName.Sanitize()
-	cbuf := &bytes.Buffer{}
-	for i, cn := range ct.columnNames {
+	var (
+		cbuf = &bytes.Buffer{}
+	)
+	for i := range ct.columnNames {
 		if i != 0 {
 			cbuf.WriteString(", ")
 		}
-		cbuf.WriteString(quoteIdentifier(cn))
+		cbuf.WriteString(quoteIdentifier(ct.columnNames[i]))
 	}
-	quotedColumnNames := cbuf.String()
 
-	var sd *pgconn.StatementDescription
+	var (
+		quotedTableName   = ct.tableName.Sanitize()
+		quotedColumnNames = cbuf.String()
+		sd                *pgconn.StatementDescription
+	)
 	switch ct.mode {
 	case QueryExecModeExec, QueryExecModeSimpleProtocol:
 		// These modes don't support the binary format. Before the inclusion of the
@@ -144,6 +148,7 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		// we'll default to that mode.
 		ct.mode = QueryExecModeDescribeExec
 		fallthrough
+
 	case QueryExecModeCacheStatement, QueryExecModeCacheDescribe, QueryExecModeDescribeExec:
 		var err error
 		sd, err = ct.conn.getStatementDescription(
@@ -154,8 +159,10 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("statement description failed: %w", err)
 		}
+
 	default:
 		return 0, fmt.Errorf("unknown QueryExecMode: %v", ct.mode)
+
 	}
 
 	r, w := io.Pipe()
@@ -214,10 +221,14 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	return commandTag.RowsAffected(), err
 }
 
-func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (bool, []byte, error) {
+func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (success bool, data []byte, err error) {
+
 	const sendBufSize = 65536 - 5 // The packet has a 5-byte header
-	lastBufLen := 0
-	largestRowLen := 0
+
+	var (
+		lastBufLen    = 0
+		largestRowLen = 0
+	)
 
 	for ct.rowSrc.Next() {
 		lastBufLen = len(buf)
@@ -231,8 +242,8 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 		}
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
-		for i, val := range values {
-			buf, err = encodeCopyValue(ct.conn.typeMap, buf, sd.Fields[i].DataTypeOID, val)
+		for i := range values {
+			buf, err = encodeCopyValue(ct.conn.typeMap, buf, sd.Fields[i].DataTypeOID, values[i])
 			if err != nil {
 				return false, nil, err
 			}

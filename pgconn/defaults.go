@@ -18,13 +18,13 @@ func defaultSettings() map[string]string {
 	// Default to the OS user name. Purposely ignoring err getting user name from
 	// OS. The client application will simply have to specify the user in that
 	// case (which they typically will be doing anyway).
-	user, err := user.Current()
+	userVar, err := user.Current()
 	if err == nil {
-		settings["user"] = user.Username
-		settings["passfile"] = filepath.Join(user.HomeDir, ".pgpass")
-		settings["servicefile"] = filepath.Join(user.HomeDir, ".pg_service.conf")
-		sslcert := filepath.Join(user.HomeDir, ".postgresql", "postgresql.crt")
-		sslkey := filepath.Join(user.HomeDir, ".postgresql", "postgresql.key")
+		settings["user"] = userVar.Username
+		settings["passfile"] = filepath.Join(userVar.HomeDir, ".pgpass")
+		settings["servicefile"] = filepath.Join(userVar.HomeDir, ".pg_service.conf")
+		sslcert := filepath.Join(userVar.HomeDir, ".postgresql", "postgresql.crt")
+		sslkey := filepath.Join(userVar.HomeDir, ".postgresql", "postgresql.key")
 		if _, err := os.Stat(sslcert); err == nil {
 			if _, err := os.Stat(sslkey); err == nil {
 				// Both the cert and key must be present to use them, or do not use either
@@ -32,7 +32,7 @@ func defaultSettings() map[string]string {
 				settings["sslkey"] = sslkey
 			}
 		}
-		sslrootcert := filepath.Join(user.HomeDir, ".postgresql", "root.crt")
+		sslrootcert := filepath.Join(userVar.HomeDir, ".postgresql", "root.crt")
 		if _, err := os.Stat(sslrootcert); err == nil {
 			settings["sslrootcert"] = sslrootcert
 		}
@@ -53,9 +53,9 @@ func defaultHost() string {
 		"/tmp",                // standard PostgreSQL
 	}
 
-	for _, path := range candidatePaths {
-		if _, err := os.Stat(path); err == nil {
-			return path
+	for i := range candidatePaths {
+		if _, err := os.Stat(candidatePaths[i]); err == nil {
+			return candidatePaths[i]
 		}
 	}
 

@@ -107,16 +107,16 @@ func (src *RowDescription) Encode(dst []byte) ([]byte, error) {
 		return nil, errors.New("too many fields")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Fields)))
-	for _, fd := range src.Fields {
-		dst = append(dst, fd.Name...)
+	for i := range src.Fields {
+		dst = append(dst, src.Fields[i].Name...)
 		dst = append(dst, 0)
 
-		dst = pgio.AppendUint32(dst, fd.TableOID)
-		dst = pgio.AppendUint16(dst, fd.TableAttributeNumber)
-		dst = pgio.AppendUint32(dst, fd.DataTypeOID)
-		dst = pgio.AppendInt16(dst, fd.DataTypeSize)
-		dst = pgio.AppendInt32(dst, fd.TypeModifier)
-		dst = pgio.AppendInt16(dst, fd.Format)
+		dst = pgio.AppendUint32(dst, src.Fields[i].TableOID)
+		dst = pgio.AppendUint16(dst, src.Fields[i].TableAttributeNumber)
+		dst = pgio.AppendUint32(dst, src.Fields[i].DataTypeOID)
+		dst = pgio.AppendInt16(dst, src.Fields[i].DataTypeSize)
+		dst = pgio.AppendInt32(dst, src.Fields[i].TypeModifier)
+		dst = pgio.AppendInt16(dst, src.Fields[i].Format)
 	}
 
 	return finishMessage(dst, sp)
@@ -150,15 +150,15 @@ func (dst *RowDescription) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	dst.Fields = make([]FieldDescription, len(msg.Fields))
-	for n, field := range msg.Fields {
-		dst.Fields[n] = FieldDescription{
-			Name:                 []byte(field.Name),
-			TableOID:             field.TableOID,
-			TableAttributeNumber: field.TableAttributeNumber,
-			DataTypeOID:          field.DataTypeOID,
-			DataTypeSize:         field.DataTypeSize,
-			TypeModifier:         field.TypeModifier,
-			Format:               field.Format,
+	for i := range msg.Fields {
+		dst.Fields[i] = FieldDescription{
+			Name:                 []byte(msg.Fields[i].Name),
+			TableOID:             msg.Fields[i].TableOID,
+			TableAttributeNumber: msg.Fields[i].TableAttributeNumber,
+			DataTypeOID:          msg.Fields[i].DataTypeOID,
+			DataTypeSize:         msg.Fields[i].DataTypeSize,
+			TypeModifier:         msg.Fields[i].TypeModifier,
+			Format:               msg.Fields[i].Format,
 		}
 	}
 	return nil

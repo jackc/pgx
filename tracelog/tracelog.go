@@ -94,13 +94,13 @@ func LogLevelFromString(s string) (LogLevel, error) {
 func logQueryArgs(args []any) []any {
 	logArgs := make([]any, 0, len(args))
 
-	for _, a := range args {
-		switch v := a.(type) {
+	for i := range args {
+		switch v := args[i].(type) {
 		case []byte:
 			if len(v) < 64 {
-				a = hex.EncodeToString(v)
+				args[i] = hex.EncodeToString(v)
 			} else {
-				a = fmt.Sprintf("%x (truncated %d bytes)", v[:64], len(v)-64)
+				args[i] = fmt.Sprintf("%x (truncated %d bytes)", v[:64], len(v)-64)
 			}
 		case string:
 			if len(v) > 64 {
@@ -109,11 +109,11 @@ func logQueryArgs(args []any) []any {
 					_, w = utf8.DecodeRuneInString(v[l:])
 				}
 				if len(v) > l {
-					a = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
+					args[i] = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
 				}
 			}
 		}
-		logArgs = append(logArgs, a)
+		logArgs = append(logArgs, args[i])
 	}
 
 	return logArgs

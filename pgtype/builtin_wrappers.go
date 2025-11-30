@@ -599,7 +599,7 @@ func (w *netipAddrWrapper) ScanNetipPrefix(v netip.Prefix) error {
 }
 
 func (w netipAddrWrapper) NetipPrefixValue() (netip.Prefix, error) {
-	addr := (netip.Addr)(w)
+	addr := netip.Addr(w)
 	if !addr.IsValid() {
 		return netip.Prefix{}, nil
 	}
@@ -622,11 +622,11 @@ type mapStringToStringWrapper map[string]string
 
 func (w *mapStringToStringWrapper) ScanHstore(v Hstore) error {
 	*w = make(mapStringToStringWrapper, len(v))
-	for k, v := range v {
-		if v == nil {
+	for i := range v {
+		if v[i] == nil {
 			return fmt.Errorf("cannot scan NULL to string")
 		}
-		(*w)[k] = *v
+		(*w)[i] = *v[i]
 	}
 	return nil
 }
@@ -637,9 +637,9 @@ func (w mapStringToStringWrapper) HstoreValue() (Hstore, error) {
 	}
 
 	hstore := make(Hstore, len(w))
-	for k, v := range w {
-		s := v
-		hstore[k] = &s
+	for i := range w {
+		s := w[i]
+		hstore[i] = &s
 	}
 	return hstore, nil
 }
@@ -822,12 +822,12 @@ func (a *anyMultiDimSliceArray) Index(i int) any {
 	for j := len(a.dims) - 1; j >= 0; j-- {
 		dimLen := int(a.dims[j].Length)
 		indexes[j] = i % dimLen
-		i = i / dimLen
+		i /= dimLen
 	}
 
 	v := a.slice
-	for _, si := range indexes {
-		v = v.Index(si)
+	for i := range indexes {
+		v = v.Index(indexes[i])
 	}
 
 	return v.Interface()

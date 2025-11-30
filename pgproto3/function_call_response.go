@@ -54,10 +54,12 @@ func (src *FunctionCallResponse) Encode(dst []byte) ([]byte, error) {
 
 // MarshalJSON implements encoding/json.Marshaler.
 func (src FunctionCallResponse) MarshalJSON() ([]byte, error) {
-	var formattedValue map[string]string
-	var hasNonPrintable bool
-	for _, b := range src.Result {
-		if b < 32 {
+	var (
+		formattedValue  map[string]string
+		hasNonPrintable bool
+	)
+	for i := range src.Result {
+		if src.Result[i] < 32 {
 			hasNonPrintable = true
 			break
 		}

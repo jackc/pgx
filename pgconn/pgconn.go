@@ -190,28 +190,28 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 
 	var allErrors []error
 
-	for _, fb := range fallbackConfigs {
+	for i := range fallbackConfigs {
 		// skip resolve for unix sockets
-		if isAbsolutePath(fb.Host) {
-			network, address := NetworkAddress(fb.Host, fb.Port)
+		if isAbsolutePath(fallbackConfigs[i].Host) {
+			network, address := NetworkAddress(fallbackConfigs[i].Host, fallbackConfigs[i].Port)
 			configs = append(configs, &connectOneConfig{
 				network:          network,
 				address:          address,
-				originalHostname: fb.Host,
-				tlsConfig:        fb.TLSConfig,
+				originalHostname: fallbackConfigs[i].Host,
+				tlsConfig:        fallbackConfigs[i].TLSConfig,
 			})
 
 			continue
 		}
 
-		ips, err := config.LookupFunc(ctx, fb.Host)
+		ips, err := config.LookupFunc(ctx, fallbackConfigs[i].Host)
 		if err != nil {
 			allErrors = append(allErrors, err)
 			continue
 		}
 
-		for _, ip := range ips {
-			splitIP, splitPort, err := net.SplitHostPort(ip)
+		for j := range ips {
+			splitIP, splitPort, err := net.SplitHostPort(ips[j])
 			if err == nil {
 				port, err := strconv.ParseUint(splitPort, 10, 16)
 				if err != nil {
@@ -221,16 +221,16 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 				configs = append(configs, &connectOneConfig{
 					network:          network,
 					address:          address,
-					originalHostname: fb.Host,
-					tlsConfig:        fb.TLSConfig,
+					originalHostname: fallbackConfigs[i].Host,
+					tlsConfig:        fallbackConfigs[i].TLSConfig,
 				})
 			} else {
-				network, address := NetworkAddress(ip, fb.Port)
+				network, address := NetworkAddress(ips[j], fallbackConfigs[i].Port)
 				configs = append(configs, &connectOneConfig{
 					network:          network,
 					address:          address,
-					originalHostname: fb.Host,
-					tlsConfig:        fb.TLSConfig,
+					originalHostname: fallbackConfigs[i].Host,
+					tlsConfig:        fallbackConfigs[i].TLSConfig,
 				})
 			}
 		}
@@ -243,11 +243,14 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 // order. If a connection is successful it is returned. If no connection is successful then all errors are returned. If
 // a connection attempt returns a [NotPreferredError], then that host will be used if no other hosts are successful.
 func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*connectOneConfig) (*PgConn, []error) {
-	octx := ctx
-	var allErrors []error
 
-	var fallbackConnectOneConfig *connectOneConfig
-	for i, c := range connectOneConfigs {
+	var (
+		octx                     = ctx
+		allErrors                []error
+		fallbackConnectOneConfig *connectOneConfig
+	)
+
+	for i := range connectOneConfigs {
 		// ConnectTimeout restricts the whole connection process.
 		if config.ConnectTimeout != 0 {
 			// create new context first time or when previous host was different
@@ -260,7 +263,7 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 			ctx = octx
 		}
 
-		pgConn, err := connectOne(ctx, config, c, false)
+		pgConn, err := connectOne(ctx, config, connectOneConfigs[i], false)
 		if pgConn != nil {
 			return pgConn, nil
 		}
@@ -272,9 +275,11 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 			// pgx will try next host even if libpq does not in certain cases (see #2246)
 			// consider change for the next major version
 
-			const ERRCODE_INVALID_PASSWORD = "28P01"
-			const ERRCODE_INVALID_CATALOG_NAME = "3D000"   // db does not exist
-			const ERRCODE_INSUFFICIENT_PRIVILEGE = "42501" // missing connect privilege
+			const (
+				ERRCODE_INVALID_PASSWORD       = "28P01"
+				ERRCODE_INVALID_CATALOG_NAME   = "3D000" // db does not exist
+				ERRCODE_INSUFFICIENT_PRIVILEGE = "42501" // missing connect privilege
+			)
 
 			// auth failed due to invalid password, db does not exist or user has no permission
 			if pgErr.Code == ERRCODE_INVALID_PASSWORD ||
@@ -286,7 +291,7 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 
 		var npErr *NotPreferredError
 		if errors.As(err, &npErr) {
-			fallbackConnectOneConfig = c
+			fallbackConnectOneConfig = connectOneConfigs[i]
 		}
 	}
 
@@ -718,7 +723,7 @@ func (pgConn *PgConn) asyncClose() {
 //
 // This is only likely to be useful to connection pools. It gives them a way avoid establishing a new connection while
 // an old connection is still being cleaned up and thereby exceeding the maximum pool size.
-func (pgConn *PgConn) CleanupDone() chan (struct{}) {
+func (pgConn *PgConn) CleanupDone() chan struct{} {
 	return pgConn.cleanupDone
 }
 
@@ -792,8 +797,8 @@ func (ct CommandTag) RowsAffected() int64 {
 	}
 
 	var n int64
-	for _, b := range ct.s[idx:] {
-		n = n*10 + int64(b-'0')
+	for i := range ct.s[idx:] {
+		n = n*10 + int64(ct.s[idx:][i]-'0')
 	}
 
 	return n
@@ -1846,7 +1851,7 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 		return "", errors.New("EscapeString must be run with client_encoding=UTF8")
 	}
 
-	return strings.Replace(s, "'", "''", -1), nil
+	return strings.ReplaceAll(s, "'", "''"), nil
 }
 
 // CheckConn checks the underlying connection without writing any bytes. This is currently implemented by doing a read

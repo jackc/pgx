@@ -49,9 +49,9 @@ func (r *mockReader) Read(p []byte) (int, error) {
 func TestBGReaderReadWaitsForBackgroundRead(t *testing.T) {
 	rr := &mockReader{
 		readFuncs: []mockReadFunc{
-			func(p []byte) (int, error) { time.Sleep(1 * time.Second); return copy(p, []byte("foo")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("bar")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("baz")), nil },
+			func(p []byte) (int, error) { time.Sleep(1 * time.Second); return copy(p, `"foo"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"bar"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"baz"`), nil },
 		},
 	}
 	bgr := bgreader.New(rr)
@@ -60,15 +60,15 @@ func TestBGReaderReadWaitsForBackgroundRead(t *testing.T) {
 	n, err := bgr.Read(buf)
 	require.NoError(t, err)
 	require.EqualValues(t, 3, n)
-	require.Equal(t, []byte("foo"), buf)
+	require.Equal(t, `"foo"`, buf)
 }
 
 func TestBGReaderErrorWhenStarted(t *testing.T) {
 	rr := &mockReader{
 		readFuncs: []mockReadFunc{
-			func(p []byte) (int, error) { return copy(p, []byte("foo")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("bar")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("baz")), errors.New("oops") },
+			func(p []byte) (int, error) { return copy(p, `"foo"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"bar"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"baz"`), errors.New("oops") },
 		},
 	}
 
@@ -82,9 +82,9 @@ func TestBGReaderErrorWhenStarted(t *testing.T) {
 func TestBGReaderErrorWhenStopped(t *testing.T) {
 	rr := &mockReader{
 		readFuncs: []mockReadFunc{
-			func(p []byte) (int, error) { return copy(p, []byte("foo")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("bar")), nil },
-			func(p []byte) (int, error) { return copy(p, []byte("baz")), errors.New("oops") },
+			func(p []byte) (int, error) { return copy(p, `"foo"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"bar"`), nil },
+			func(p []byte) (int, error) { return copy(p, `"baz"`), errors.New("oops") },
 		},
 	}
 

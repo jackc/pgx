@@ -31,7 +31,7 @@ func openDB(t testing.TB, opts ...stdlib.OptionOpenDB) *sql.DB {
 	t.Helper()
 	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
-	return stdlib.OpenDB(*config, opts...)
+	return stdlib.OpenDB(config, opts...)
 }
 
 func closeDB(t testing.TB, db *sql.DB) {
@@ -62,7 +62,7 @@ func skipPostgreSQLVersionLessThan(t testing.TB, db *sql.DB, minVersion int64) {
 	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
-		serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
+		serverVersionStr = regexp.MustCompile(`^\d+`).FindString(serverVersionStr)
 		// if not PostgreSQL do nothing
 		if serverVersionStr == "" {
 			return nil
@@ -96,7 +96,7 @@ func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
 				require.NoError(t, err)
 
 				config.DefaultQueryExecMode = mode
-				db := stdlib.OpenDB(*config)
+				db := stdlib.OpenDB(config)
 				defer func() {
 					err := db.Close()
 					require.NoError(t, err)
@@ -122,7 +122,7 @@ func testWithKnownOIDQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.D
 				require.NoError(t, err)
 
 				config.DefaultQueryExecMode = mode
-				db := stdlib.OpenDB(*config)
+				db := stdlib.OpenDB(config)
 				defer func() {
 					err := db.Close()
 					require.NoError(t, err)
@@ -166,8 +166,8 @@ type preparer interface {
 	Prepare(query string) (*sql.Stmt, error)
 }
 
-func prepareStmt(t *testing.T, p preparer, sql string) *sql.Stmt {
-	stmt, err := p.Prepare(sql)
+func prepareStmt(t *testing.T, p preparer, sqlVar string) *sql.Stmt {
+	stmt, err := p.Prepare(sqlVar)
 	require.NoError(t, err)
 	return stmt
 }
@@ -509,7 +509,7 @@ func TestConnQueryRowByteSlice(t *testing.T) {
 
 func TestConnQueryFailure(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		_, err := db.Query("select 'foo")
+		_, err := db.Exec("select 'foo")
 		require.Error(t, err)
 		require.ErrorAs(t, err, new(*pgconn.PgError))
 	})
@@ -541,11 +541,14 @@ func TestConnQueryScanGoArray(t *testing.T) {
 // database/sql native type should be passed through as a string
 func TestConnQueryRowPgxBinary(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		sql := "select $1::int4[]"
-		expected := "{1,2,3}"
-		var actual string
 
-		err := db.QueryRow(sql, expected).Scan(&actual)
+		var (
+			sqlVar   = "select $1::int4[]"
+			expected = "{1,2,3}"
+			actual   string
+			err      = db.QueryRow(sqlVar, expected).Scan(&actual)
+		)
+
 		require.NoError(t, err)
 		require.EqualValues(t, expected, actual)
 	})
@@ -555,11 +558,13 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support point type")
 
-		sql := "select $1::point"
-		expected := "(1,2)"
-		var actual string
+		var (
+			sqlVar   = "select $1::point"
+			expected = "(1,2)"
+			actual   string
+			err      = db.QueryRow(sqlVar, expected).Scan(&actual)
+		)
 
-		err := db.QueryRow(sql, expected).Scan(&actual)
 		require.NoError(t, err)
 		require.EqualValues(t, expected, actual)
 	})
@@ -576,17 +581,19 @@ func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 `)
 		require.NoError(t, err)
 
-		sql := `select * from docs`
-		expected := []byte(`{"foo": "bar"}`)
-		var actual []byte
+		var (
+			sqlVar   = `select * from docs`
+			expected = []byte(`{"foo": "bar"}`)
+			actual   []byte
+		)
 
-		err = db.QueryRow(sql).Scan(&actual)
+		err = db.QueryRow(sqlVar).Scan(&actual)
 		if err != nil {
-			t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+			t.Errorf("Unexpected failure: %v (sql -> %v)", err, sqlVar)
 		}
 
 		if !bytes.Equal(actual, expected) {
-			t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, string(expected), string(actual), sql)
+			t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, string(expected), string(actual), sqlVar)
 		}
 
 		_, err = db.Exec(`drop table docs`)
@@ -799,23 +806,23 @@ func TestConnMultiplePrepareAndDeallocate(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support pg_prepared_statements")
 
-		sql := "select 42"
-		stmt1, err := db.PrepareContext(context.Background(), sql)
+		sqlVar := "select 42"
+		stmt1, err := db.PrepareContext(context.Background(), sqlVar)
 		require.NoError(t, err)
-		stmt2, err := db.PrepareContext(context.Background(), sql)
+		stmt2, err := db.PrepareContext(context.Background(), sqlVar)
 		require.NoError(t, err)
 		err = stmt1.Close()
 		require.NoError(t, err)
 
 		var preparedStmtCount int64
-		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sql).Scan(&preparedStmtCount)
+		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sqlVar).Scan(&preparedStmtCount)
 		require.NoError(t, err)
 		require.EqualValues(t, 1, preparedStmtCount)
 
 		err = stmt2.Close() // err isn't as useful as it should be as database/sql will ignore errors from Deallocate.
 		require.NoError(t, err)
 
-		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sql).Scan(&preparedStmtCount)
+		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sqlVar).Scan(&preparedStmtCount)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, preparedStmtCount)
 	})
@@ -1213,7 +1220,7 @@ func TestOptionBeforeAfterConnect(t *testing.T) {
 
 	var beforeConnConfigs []*pgx.ConnConfig
 	var afterConns []*pgx.Conn
-	db := stdlib.OpenDB(*config,
+	db := stdlib.OpenDB(config,
 		stdlib.OptionBeforeConnect(func(ctx context.Context, connConfig *pgx.ConnConfig) error {
 			beforeConnConfigs = append(beforeConnConfigs, connConfig)
 			return nil
@@ -1286,7 +1293,7 @@ func TestResetSessionHookCalled(t *testing.T) {
 	connConfig, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
-	db := stdlib.OpenDB(*connConfig, stdlib.OptionResetSession(func(ctx context.Context, conn *pgx.Conn) error {
+	db := stdlib.OpenDB(connConfig, stdlib.OptionResetSession(func(ctx context.Context, conn *pgx.Conn) error {
 		mockCalled = true
 
 		return nil

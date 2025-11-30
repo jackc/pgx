@@ -262,9 +262,9 @@ func (c *MultirangeCodec) decodeText(m *Map, multirangeOID uint32, src []byte, m
 		elementScanPlan = m.PlanScan(c.ElementType.OID, TextFormatCode, multirange.ScanIndex(0))
 	}
 
-	for i, s := range elements {
+	for i := range elements {
 		elem := multirange.ScanIndex(i)
-		err = elementScanPlan.Scan([]byte(s), elem)
+		err = elementScanPlan.Scan([]byte(elements[i]), elem)
 		if err != nil {
 			return err
 		}

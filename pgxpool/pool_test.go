@@ -1057,7 +1057,7 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	tx, err := db.BeginTx(ctx, pgx.TxOptions{
+	tx, err := db.BeginTx(ctx, &pgx.TxOptions{
 		IsoLevel: pgx.TxIsoLevel("foo"),
 	})
 	assert.Error(t, err)

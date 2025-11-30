@@ -9,8 +9,26 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// TxIsoLevel is the transaction isolation level (serializable, repeatable read, read committed or read uncommitted)
-type TxIsoLevel string
+type (
+	// TxIsoLevel is the transaction isolation level (serializable, repeatable read, read committed or read uncommitted)
+	TxIsoLevel string
+	// TxAccessMode is the transaction access mode (read write or read only)
+	TxAccessMode string
+	// TxDeferrableMode is the transaction deferrable mode (deferrable or not deferrable)
+	TxDeferrableMode string
+
+	TxOptions struct {
+		IsoLevel       TxIsoLevel
+		AccessMode     TxAccessMode
+		DeferrableMode TxDeferrableMode
+
+		// BeginQuery is the SQL query that will be executed to begin the transaction. This allows using non-standard syntax
+		// such as BEGIN PRIORITY HIGH with CockroachDB. If set this will override the other settings.
+		BeginQuery string
+		// CommitQuery is the SQL query that will be executed to commit the transaction.
+		CommitQuery string
+	}
+)
 
 // Transaction isolation levels
 const (
@@ -18,42 +36,26 @@ const (
 	RepeatableRead  TxIsoLevel = "repeatable read"
 	ReadCommitted   TxIsoLevel = "read committed"
 	ReadUncommitted TxIsoLevel = "read uncommitted"
-)
 
-// TxAccessMode is the transaction access mode (read write or read only)
-type TxAccessMode string
-
-// Transaction access modes
-const (
 	ReadWrite TxAccessMode = "read write"
 	ReadOnly  TxAccessMode = "read only"
-)
 
-// TxDeferrableMode is the transaction deferrable mode (deferrable or not deferrable)
-type TxDeferrableMode string
-
-// Transaction deferrable modes
-const (
 	Deferrable    TxDeferrableMode = "deferrable"
 	NotDeferrable TxDeferrableMode = "not deferrable"
 )
 
-// TxOptions are transaction modes within a transaction block
-type TxOptions struct {
-	IsoLevel       TxIsoLevel
-	AccessMode     TxAccessMode
-	DeferrableMode TxDeferrableMode
+var (
+	emptyTxOptions *TxOptions
 
-	// BeginQuery is the SQL query that will be executed to begin the transaction. This allows using non-standard syntax
-	// such as BEGIN PRIORITY HIGH with CockroachDB. If set this will override the other settings.
-	BeginQuery string
-	// CommitQuery is the SQL query that will be executed to commit the transaction.
-	CommitQuery string
-}
+	ErrTxClosed = errors.New("tx is closed")
 
-var emptyTxOptions TxOptions
+	// ErrTxCommitRollback occurs when an error has occurred in a transaction and
+	// Commit() is called. PostgreSQL accepts COMMIT on aborted transactions, but
+	// it is treated as ROLLBACK.
+	ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
+)
 
-func (txOptions TxOptions) beginSQL() string {
+func (txOptions *TxOptions) beginSQL() string {
 	if txOptions == emptyTxOptions {
 		return "begin"
 	}
@@ -82,22 +84,15 @@ func (txOptions TxOptions) beginSQL() string {
 	return buf.String()
 }
 
-var ErrTxClosed = errors.New("tx is closed")
-
-// ErrTxCommitRollback occurs when an error has occurred in a transaction and
-// Commit() is called. PostgreSQL accepts COMMIT on aborted transactions, but
-// it is treated as ROLLBACK.
-var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
-
 // Begin starts a transaction. Unlike database/sql, the context only affects the begin command. i.e. there is no
 // auto-rollback on context cancellation.
 func (c *Conn) Begin(ctx context.Context) (Tx, error) {
-	return c.BeginTx(ctx, TxOptions{})
+	return c.BeginTx(ctx, &TxOptions{})
 }
 
 // BeginTx starts a transaction with txOptions determining the transaction mode. Unlike database/sql, the context only
 // affects the begin command. i.e. there is no auto-rollback on context cancellation.
-func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
+func (c *Conn) BeginTx(ctx context.Context, txOptions *TxOptions) (Tx, error) {
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or
@@ -410,9 +405,9 @@ func BeginFunc(
 func BeginTxFunc(
 	ctx context.Context,
 	db interface {
-		BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error)
+		BeginTx(ctx context.Context, txOptions *TxOptions) (Tx, error)
 	},
-	txOptions TxOptions,
+	txOptions *TxOptions,
 	fn func(Tx) error,
 ) (err error) {
 	var tx Tx

@@ -53,7 +53,7 @@ type randomReader struct {
 // Read reads a random number of random bytes.
 func (r *randomReader) Read(p []byte) (n int, err error) {
 	n = r.rnd.IntN(len(p) + 1)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		p[i] = byte(r.rnd.Uint64())
 	}
 	return n, nil

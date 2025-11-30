@@ -902,13 +902,13 @@ func TestRowToStructByNameLaxRowValue(t *testing.T) {
 	type AnotherTable struct{}
 	type User struct {
 		UserID int    `json:"userId" db:"user_id"`
-		Name   string `json:"name" db:"name"`
+		Name   string `json:"name"   db:"name"`
 	}
 	type UserAPIKey struct {
 		UserAPIKeyID int `json:"userApiKeyId" db:"user_api_key_id"`
-		UserID       int `json:"userId" db:"user_id"`
+		UserID       int `json:"userId"       db:"user_id"`
 
-		User         *User         `json:"user" db:"user"`
+		User         *User         `json:"user"         db:"user"`
 		AnotherTable *AnotherTable `json:"anotherTable" db:"another_table"`
 	}
 
