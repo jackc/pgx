@@ -43,11 +43,18 @@ func newChunkReader(r io.Reader, minBufSize int) *chunkReader {
 // Next returns buf filled with the next n bytes. buf is only valid until next call of Next. If an error occurs, buf
 // will be nil.
 func (r *chunkReader) Next(n int) (buf []byte, err error) {
+	// Cache buffer pointer to avoid repeated dereferences
+	b := *r.buf
+
 	// Reset the buffer if it is empty
 	if r.rp == r.wp {
-		if len(*r.buf) != r.minBufSize {
+		// Only swap buffer if current one is significantly oversized. Avoids pool thrashing
+		// when workload alternates between small and large reads. Threshold: 4x minBufSize prevents
+		// holding onto huge buffers indefinitely while avoiding constant swapping for modest size variations.
+		if len(b) > r.minBufSize*4 {
 			iobufpool.Put(r.buf)
 			r.buf = iobufpool.Get(r.minBufSize)
+			b = *r.buf
 		}
 		r.rp = 0
 		r.wp = 0
@@ -55,36 +62,38 @@ func (r *chunkReader) Next(n int) (buf []byte, err error) {
 
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
-		buf = (*r.buf)[r.rp : r.rp+n : r.rp+n]
-		r.rp += n
-		return buf, err
+		end := r.rp + n
+		buf = b[r.rp:end:end]
+		r.rp = end
+		return buf, nil
 	}
 
 	// buf is smaller than requested number of bytes
-	if len(*r.buf) < n {
+	if len(b) < n {
 		bigBuf := iobufpool.Get(n)
-		r.wp = copy((*bigBuf), (*r.buf)[r.rp:r.wp])
+		r.wp = copy(*bigBuf, b[r.rp:r.wp])
 		r.rp = 0
 		iobufpool.Put(r.buf)
 		r.buf = bigBuf
+		b = *bigBuf
 	}
 
 	// buf is large enough, but need to shift filled area to start to make enough contiguous space
 	minReadCount := n - (r.wp - r.rp)
-	if (len(*r.buf) - r.wp) < minReadCount {
-		r.wp = copy((*r.buf), (*r.buf)[r.rp:r.wp])
+	if (len(b) - r.wp) < minReadCount {
+		r.wp = copy(b, b[r.rp:r.wp])
 		r.rp = 0
 	}
 
 	// Read at least the required number of bytes from the underlying io.Reader
-	readBytesCount, err := io.ReadAtLeast(r.r, (*r.buf)[r.wp:], minReadCount)
+	readBytesCount, err := io.ReadAtLeast(r.r, b[r.wp:], minReadCount)
 	r.wp += readBytesCount
-	// fmt.Println("read", n)
 	if err != nil {
 		return nil, err
 	}
 
-	buf = (*r.buf)[r.rp : r.rp+n : r.rp+n]
-	r.rp += n
+	end := r.rp + n
+	buf = b[r.rp:end:end]
+	r.rp = end
 	return buf, nil
 }
