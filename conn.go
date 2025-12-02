@@ -515,6 +515,18 @@ optionLoop:
 		mode = QueryExecModeSimpleProtocol
 	}
 
+	defer func() {
+		if err != nil {
+			if sc := c.statementCache; sc != nil {
+				sc.Invalidate(sql)
+			}
+
+			if sc := c.descriptionCache; sc != nil {
+				sc.Invalidate(sql)
+			}
+		}
+	}()
+
 	if sd, ok := c.preparedStatements[sql]; ok {
 		return c.execPrepared(ctx, sd, arguments)
 	}
