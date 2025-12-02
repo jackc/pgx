@@ -1529,6 +1529,48 @@ func TestStmtCacheInvalidationTxWithBatch(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+// https://github.com/jackc/pgx/issues/2442
+func TestStmtCacheInvalidationExec(t *testing.T) {
+	ctx := context.Background()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	// create a table and fill it with some data
+	_, err := conn.Exec(ctx, `
+				DROP TABLE IF EXISTS drop_cols;
+        CREATE TABLE drop_cols (
+            id SERIAL PRIMARY KEY NOT NULL,
+            f1 int NOT NULL,
+            f2 int NOT NULL
+        );
+    `)
+	require.NoError(t, err)
+
+	insertSQL := "INSERT INTO drop_cols (f1, f2) VALUES ($1, $2)"
+	// This query will populate the statement cache.
+	_, err = conn.Exec(ctx, insertSQL, 1, 2)
+	require.NoError(t, err)
+
+	// Now, change the schema of the table out from under the statement, making it invalid.
+	_, err = conn.Exec(ctx, "ALTER TABLE drop_cols ALTER COLUMN f1 TYPE boolean USING f1::boolean")
+	require.NoError(t, err)
+
+	// We must get an error the first time we try to re-execute a bad statement.
+	// It is up to the application to determine if it wants to try again. We punt to
+	// the application because there is no clear recovery path in the case of failed transactions
+	// or batch operations and because automatic retry is tricky and we don't want to get
+	// it wrong at such an importaint layer of the stack.
+	_, err = conn.Exec(ctx, insertSQL, true, 2)
+	require.ErrorContains(t, err, "failed to encode args[0]")
+
+	// On retry, the statement should have been flushed from the cache.
+	_, err = conn.Exec(ctx, insertSQL, true, 2)
+	require.NoError(t, err)
+
+	ensureConnValid(t, conn)
+}
+
 func TestInsertDurationInterval(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
