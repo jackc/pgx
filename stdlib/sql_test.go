@@ -1392,3 +1392,67 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 
 	require.True(t, hookCalled, "hook should be called on reuse")
 }
+
+func TestRowsColumnTypeLength(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		columnTypeLengthTests := []struct {
+			Len int64
+			OK  bool
+		}{
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				255,
+				true,
+			},
+			{
+				10,
+				true,
+			},
+			{
+				50,
+				true,
+			},
+			{
+				0,
+				false,
+			},
+		}
+
+		_, err := db.Exec(`CREATE TEMPORARY TABLE temp_column_type_length (
+						   text_column TEXT,
+						   bytea_column BYTEA,
+						   varchar_column VARCHAR(255),
+						   bpcharA_column BPCHAR(10)[],
+						   varbit_column VARBIT(50),
+						   int_column INT
+					);`)
+		require.NoError(t, err)
+
+		rows, err := db.Query("SELECT * FROM temp_column_type_length")
+		require.NoError(t, err)
+
+		columns, err := rows.ColumnTypes()
+		require.NoError(t, err)
+		assert.Len(t, columns, 6)
+
+		for i, tt := range columnTypeLengthTests {
+			c := columns[i]
+
+			l, ok := c.Length()
+			if l != tt.Len {
+				t.Errorf("(%d) got: %d, want: %d", i, l, tt.Len)
+			}
+			if ok != tt.OK {
+				t.Errorf("(%d) got: %t, want: %t", i, ok, tt.OK)
+			}
+
+		}
+	})
+}
