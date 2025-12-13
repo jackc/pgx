@@ -1536,6 +1536,10 @@ func TestStmtCacheInvalidationExec(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("CockroachDB does not support column column type from int to bool")
+	}
+
 	// create a table and fill it with some data
 	_, err := conn.Exec(ctx, `
 				DROP TABLE IF EXISTS drop_cols;
