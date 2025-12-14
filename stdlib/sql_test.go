@@ -110,32 +110,6 @@ func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
 	}
 }
 
-func testWithKnownOIDQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
-	for _, mode := range []pgx.QueryExecMode{
-		pgx.QueryExecModeCacheStatement,
-		pgx.QueryExecModeCacheDescribe,
-		pgx.QueryExecModeDescribeExec,
-	} {
-		t.Run(mode.String(),
-			func(t *testing.T) {
-				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-				require.NoError(t, err)
-
-				config.DefaultQueryExecMode = mode
-				db := stdlib.OpenDB(*config)
-				defer func() {
-					err := db.Close()
-					require.NoError(t, err)
-				}()
-
-				f(t, db)
-
-				ensureDBValid(t, db)
-			},
-		)
-	}
-}
-
 // Do a simple query to ensure the DB is still usable. This is of less use in stdlib as the connection pool should
 // cover broken connections.
 func ensureDBValid(t testing.TB, db *sql.DB) {
@@ -534,6 +508,43 @@ func TestConnQueryScanGoArray(t *testing.T) {
 		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
 		require.NoError(t, err)
 		assert.Equal(t, []int64{1, 2, 3}, a)
+	})
+}
+
+func TestConnQueryScanArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		m := pgtype.NewMap()
+
+		var a pgtype.Array[int64]
+		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: []int64{1, 2, 3}, Dims: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}}, Valid: true}, a)
+
+		err = db.QueryRow("select null::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: nil, Dims: nil, Valid: false}, a)
+	})
+}
+
+func TestConnQueryScanRange(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support int4range")
+
+		m := pgtype.NewMap()
+
+		var r pgtype.Range[pgtype.Int4]
+		err := db.QueryRow("select int4range(1, 5)").Scan(m.SQLScanner(&r))
+		require.NoError(t, err)
+		assert.Equal(
+			t,
+			pgtype.Range[pgtype.Int4]{
+				Lower:     pgtype.Int4{Int32: 1, Valid: true},
+				Upper:     pgtype.Int4{Int32: 5, Valid: true},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Valid:     true,
+			},
+			r)
 	})
 }
 

@@ -1980,8 +1980,6 @@ func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBu
 //
 // This uses the type of v to look up the PostgreSQL OID that v presumably came from. This means v must be registered
 // with m by calling RegisterDefaultPgType.
-//
-// As of Go 1.26, this should be unnecessary.
 func (m *Map) SQLScanner(v any) sql.Scanner {
 	if s, ok := v.(sql.Scanner); ok {
 		return s
