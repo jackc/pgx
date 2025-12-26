@@ -829,13 +829,15 @@ type FieldDescription struct {
 	Format               int16
 }
 
-func (pgConn *PgConn) convertRowDescription(dst []FieldDescription, rd *pgproto3.RowDescription) []FieldDescription {
-	if cap(dst) >= len(rd.Fields) {
-		dst = dst[:len(rd.Fields):len(rd.Fields)]
+func (pgConn *PgConn) getFieldDescriptionSlice(n int) []FieldDescription {
+	if cap(pgConn.fieldDescriptions) >= n {
+		return pgConn.fieldDescriptions[:n:n]
 	} else {
-		dst = make([]FieldDescription, len(rd.Fields))
+		return make([]FieldDescription, n)
 	}
+}
 
+func convertRowDescription(dst []FieldDescription, rd *pgproto3.RowDescription) {
 	for i := range rd.Fields {
 		dst[i].Name = string(rd.Fields[i].Name)
 		dst[i].TableOID = rd.Fields[i].TableOID
@@ -845,8 +847,6 @@ func (pgConn *PgConn) convertRowDescription(dst []FieldDescription, rd *pgproto3
 		dst[i].TypeModifier = rd.Fields[i].TypeModifier
 		dst[i].Format = rd.Fields[i].Format
 	}
-
-	return dst
 }
 
 type StatementDescription struct {
@@ -910,7 +910,8 @@ readloop:
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
-			psd.Fields = pgConn.convertRowDescription(nil, msg)
+			psd.Fields = make([]FieldDescription, len(msg.Fields))
+			convertRowDescription(psd.Fields, msg)
 		case *pgproto3.ErrorResponse:
 			pgErr = ErrorResponseToPgError(msg)
 		case *pgproto3.ReadyForQuery:
@@ -1475,6 +1476,10 @@ type MultiResultReader struct {
 
 	rr *ResultReader
 
+	// Data from when the batch was queued.
+	statementDescriptions []*StatementDescription
+	resultFormats         [][]int16
+
 	closed bool
 	err    error
 }
@@ -1516,6 +1521,59 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 // NextResult returns advances the MultiResultReader to the next result and returns true if a result is available.
 func (mrr *MultiResultReader) NextResult() bool {
 	for !mrr.closed && mrr.err == nil {
+		msg, _ := mrr.pgConn.peekMessage()
+		if _, ok := msg.(*pgproto3.DataRow); ok {
+			if len(mrr.statementDescriptions) > 0 {
+				rr := ResultReader{
+					pgConn:            mrr.pgConn,
+					multiResultReader: mrr,
+					ctx:               mrr.ctx,
+				}
+
+				// This result corresponds to a prepared statement description that was provided when queuing the batch.
+				sd := mrr.statementDescriptions[0]
+				mrr.statementDescriptions = mrr.statementDescriptions[1:]
+
+				resultFormats := mrr.resultFormats[0]
+				mrr.resultFormats = mrr.resultFormats[1:]
+
+				sdFields := sd.Fields
+				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
+
+				switch {
+				case len(resultFormats) == 0:
+					// No format codes provided means text format for all columns.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
+					}
+				case len(resultFormats) == 1:
+					// Single format code applies to all columns.
+					format := resultFormats[0]
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = format
+					}
+				case len(resultFormats) == len(sdFields):
+					// One format code per column.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = resultFormats[i]
+					}
+				default:
+					// This should not occur if Bind validation is correct, but handle gracefully
+					rr.concludeCommand(CommandTag{}, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields)))
+				}
+
+				mrr.pgConn.resultReader = rr
+				mrr.rr = &mrr.pgConn.resultReader
+				return true
+			}
+
+			mrr.err = fmt.Errorf("unexpected DataRow message without preceding RowDescription")
+			return false
+		}
+
 		msg, err := mrr.receiveMessage()
 		if err != nil {
 			return false
@@ -1527,8 +1585,9 @@ func (mrr *MultiResultReader) NextResult() bool {
 				pgConn:            mrr.pgConn,
 				multiResultReader: mrr,
 				ctx:               mrr.ctx,
-				fieldDescriptions: mrr.pgConn.convertRowDescription(mrr.pgConn.fieldDescriptions[:], msg),
+				fieldDescriptions: mrr.pgConn.getFieldDescriptionSlice(len(msg.Fields)),
 			}
+			convertRowDescription(mrr.pgConn.resultReader.fieldDescriptions, msg)
 
 			mrr.rr = &mrr.pgConn.resultReader
 			return true
@@ -1691,32 +1750,38 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 // error will be stored in the ResultReader.
 func (rr *ResultReader) readUntilRowDescription(statementDescription *StatementDescription, resultFormats []int16) {
 	for !rr.commandConcluded {
-		// Peek before receive to avoid consuming a DataRow if the result set does not include a RowDescription method.
-		// This should never happen under normal pgconn usage, but it is possible if SendBytes and ReceiveResults are
+		// Peek before receive to avoid consuming a DataRow if the result set does not include a RowDescription method. This
+		// is expected if statementDescription is not nil, but it is also possible if SendBytes and ReceiveResults are
 		// manually used to construct a query that does not issue a describe statement.
 		msg, _ := rr.pgConn.peekMessage()
 		if _, ok := msg.(*pgproto3.DataRow); ok {
 			if statementDescription != nil {
-				rr.fieldDescriptions = statementDescription.Fields
-				// Adjust field descriptions for resultFormats
-				if len(resultFormats) == 0 {
-					// No format codes provided, default to text format
-					for i := range rr.fieldDescriptions {
+				sdFields := statementDescription.Fields
+				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
+
+				switch {
+				case len(resultFormats) == 0:
+					// No format codes provided means text format for all columns.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
 						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
 					}
-				} else if len(resultFormats) == 1 {
-					// Single format code applies to all columns
-					for i := range rr.fieldDescriptions {
-						rr.fieldDescriptions[i].Format = resultFormats[0]
+				case len(resultFormats) == 1:
+					// Single format code applies to all columns.
+					format := resultFormats[0]
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = format
 					}
-				} else if len(resultFormats) == len(rr.fieldDescriptions) {
-					// One format code per column
-					for i := range rr.fieldDescriptions {
+				case len(resultFormats) == len(sdFields):
+					// One format code per column.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
 						rr.fieldDescriptions[i].Format = resultFormats[i]
 					}
-				} else {
-					// This should be impossible to reach as the mismatch would have been caught earlier.
-					rr.concludeCommand(CommandTag{}, fmt.Errorf("mismatched result format codes length"))
+				default:
+					// This should not occur if Bind validation is correct, but handle gracefully
+					rr.concludeCommand(CommandTag{}, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields)))
 				}
 			}
 			return
@@ -1751,7 +1816,8 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 
 	switch msg := msg.(type) {
 	case *pgproto3.RowDescription:
-		rr.fieldDescriptions = rr.pgConn.convertRowDescription(rr.pgConn.fieldDescriptions[:], msg)
+		rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(msg.Fields))
+		convertRowDescription(rr.fieldDescriptions, msg)
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(rr.pgConn.makeCommandTag(msg.CommandTag), nil)
 	case *pgproto3.EmptyQueryResponse:
@@ -1785,8 +1851,10 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 
 // Batch is a collection of queries that can be sent to the PostgreSQL server in a single round-trip.
 type Batch struct {
-	buf []byte
-	err error
+	buf                   []byte
+	statementDescriptions []*StatementDescription
+	resultFormats         [][]int16
+	err                   error
 }
 
 // ExecParams appends an ExecParams command to the batch. See PgConn.ExecParams for parameter descriptions.
@@ -1824,6 +1892,31 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	}
 }
 
+// ExecPreparedStatementDescription appends an ExecPreparedStatementDescription command to the batch. See
+// PgConn.ExecPrepared for parameter descriptions.
+//
+// This differs from ExecPrepared in that it takes a *StatementDescription instead of just the prepared statement name.
+// Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
+// the result column descriptions.
+func (batch *Batch) ExecPreparedStatementDescription(statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) {
+	if batch.err != nil {
+		return
+	}
+
+	batch.buf, batch.err = (&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+
+	batch.statementDescriptions = append(batch.statementDescriptions, statementDescription)
+	batch.resultFormats = append(batch.resultFormats, resultFormats)
+
+	batch.buf, batch.err = (&pgproto3.Execute{}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+}
+
 // ExecBatch executes all the queries in batch in a single round-trip. Execution is implicitly transactional unless a
 // transaction is already in progress or SQL contains transaction control statements. This is a simpler way of executing
 // multiple queries in a single round trip than using pipeline mode.
@@ -1843,8 +1936,10 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 	}
 
 	pgConn.multiResultReader = MultiResultReader{
-		pgConn: pgConn,
-		ctx:    ctx,
+		pgConn:                pgConn,
+		ctx:                   ctx,
+		statementDescriptions: batch.statementDescriptions,
+		resultFormats:         batch.resultFormats,
 	}
 	multiResult := &pgConn.multiResultReader
 
@@ -2402,8 +2497,9 @@ func (p *Pipeline) getResults() (results any, err error) {
 				pgConn:            p.conn,
 				pipeline:          p,
 				ctx:               p.ctx,
-				fieldDescriptions: p.conn.convertRowDescription(p.conn.fieldDescriptions[:], msg),
+				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
 			}
+			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
 			return &p.conn.resultReader, nil
 		case *pgproto3.CommandComplete:
 			p.conn.resultReader = ResultReader{
@@ -2449,7 +2545,8 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
-			psd.Fields = p.conn.convertRowDescription(nil, msg)
+			psd.Fields = make([]FieldDescription, len(msg.Fields))
+			convertRowDescription(psd.Fields, msg)
 			return psd, nil
 
 		// NoData is returned instead of RowDescription when there is no expected result. e.g. An INSERT without a RETURNING
