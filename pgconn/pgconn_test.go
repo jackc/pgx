@@ -1588,14 +1588,20 @@ func TestConnExecBatch(t *testing.T) {
 	_, err = pgConn.Prepare(ctx, "ps1", "select $1::text", nil)
 	require.NoError(t, err)
 
+	sd, err := pgConn.Prepare(ctx, "ps2", "select $1::text as name, $2::int as age", nil)
+	require.NoError(t, err)
+
 	batch := &pgconn.Batch{}
 
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 1")}, nil, nil, nil)
 	batch.ExecPrepared("ps1", [][]byte{[]byte("ExecPrepared 1")}, nil, nil)
+	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 1"), []byte("42")}, nil, nil)
+	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 2"), []byte("43")}, nil, []int16{pgx.BinaryFormatCode})
+	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 3"), []byte("44")}, nil, []int16{pgx.TextFormatCode, pgx.BinaryFormatCode})
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 2")}, nil, nil, nil)
 	results, err := pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 6)
 
 	require.Len(t, results[0].Rows, 1)
 	require.Equal(t, "ExecParams 1", string(results[0].Rows[0][0]))
@@ -1606,7 +1612,22 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", results[1].CommandTag.String())
 
 	require.Len(t, results[2].Rows, 1)
-	require.Equal(t, "ExecParams 2", string(results[2].Rows[0][0]))
+	require.Equal(t, "ExecPreparedStatementDescription 1", string(results[2].Rows[0][0]))
+	require.Equal(t, "42", string(results[2].Rows[0][1]))
+	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
+
+	require.Len(t, results[3].Rows, 1)
+	require.Equal(t, "ExecPreparedStatementDescription 2", string(results[3].Rows[0][0]))
+	require.Equal(t, []byte{0, 0, 0, 43}, results[3].Rows[0][1])
+	assert.Equal(t, "SELECT 1", results[3].CommandTag.String())
+
+	require.Len(t, results[4].Rows, 1)
+	require.Equal(t, "ExecPreparedStatementDescription 3", string(results[4].Rows[0][0]))
+	require.Equal(t, []byte{0, 0, 0, 44}, results[4].Rows[0][1])
+	assert.Equal(t, "SELECT 1", results[4].CommandTag.String())
+
+	require.Len(t, results[5].Rows, 1)
+	require.Equal(t, "ExecParams 2", string(results[5].Rows[0][0]))
 	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
 }
 
