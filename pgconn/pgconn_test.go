@@ -1588,7 +1588,7 @@ func TestConnExecBatch(t *testing.T) {
 	_, err = pgConn.Prepare(ctx, "ps1", "select $1::text", nil)
 	require.NoError(t, err)
 
-	sd, err := pgConn.Prepare(ctx, "ps2", "select $1::text as name, $2::int as age", nil)
+	sd, err := pgConn.Prepare(ctx, "ps2", "select $1::text as name, $2::bigint as age", nil)
 	require.NoError(t, err)
 
 	batch := &pgconn.Batch{}
@@ -1618,12 +1618,12 @@ func TestConnExecBatch(t *testing.T) {
 
 	require.Len(t, results[3].Rows, 1)
 	require.Equal(t, "ExecPreparedStatementDescription 2", string(results[3].Rows[0][0]))
-	require.Equal(t, []byte{0, 0, 0, 43}, results[3].Rows[0][1])
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 43}, results[3].Rows[0][1])
 	assert.Equal(t, "SELECT 1", results[3].CommandTag.String())
 
 	require.Len(t, results[4].Rows, 1)
 	require.Equal(t, "ExecPreparedStatementDescription 3", string(results[4].Rows[0][0]))
-	require.Equal(t, []byte{0, 0, 0, 44}, results[4].Rows[0][1])
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 44}, results[4].Rows[0][1])
 	assert.Equal(t, "SELECT 1", results[4].CommandTag.String())
 
 	require.Len(t, results[5].Rows, 1)
