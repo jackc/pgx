@@ -1406,6 +1406,8 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 
 func TestRowsColumnTypeLength(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support type")
+
 		columnTypeLengthTests := []struct {
 			Len int64
 			OK  bool
