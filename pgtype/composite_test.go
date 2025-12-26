@@ -197,6 +197,8 @@ func (p *parent) ScanIndex(i int) any {
 // https://github.com/jackc/pgx/issues/2453
 func TestCompositeCodecTranscodeStructWithNilPointer(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		skipCockroachDB(t, "Server does not support nested composite types")
+
 		_, err := conn.Exec(ctx, `drop type if exists parent;
 drop type if exists point3d;
 
@@ -274,6 +276,8 @@ func (p *parentWithSlice) ScanIndex(i int) any {
 // https://github.com/jackc/pgx/issues/2453
 func TestCompositeCodecTranscodeStructWithSliceOfNilPointer(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		skipCockroachDB(t, "Server does not support nested composite types")
+
 		_, err := conn.Exec(ctx, `drop type if exists parent;
 drop type if exists point3d;
 
