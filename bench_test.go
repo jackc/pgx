@@ -174,7 +174,7 @@ func BenchmarkMinimalPgConnPreparedStatementDescriptionSelect(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 
-		rr := pgConn.ExecPreparedStatementDescription(context.Background(), psd, [][]byte{encodedBytes}, []int16{1}, []int16{1})
+		rr := pgConn.ExecStatement(context.Background(), psd, [][]byte{encodedBytes}, []int16{1}, []int16{1})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -1298,7 +1298,7 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 	}
 }
 
-func BenchmarkSelectRowsPgConnExecPreparedStatementDescription(b *testing.B) {
+func BenchmarkSelectRowsPgConnExecStatement(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
@@ -1321,7 +1321,7 @@ func BenchmarkSelectRowsPgConnExecPreparedStatementDescription(b *testing.B) {
 			for _, format := range formats {
 				b.Run(format.name, func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
-						rr := conn.PgConn().ExecPreparedStatementDescription(
+						rr := conn.PgConn().ExecStatement(
 							context.Background(),
 							psd,
 							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
