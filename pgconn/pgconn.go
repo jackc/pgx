@@ -2222,7 +2222,7 @@ func (p *Pipeline) SendDeallocate(name string) {
 	p.state.PushBackRequestType(pipelineDeallocate)
 }
 
-// SendQueryParams is the pipeline version of *PgConn.QueryParams.
+// SendQueryParams is the pipeline version of *PgConn.ExecParams.
 func (p *Pipeline) SendQueryParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats, resultFormats []int16) {
 	if p.closed {
 		return
@@ -2235,7 +2235,7 @@ func (p *Pipeline) SendQueryParams(sql string, paramValues [][]byte, paramOIDs [
 	p.state.PushBackRequestType(pipelineQueryParams)
 }
 
-// SendQueryPrepared is the pipeline version of *PgConn.QueryPrepared.
+// SendQueryPrepared is the pipeline version of *PgConn.ExecPrepared.
 func (p *Pipeline) SendQueryPrepared(stmtName string, paramValues [][]byte, paramFormats, resultFormats []int16) {
 	if p.closed {
 		return
