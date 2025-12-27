@@ -1191,10 +1191,9 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	return result
 }
 
-// ExecPreparedStatementDescription enqueues the execution of a prepared statement via the PostgreSQL extended query
-// protocol.
+// ExecStatement enqueues the execution of a prepared statement via the PostgreSQL extended query protocol.
 //
-// This differs from ExecPrepared in that it takes a *StatementDescription instead of just the prepared statement name.
+// This differs from ExecPrepared in that it takes a *StatementDescription instead of the prepared statement name.
 // Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
 // the result column descriptions.
 //
@@ -1208,7 +1207,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 // format. If resultFormats is nil all results will be in text format.
 //
 // ResultReader must be closed before PgConn can be used again.
-func (pgConn *PgConn) ExecPreparedStatementDescription(ctx context.Context, statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
+func (pgConn *PgConn) ExecStatement(ctx context.Context, statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
 		return result
@@ -1892,13 +1891,12 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	}
 }
 
-// ExecPreparedStatementDescription appends an ExecPreparedStatementDescription command to the batch. See
-// PgConn.ExecPrepared for parameter descriptions.
+// ExecStatement appends an ExecStatement command to the batch. See PgConn.ExecPrepared for parameter descriptions.
 //
 // This differs from ExecPrepared in that it takes a *StatementDescription instead of just the prepared statement name.
 // Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
 // the result column descriptions.
-func (batch *Batch) ExecPreparedStatementDescription(statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) {
+func (batch *Batch) ExecStatement(statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) {
 	if batch.err != nil {
 		return
 	}
