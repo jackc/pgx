@@ -2182,6 +2182,41 @@ func TestQueryWithEmptyQuery(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2456
+func TestQueryWithFunctionOutParameters(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support plpgsql")
+
+		_, err := conn.Exec(ctx, `drop function if exists out_param_func(out int, out int)`)
+		require.NoError(t, err)
+
+		_, err = conn.Exec(ctx, `
+create function out_param_func(out a int, out b int) language plpgsql as $$
+begin
+	a := 1;
+	b := 2;
+	return;
+end;
+$$;`)
+		require.NoError(t, err)
+		defer func() {
+			_, err := conn.Exec(ctx, `drop function if exists out_param_func(out int, out int)`)
+			require.NoError(t, err)
+		}()
+
+		var a, b int
+		err = conn.QueryRow(ctx, `select * from out_param_func()`).Scan(&a, &b)
+		require.NoError(t, err)
+		require.Equal(t, 1, a)
+		require.Equal(t, 2, b)
+	})
+}
+
 // This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another
 // helper function should be used.
 func ExampleConn_Query() {
