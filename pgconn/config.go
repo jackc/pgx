@@ -83,6 +83,15 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// Tracer is an io.Writer to which the PostgreSQL frontend/backend protocol messages will be logged.
+	// The format roughly mimics the format produced by the libpq C function PQtrace. Messages are logged
+	// from the connection handshake onwards, providing visibility into authentication, parameter status
+	// messages, backend key data, and all subsequent protocol traffic.
+	Tracer io.Writer
+
+	// TracerOptions controls tracing behavior. Only relevant when Tracer is set.
+	TracerOptions pgproto3.TracerOptions
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
