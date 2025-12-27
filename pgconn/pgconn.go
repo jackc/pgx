@@ -777,23 +777,18 @@ func NewCommandTag(s string) CommandTag {
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
 func (ct CommandTag) RowsAffected() int64 {
-	// Find last non-digit
-	idx := -1
+	// Parse the number from the end in a single pass.
+	var n int64
+	var mult int64 = 1
+
 	for i := len(ct.s) - 1; i >= 0; i-- {
-		if ct.s[i] >= '0' && ct.s[i] <= '9' {
-			idx = i
+		c := ct.s[i]
+		if c >= '0' && c <= '9' {
+			n += int64(c-'0') * mult
+			mult *= 10
 		} else {
 			break
 		}
-	}
-
-	if idx == -1 {
-		return 0
-	}
-
-	var n int64
-	for _, b := range ct.s[idx:] {
-		n = n*10 + int64(b-'0')
 	}
 
 	return n
