@@ -1435,7 +1435,7 @@ func TestConnExecPreparedEmptySQL(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
-func TestConnExecPreparedStatementDescription(t *testing.T) {
+func TestConnExecStatement(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -1451,7 +1451,7 @@ func TestConnExecPreparedStatementDescription(t *testing.T) {
 	assert.Len(t, psd.ParamOIDs, 1)
 	assert.Len(t, psd.Fields, 1)
 
-	result := pgConn.ExecPreparedStatementDescription(ctx, psd, [][]byte{[]byte("Hello, world")}, nil, nil)
+	result := pgConn.ExecStatement(ctx, psd, [][]byte{[]byte("Hello, world")}, nil, nil)
 	require.Len(t, result.FieldDescriptions(), 1)
 	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
 
@@ -1510,7 +1510,7 @@ func (cbn *byteCounterConn) SetWriteDeadline(t time.Time) error {
 	return cbn.conn.SetWriteDeadline(t)
 }
 
-func TestConnExecPreparedStatementDescriptionNetworkUsage(t *testing.T) {
+func TestConnExecStatementNetworkUsage(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -1556,7 +1556,7 @@ func TestConnExecPreparedStatementDescriptionNetworkUsage(t *testing.T) {
 	counterConn.bytesWritten = 0
 	counterConn.bytesRead = 0
 
-	result = pgConn.ExecPreparedStatementDescription(
+	result = pgConn.ExecStatement(
 		ctx,
 		psd,
 		[][]byte{[]byte("1")},
@@ -1595,9 +1595,9 @@ func TestConnExecBatch(t *testing.T) {
 
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 1")}, nil, nil, nil)
 	batch.ExecPrepared("ps1", [][]byte{[]byte("ExecPrepared 1")}, nil, nil)
-	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 1"), []byte("42")}, nil, nil)
-	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 2"), []byte("43")}, nil, []int16{pgx.BinaryFormatCode})
-	batch.ExecPreparedStatementDescription(sd, [][]byte{[]byte("ExecPreparedStatementDescription 3"), []byte("44")}, nil, []int16{pgx.TextFormatCode, pgx.BinaryFormatCode})
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 1"), []byte("42")}, nil, nil)
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 2"), []byte("43")}, nil, []int16{pgx.BinaryFormatCode})
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 3"), []byte("44")}, nil, []int16{pgx.TextFormatCode, pgx.BinaryFormatCode})
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 2")}, nil, nil, nil)
 	results, err := pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.NoError(t, err)
@@ -1612,17 +1612,17 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", results[1].CommandTag.String())
 
 	require.Len(t, results[2].Rows, 1)
-	require.Equal(t, "ExecPreparedStatementDescription 1", string(results[2].Rows[0][0]))
+	require.Equal(t, "ExecStatement 1", string(results[2].Rows[0][0]))
 	require.Equal(t, "42", string(results[2].Rows[0][1]))
 	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
 
 	require.Len(t, results[3].Rows, 1)
-	require.Equal(t, "ExecPreparedStatementDescription 2", string(results[3].Rows[0][0]))
+	require.Equal(t, "ExecStatement 2", string(results[3].Rows[0][0]))
 	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 43}, results[3].Rows[0][1])
 	assert.Equal(t, "SELECT 1", results[3].CommandTag.String())
 
 	require.Len(t, results[4].Rows, 1)
-	require.Equal(t, "ExecPreparedStatementDescription 3", string(results[4].Rows[0][0]))
+	require.Equal(t, "ExecStatement 3", string(results[4].Rows[0][0]))
 	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 44}, results[4].Rows[0][1])
 	assert.Equal(t, "SELECT 1", results[4].CommandTag.String())
 
