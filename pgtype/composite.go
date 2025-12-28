@@ -28,6 +28,15 @@ type CompositeIndexScanner interface {
 	ScanIndex(i int) any
 }
 
+// CompositeNameScanner is a type accessed by name that can be scanned from a PostgreSQL composite.
+type CompositeNameScanner interface {
+	// ScanNull sets the value to SQL NULL.
+	ScanNull() error
+
+	// ScanName returns a value usable as a scan target
+	ScanName(n string) any
+}
+
 type CompositeCodecField struct {
 	Name string
 	Type *Type
@@ -115,11 +124,15 @@ func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target any) 
 		switch target.(type) {
 		case CompositeIndexScanner:
 			return &scanPlanBinaryCompositeToCompositeIndexScanner{cc: c, m: m}
+		case CompositeNameScanner:
+			return &scanPlanBinaryCompositeToCompositeNameScanner{cc: c, m: m}
 		}
 	case TextFormatCode:
 		switch target.(type) {
 		case CompositeIndexScanner:
 			return &scanPlanTextCompositeToCompositeIndexScanner{cc: c, m: m}
+		case CompositeNameScanner:
+			return &scanPlanTextCompositeToCompositeNameScanner{cc: c, m: m}
 		}
 	}
 
@@ -165,6 +178,45 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 	return nil
 }
 
+type scanPlanBinaryCompositeToCompositeNameScanner struct {
+	cc *CompositeCodec
+	m  *Map
+}
+
+func (plan *scanPlanBinaryCompositeToCompositeNameScanner) Scan(src []byte, target any) error {
+	targetScanner := (target).(CompositeNameScanner)
+
+	if src == nil {
+		return targetScanner.ScanNull()
+	}
+
+	scanner := NewCompositeBinaryScanner(plan.m, src)
+	for _, field := range plan.cc.Fields {
+		if scanner.Next() {
+			fieldTarget := targetScanner.ScanName(field.Name)
+			if fieldTarget != nil {
+				fieldPlan := plan.m.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
+				if fieldPlan == nil {
+					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.Type.OID)
+				}
+
+				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			return errors.New("read past end of composite")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type scanPlanTextCompositeToCompositeIndexScanner struct {
 	cc *CompositeCodec
 	m  *Map
@@ -181,6 +233,45 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 	for i, field := range plan.cc.Fields {
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
+			if fieldTarget != nil {
+				fieldPlan := plan.m.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
+				if fieldPlan == nil {
+					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.Type.OID)
+				}
+
+				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			return errors.New("read past end of composite")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type scanPlanTextCompositeToCompositeNameScanner struct {
+	cc *CompositeCodec
+	m  *Map
+}
+
+func (plan *scanPlanTextCompositeToCompositeNameScanner) Scan(src []byte, target any) error {
+	targetScanner := (target).(CompositeNameScanner)
+
+	if src == nil {
+		return targetScanner.ScanNull()
+	}
+
+	scanner := NewCompositeTextScanner(plan.m, src)
+	for _, field := range plan.cc.Fields {
+		if scanner.Next() {
+			fieldTarget := targetScanner.ScanName(field.Name)
 			if fieldTarget != nil {
 				fieldPlan := plan.m.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
 				if fieldPlan == nil {
