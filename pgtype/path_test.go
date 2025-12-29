@@ -32,45 +32,45 @@ func TestPathTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "path", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Path{
+			Param: pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}},
 				Closed: false,
 				Valid:  true,
 			},
-			new(pgtype.Path),
-			isExpectedEqPath(pgtype.Path{
+			Result: new(pgtype.Path),
+			Test: isExpectedEqPath(pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}},
 				Closed: false,
 				Valid:  true,
 			}),
 		},
 		{
-			pgtype.Path{
+			Param: pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678}, {7.1, 5.234}, {23.1, 9.34}},
 				Closed: true,
 				Valid:  true,
 			},
-			new(pgtype.Path),
-			isExpectedEqPath(pgtype.Path{
+			Result: new(pgtype.Path),
+			Test: isExpectedEqPath(pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678}, {7.1, 5.234}, {23.1, 9.34}},
 				Closed: true,
 				Valid:  true,
 			}),
 		},
 		{
-			pgtype.Path{
+			Param: pgtype.Path{
 				P:      []pgtype.Vec2{{7.1, 1.678}, {-13.14, -5.234}},
 				Closed: true,
 				Valid:  true,
 			},
-			new(pgtype.Path),
-			isExpectedEqPath(pgtype.Path{
+			Result: new(pgtype.Path),
+			Test: isExpectedEqPath(pgtype.Path{
 				P:      []pgtype.Vec2{{7.1, 1.678}, {-13.14, -5.234}},
 				Closed: true,
 				Valid:  true,
 			}),
 		},
-		{pgtype.Path{}, new(pgtype.Path), isExpectedEqPath(pgtype.Path{})},
-		{nil, new(pgtype.Path), isExpectedEqPath(pgtype.Path{})},
+		{Param: pgtype.Path{}, Result: new(pgtype.Path), Test: isExpectedEqPath(pgtype.Path{})},
+		{Param: nil, Result: new(pgtype.Path), Test: isExpectedEqPath(pgtype.Path{})},
 	})
 }

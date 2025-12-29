@@ -15,26 +15,26 @@ func TestTimestamptzCodec(t *testing.T) {
 	skipCockroachDB(t, "Server does not support infinite timestamps (see https://github.com/cockroachdb/cockroach/issues/41564)")
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "timestamptz", []pgxtest.ValueRoundTripTest{
-		{time.Date(-100, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(-100, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(-1, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(-1, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(0, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(0, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(1, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(-100, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(-100, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(-1, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(-1, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(0, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(0, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(1, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(1, 1, 1, 0, 0, 0, 0, time.Local))},
 
-		{time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local))},
-		{time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local))},
-		{time.Date(2000, 1, 2, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(2000, 1, 2, 0, 0, 0, 0, time.Local))},
-		{time.Date(2200, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(2200, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(2000, 1, 2, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(2000, 1, 2, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(2200, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(2200, 1, 1, 0, 0, 0, 0, time.Local))},
 
 		// Nanosecond truncation
-		{time.Date(2020, 1, 1, 0, 0, 0, 999999999, time.Local), new(time.Time), isExpectedEqTime(time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local))},
-		{time.Date(2020, 1, 1, 0, 0, 0, 999999001, time.Local), new(time.Time), isExpectedEqTime(time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local))},
+		{Param: time.Date(2020, 1, 1, 0, 0, 0, 999999999, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local))},
+		{Param: time.Date(2020, 1, 1, 0, 0, 0, 999999001, time.Local), Result: new(time.Time), Test: isExpectedEqTime(time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local))},
 
-		{pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Valid: true}, new(pgtype.Timestamptz), isExpectedEq(pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Valid: true})},
-		{pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(pgtype.Timestamptz), isExpectedEq(pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
-		{pgtype.Timestamptz{}, new(pgtype.Timestamptz), isExpectedEq(pgtype.Timestamptz{})},
-		{nil, new(*time.Time), isExpectedEq((*time.Time)(nil))},
+		{Param: pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Valid: true}, Result: new(pgtype.Timestamptz), Test: isExpectedEq(pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Valid: true})},
+		{Param: pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, Result: new(pgtype.Timestamptz), Test: isExpectedEq(pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
+		{Param: pgtype.Timestamptz{}, Result: new(pgtype.Timestamptz), Test: isExpectedEq(pgtype.Timestamptz{})},
+		{Param: nil, Result: new(*time.Time), Test: isExpectedEq((*time.Time)(nil))},
 	})
 }
 
@@ -51,7 +51,7 @@ func TestTimestamptzCodecWithLocationUTC(t *testing.T) {
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, nil, "timestamptz", []pgxtest.ValueRoundTripTest{
-		{time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))},
+		{Param: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Result: new(time.Time), Test: isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))},
 	})
 }
 
@@ -68,7 +68,7 @@ func TestTimestamptzCodecWithLocationLocal(t *testing.T) {
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, nil, "timestamptz", []pgxtest.ValueRoundTripTest{
-		{time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local))},
+		{Param: time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), Result: new(time.Time), Test: isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local))},
 	})
 }
 

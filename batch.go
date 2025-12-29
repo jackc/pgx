@@ -272,7 +272,7 @@ func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
 		ok = true
 		br.qqIdx++
 	}
-	return
+	return query, args, ok
 }
 
 type pipelineBatchResults struct {

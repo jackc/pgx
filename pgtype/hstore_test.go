@@ -73,48 +73,48 @@ func TestHstoreCodec(t *testing.T) {
 
 	tests := []pgxtest.ValueRoundTripTest{
 		{
-			map[string]string{},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{}),
+			Param:  map[string]string{},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{}),
 		},
 		{
-			map[string]string{"foo": "", "bar": "", "baz": "123"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo": "", "bar": "", "baz": "123"}),
+			Param:  map[string]string{"foo": "", "bar": "", "baz": "123"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo": "", "bar": "", "baz": "123"}),
 		},
 		{
-			map[string]string{"NULL": "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"NULL": "bar"}),
+			Param:  map[string]string{"NULL": "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"NULL": "bar"}),
 		},
 		{
-			map[string]string{"bar": "NULL"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"bar": "NULL"}),
+			Param:  map[string]string{"bar": "NULL"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"bar": "NULL"}),
 		},
 		{
-			map[string]string{"": "foo"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"": "foo"}),
+			Param:  map[string]string{"": "foo"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"": "foo"}),
 		},
 		{
-			map[string]*string{},
-			new(map[string]*string),
-			isExpectedEqMapStringPointerString(map[string]*string{}),
+			Param:  map[string]*string{},
+			Result: new(map[string]*string),
+			Test:   isExpectedEqMapStringPointerString(map[string]*string{}),
 		},
 		{
-			map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")},
-			new(map[string]*string),
-			isExpectedEqMapStringPointerString(map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")}),
+			Param:  map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")},
+			Result: new(map[string]*string),
+			Test:   isExpectedEqMapStringPointerString(map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")}),
 		},
 		{
-			map[string]*string{"foo": nil, "baq": stringPtr("quz")},
-			new(map[string]*string),
-			isExpectedEqMapStringPointerString(map[string]*string{"foo": nil, "baq": stringPtr("quz")}),
+			Param:  map[string]*string{"foo": nil, "baq": stringPtr("quz")},
+			Result: new(map[string]*string),
+			Test:   isExpectedEqMapStringPointerString(map[string]*string{"foo": nil, "baq": stringPtr("quz")}),
 		},
-		{nil, new(*map[string]string), isExpectedEq((*map[string]string)(nil))},
-		{nil, new(*map[string]*string), isExpectedEq((*map[string]*string)(nil))},
-		{nil, new(*pgtype.Hstore), isExpectedEq((*pgtype.Hstore)(nil))},
+		{Param: nil, Result: new(*map[string]string), Test: isExpectedEq((*map[string]string)(nil))},
+		{Param: nil, Result: new(*map[string]*string), Test: isExpectedEq((*map[string]*string)(nil))},
+		{Param: nil, Result: new(*pgtype.Hstore), Test: isExpectedEq((*pgtype.Hstore)(nil))},
 	}
 
 	specialStrings := []string{
@@ -140,54 +140,54 @@ func TestHstoreCodec(t *testing.T) {
 
 		// at beginning
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{s + "foo": "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{s + "foo": "bar"}),
+			Param:  map[string]string{s + "foo": "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{s + "foo": "bar"}),
 		})
 		// in middle
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo" + s + "bar": "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo" + s + "bar": "bar"}),
+			Param:  map[string]string{"foo" + s + "bar": "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo" + s + "bar": "bar"}),
 		})
 		// at end
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo" + s: "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo" + s: "bar"}),
+			Param:  map[string]string{"foo" + s: "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo" + s: "bar"}),
 		})
 		// is key
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{s: "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{s: "bar"}),
+			Param:  map[string]string{s: "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{s: "bar"}),
 		})
 
 		// Special value values
 
 		// at beginning
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo": s + "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo": s + "bar"}),
+			Param:  map[string]string{"foo": s + "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo": s + "bar"}),
 		})
 		// in middle
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo": "foo" + s + "bar"},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s + "bar"}),
+			Param:  map[string]string{"foo": "foo" + s + "bar"},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo": "foo" + s + "bar"}),
 		})
 		// at end
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo": "foo" + s},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s}),
+			Param:  map[string]string{"foo": "foo" + s},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo": "foo" + s}),
 		})
 		// is key
 		tests = append(tests, pgxtest.ValueRoundTripTest{
-			map[string]string{"foo": s},
-			new(map[string]string),
-			isExpectedEqMapStringString(map[string]string{"foo": s}),
+			Param:  map[string]string{"foo": s},
+			Result: new(map[string]string),
+			Test:   isExpectedEqMapStringString(map[string]string{"foo": s}),
 		})
 	}
 

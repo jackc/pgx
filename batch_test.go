@@ -1061,7 +1061,6 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 		_, err = conn.Exec(context.Background(), "Select 1")
 		assert.NoError(t, err)
 	})
-
 }
 
 func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {

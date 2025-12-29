@@ -58,7 +58,7 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...any) (comma
 	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
 		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)
 	}
-	return
+	return commandTag
 }
 
 // Do a simple query to ensure the connection is still usable
