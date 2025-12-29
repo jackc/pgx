@@ -709,7 +709,6 @@ func BenchmarkMultipleQueriesNonBatchDescribeStatementCache(b *testing.B) {
 }
 
 func benchmarkMultipleQueriesNonBatch(b *testing.B, conn *pgx.Conn, queryCount int) {
-
 	for b.Loop() {
 		for range queryCount {
 			rows, err := conn.Query(context.Background(), "select n from generate_series(0, 5) n")
@@ -771,7 +770,6 @@ func BenchmarkMultipleQueriesBatchDescribeStatementCache(b *testing.B) {
 }
 
 func benchmarkMultipleQueriesBatch(b *testing.B, conn *pgx.Conn, queryCount int) {
-
 	for b.Loop() {
 		batch := &pgx.Batch{}
 		for range queryCount {
