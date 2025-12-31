@@ -1638,6 +1638,7 @@ type ResultReader struct {
 	fieldDescriptions []FieldDescription
 	rowValues         [][]byte
 	commandTag        CommandTag
+	preloaded         bool
 	commandConcluded  bool
 	closed            bool
 	err               error
@@ -1679,6 +1680,11 @@ func (rr *ResultReader) Read() *Result {
 
 // NextRow advances the ResultReader to the next row and returns true if a row is available.
 func (rr *ResultReader) NextRow() bool {
+	if rr.preloaded {
+		rr.preloaded = false
+		return true
+	}
+
 	for !rr.commandConcluded {
 		msg, err := rr.receiveMessage()
 		if err != nil {
@@ -1693,6 +1699,11 @@ func (rr *ResultReader) NextRow() bool {
 	}
 
 	return false
+}
+
+func (rr *ResultReader) preloadRowValues(values [][]byte) {
+	rr.rowValues = values
+	rr.preloaded = true
 }
 
 // FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until
@@ -2526,23 +2537,37 @@ func (p *Pipeline) getResults() (results any, err error) {
 		}
 	}
 
-	// Get the current request type. Skip over flush requests.
-	var currentRequestType pipelineRequestType
-	for {
-		currentRequestType = p.state.ExtractFrontRequestType()
-		if currentRequestType == pipelineNil {
-			return nil, nil
-		}
-
-		if currentRequestType != pipelineFlushRequest {
-			break
-		}
+	currentRequestType := p.state.ExtractFrontRequestType()
+	if currentRequestType == pipelineNil {
+		return nil, nil
 	}
 
 	for {
-		if currentRequestType == pipelineQueryStatement {
-			msg, _ := p.conn.peekMessage()
-			if _, ok := msg.(*pgproto3.DataRow); ok {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			if currentRequestType != pipelineQueryParams && currentRequestType != pipelineQueryPrepared {
+				p.conn.asyncClose()
+				return nil, fmt.Errorf("unexpected RowDescription for request type %d", currentRequestType)
+			}
+
+			p.conn.resultReader = ResultReader{
+				pgConn:            p.conn,
+				pipeline:          p,
+				ctx:               p.ctx,
+				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
+			}
+			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
+			return &p.conn.resultReader, nil
+		case *pgproto3.DataRow:
+			if currentRequestType == pipelineQueryStatement {
 				sd, resultFormats := p.state.ExtractFrontStatementData()
 				if sd != nil || resultFormats != nil {
 					sdFields := sd.Fields
@@ -2578,35 +2603,12 @@ func (p *Pipeline) getResults() (results any, err error) {
 						return nil, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields))
 					}
 
+					rr.preloadRowValues(msg.Values)
+
 					p.conn.resultReader = rr
 					return &p.conn.resultReader, nil
 				}
 			}
-		}
-
-		msg, err := p.conn.receiveMessage()
-		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.RowDescription:
-			if currentRequestType != pipelineQueryParams && currentRequestType != pipelineQueryPrepared {
-				p.conn.asyncClose()
-				return nil, fmt.Errorf("unexpected RowDescription for request type %d", currentRequestType)
-			}
-
-			p.conn.resultReader = ResultReader{
-				pgConn:            p.conn,
-				pipeline:          p,
-				ctx:               p.ctx,
-				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
-			}
-			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
-			return &p.conn.resultReader, nil
 		case *pgproto3.CommandComplete:
 			p.conn.resultReader = ResultReader{
 				commandTag:       p.conn.makeCommandTag(msg.CommandTag),
