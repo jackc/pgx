@@ -3760,6 +3760,47 @@ func TestPipelineFlushWithError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelineGetResultsHandlesPartiallyReadResults(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	sd, err := pgConn.Prepare(ctx, "ps", "select n from generate_series($1::int, $2::int) n", nil)
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("1"), []byte("3")}, nil, nil)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("5"), []byte("7")}, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	require.True(t, rr.NextRow())
+	require.Equal(t, "1", string(rr.Values()[0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	require.True(t, rr.NextRow())
+	require.Equal(t, "5", string(rr.Values()[0]))
+	require.True(t, rr.NextRow())
+	require.Equal(t, "6", string(rr.Values()[0]))
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 	t.Parallel()
 
@@ -3770,6 +3811,9 @@ func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	sd, err := pgConn.Prepare(ctx, "ps", "select $1::text as msg", nil)
+	require.NoError(t, err)
+
 	pipeline := pgConn.StartPipeline(ctx)
 	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
 	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
@@ -3779,6 +3823,11 @@ func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 
 	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
 	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("6")}, nil, nil)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("7")}, nil, nil)
 	err = pipeline.Sync()
 	require.NoError(t, err)
 
@@ -4269,6 +4318,8 @@ func TestFatalErrorReceivedInPipelineMode(t *testing.T) {
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Describe{}))
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Parse{}))
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Describe{}))
+	steps = append(steps, pgmock.SendMessage(&pgproto3.ParseComplete{}))
+	steps = append(steps, pgmock.SendMessage(&pgproto3.ParameterDescription{}))
 	steps = append(steps, pgmock.SendMessage(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
 		{Name: []byte("mock")},
 	}}))
