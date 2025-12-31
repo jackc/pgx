@@ -2564,12 +2564,9 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 	psd := &StatementDescription{}
 
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2604,12 +2601,9 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 
 func (p *Pipeline) getResultsQueryParams() (*ResultReader, error) {
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2641,12 +2635,9 @@ func (p *Pipeline) getResultsQueryParams() (*ResultReader, error) {
 
 func (p *Pipeline) getResultsQueryPrepared() (*ResultReader, error) {
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2677,12 +2668,9 @@ func (p *Pipeline) getResultsQueryPrepared() (*ResultReader, error) {
 
 func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2745,12 +2733,9 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 
 func (p *Pipeline) getResultsDeallocate() (*CloseComplete, error) {
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2767,12 +2752,9 @@ func (p *Pipeline) getResultsDeallocate() (*CloseComplete, error) {
 
 func (p *Pipeline) getResultsSync() (*PipelineSync, error) {
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.receiveMessage()
 		if err != nil {
-			p.closed = true
-			p.err = err
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -2789,6 +2771,17 @@ func (p *Pipeline) getResultsSync() (*PipelineSync, error) {
 			return nil, pgErr
 		}
 	}
+}
+
+func (p *Pipeline) receiveMessage() (pgproto3.BackendMessage, error) {
+	msg, err := p.conn.receiveMessage()
+	if err != nil {
+		p.closed = true
+		p.err = err
+		p.conn.asyncClose()
+		return nil, normalizeTimeoutError(p.ctx, err)
+	}
+	return msg, nil
 }
 
 // Close closes the pipeline and returns the connection to normal mode.
