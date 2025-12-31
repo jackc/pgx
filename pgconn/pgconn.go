@@ -2538,9 +2538,30 @@ func (p *Pipeline) getResults() (results any, err error) {
 	}
 
 	currentRequestType := p.state.ExtractFrontRequestType()
-	if currentRequestType == pipelineNil {
+	switch currentRequestType {
+	case pipelineNil:
 		return nil, nil
+	case pipelinePrepare:
+		return p.getResultsPrepare()
+	case pipelineQueryParams:
+		return p.getResultsQueryParams()
+	case pipelineQueryPrepared:
+		return p.getResultsQueryPrepared()
+	case pipelineQueryStatement:
+		return p.getResultsQueryStatement()
+	case pipelineDeallocate:
+		return p.getResultsDeallocate()
+	case pipelineSyncRequest:
+		return p.getResultsSync()
+	case pipelineFlushRequest:
+		return nil, errors.New("BUG: pipelineFlushRequest should not be in request queue")
+	default:
+		return nil, errors.New("BUG: unknown pipeline request type")
 	}
+}
+
+func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
+	psd := &StatementDescription{}
 
 	for {
 		msg, err := p.conn.receiveMessage()
@@ -2552,104 +2573,7 @@ func (p *Pipeline) getResults() (results any, err error) {
 		}
 
 		switch msg := msg.(type) {
-		case *pgproto3.RowDescription:
-			if currentRequestType != pipelineQueryParams && currentRequestType != pipelineQueryPrepared {
-				p.conn.asyncClose()
-				return nil, fmt.Errorf("unexpected RowDescription for request type %d", currentRequestType)
-			}
-
-			p.conn.resultReader = ResultReader{
-				pgConn:            p.conn,
-				pipeline:          p,
-				ctx:               p.ctx,
-				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
-			}
-			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
-			return &p.conn.resultReader, nil
-		case *pgproto3.DataRow:
-			if currentRequestType == pipelineQueryStatement {
-				sd, resultFormats := p.state.ExtractFrontStatementData()
-				if sd != nil || resultFormats != nil {
-					sdFields := sd.Fields
-					rr := ResultReader{
-						pgConn:            p.conn,
-						pipeline:          p,
-						ctx:               p.ctx,
-						fieldDescriptions: p.conn.getFieldDescriptionSlice(len(sdFields)),
-					}
-
-					switch {
-					case len(resultFormats) == 0:
-						// No format codes provided means text format for all columns.
-						for i := range sdFields {
-							rr.fieldDescriptions[i] = sdFields[i]
-							rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
-						}
-					case len(resultFormats) == 1:
-						// Single format code applies to all columns.
-						format := resultFormats[0]
-						for i := range sdFields {
-							rr.fieldDescriptions[i] = sdFields[i]
-							rr.fieldDescriptions[i].Format = format
-						}
-					case len(resultFormats) == len(sdFields):
-						// One format code per column.
-						for i := range sdFields {
-							rr.fieldDescriptions[i] = sdFields[i]
-							rr.fieldDescriptions[i].Format = resultFormats[i]
-						}
-					default:
-						// This should not occur if Bind validation is correct, but handle gracefully
-						return nil, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields))
-					}
-
-					rr.preloadRowValues(msg.Values)
-
-					p.conn.resultReader = rr
-					return &p.conn.resultReader, nil
-				}
-			}
-		case *pgproto3.CommandComplete:
-			p.conn.resultReader = ResultReader{
-				commandTag:       p.conn.makeCommandTag(msg.CommandTag),
-				commandConcluded: true,
-				closed:           true,
-			}
-			return &p.conn.resultReader, nil
 		case *pgproto3.ParseComplete:
-			if currentRequestType == pipelinePrepare {
-				return p.getResultsPrepare()
-			}
-		case *pgproto3.CloseComplete:
-			return &CloseComplete{}, nil
-		case *pgproto3.ReadyForQuery:
-			p.state.HandleReadyForQuery()
-			return &PipelineSync{}, nil
-		case *pgproto3.ErrorResponse:
-			// Error message that is received while expecting a Sync message still consumes the expected Sync. Put it back.
-			if currentRequestType == pipelineSyncRequest {
-				p.state.requestEventQueue.PushFront(pipelineRequestEvent{RequestType: pipelineSyncRequest, WasSentToServer: true, BeforeFlushOrSync: true})
-			}
-
-			pgErr := ErrorResponseToPgError(msg)
-			p.state.HandleError(pgErr)
-			p.conn.resultReader.closed = true
-			return nil, pgErr
-		}
-	}
-}
-
-func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
-	psd := &StatementDescription{}
-
-	for {
-		msg, err := p.conn.receiveMessage()
-		if err != nil {
-			p.conn.asyncClose()
-			return nil, normalizeTimeoutError(p.ctx, err)
-		}
-
-		switch msg := msg.(type) {
 		case *pgproto3.ParameterDescription:
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
@@ -2674,6 +2598,195 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 		case *pgproto3.ReadyForQuery:
 			p.conn.asyncClose()
 			return nil, errors.New("BUG: received ReadyForQuery while handling Describe")
+		}
+	}
+}
+
+func (p *Pipeline) getResultsQueryParams() (*ResultReader, error) {
+	for {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ParseComplete:
+		case *pgproto3.RowDescription:
+			p.conn.resultReader = ResultReader{
+				pgConn:            p.conn,
+				pipeline:          p,
+				ctx:               p.ctx,
+				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
+			}
+			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
+			return &p.conn.resultReader, nil
+		case *pgproto3.CommandComplete:
+			p.conn.resultReader = ResultReader{
+				commandTag:       p.conn.makeCommandTag(msg.CommandTag),
+				commandConcluded: true,
+				closed:           true,
+			}
+			return &p.conn.resultReader, nil
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		}
+	}
+}
+
+func (p *Pipeline) getResultsQueryPrepared() (*ResultReader, error) {
+	for {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			p.conn.resultReader = ResultReader{
+				pgConn:            p.conn,
+				pipeline:          p,
+				ctx:               p.ctx,
+				fieldDescriptions: p.conn.getFieldDescriptionSlice(len(msg.Fields)),
+			}
+			convertRowDescription(p.conn.resultReader.fieldDescriptions, msg)
+			return &p.conn.resultReader, nil
+		case *pgproto3.CommandComplete:
+			p.conn.resultReader = ResultReader{
+				commandTag:       p.conn.makeCommandTag(msg.CommandTag),
+				commandConcluded: true,
+				closed:           true,
+			}
+			return &p.conn.resultReader, nil
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		}
+	}
+}
+
+func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
+	for {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.DataRow:
+			sd, resultFormats := p.state.ExtractFrontStatementData()
+			if sd != nil || resultFormats != nil {
+				sdFields := sd.Fields
+				rr := ResultReader{
+					pgConn:            p.conn,
+					pipeline:          p,
+					ctx:               p.ctx,
+					fieldDescriptions: p.conn.getFieldDescriptionSlice(len(sdFields)),
+				}
+
+				switch {
+				case len(resultFormats) == 0:
+					// No format codes provided means text format for all columns.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
+					}
+				case len(resultFormats) == 1:
+					// Single format code applies to all columns.
+					format := resultFormats[0]
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = format
+					}
+				case len(resultFormats) == len(sdFields):
+					// One format code per column.
+					for i := range sdFields {
+						rr.fieldDescriptions[i] = sdFields[i]
+						rr.fieldDescriptions[i].Format = resultFormats[i]
+					}
+				default:
+					// This should not occur if Bind validation is correct, but handle gracefully
+					return nil, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields))
+				}
+
+				rr.preloadRowValues(msg.Values)
+
+				p.conn.resultReader = rr
+				return &p.conn.resultReader, nil
+			}
+		case *pgproto3.CommandComplete:
+			p.conn.resultReader = ResultReader{
+				commandTag:       p.conn.makeCommandTag(msg.CommandTag),
+				commandConcluded: true,
+				closed:           true,
+			}
+			return &p.conn.resultReader, nil
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		}
+	}
+}
+
+func (p *Pipeline) getResultsDeallocate() (*CloseComplete, error) {
+	for {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.CloseComplete:
+			return &CloseComplete{}, nil
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		}
+	}
+}
+
+func (p *Pipeline) getResultsSync() (*PipelineSync, error) {
+	for {
+		msg, err := p.conn.receiveMessage()
+		if err != nil {
+			p.closed = true
+			p.err = err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ReadyForQuery:
+			p.state.HandleReadyForQuery()
+			return &PipelineSync{}, nil
+		case *pgproto3.ErrorResponse:
+			// Error message that is received while expecting a Sync message still consumes the expected Sync. Put it back.
+			p.state.requestEventQueue.PushFront(pipelineRequestEvent{RequestType: pipelineSyncRequest, WasSentToServer: true, BeforeFlushOrSync: true})
+
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
 		}
 	}
 }
