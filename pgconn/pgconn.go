@@ -2172,9 +2172,10 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 
 // Pipeline represents a connection in pipeline mode.
 //
-// SendPrepare, SendQueryParams, and SendQueryPrepared queue requests to the server. These requests are not written until
-// pipeline is flushed by Flush or Sync. Sync must be called after the last request is queued. Requests between
-// synchronization points are implicitly transactional unless explicit transaction control statements have been issued.
+// SendPrepare, SendQueryParams, SendQueryPrepared, and SendQueryStatement queue requests to the server. These requests
+// are not written until pipeline is flushed by Flush or Sync. Sync must be called after the last request is queued.
+// Requests between synchronization points are implicitly transactional unless explicit transaction control statements
+// have been issued.
 //
 // The context the pipeline was started with is in effect for the entire life of the Pipeline.
 //
@@ -2203,6 +2204,7 @@ const (
 	pipelinePrepare
 	pipelineQueryParams
 	pipelineQueryPrepared
+	pipelineQueryStatement
 	pipelineDeallocate
 	pipelineSyncRequest
 	pipelineFlushRequest
@@ -2216,6 +2218,8 @@ type pipelineRequestEvent struct {
 
 type pipelineState struct {
 	requestEventQueue          list.List
+	statementDescriptionsQueue list.List
+	resultFormatsQueue         list.List
 	lastRequestType            pipelineRequestType
 	pgErr                      *PgError
 	expectedReadyForQueryCount int
@@ -2223,6 +2227,8 @@ type pipelineState struct {
 
 func (s *pipelineState) Init() {
 	s.requestEventQueue.Init()
+	s.statementDescriptionsQueue.Init()
+	s.resultFormatsQueue.Init()
 	s.lastRequestType = pipelineNil
 }
 
@@ -2287,6 +2293,29 @@ func (s *pipelineState) ExtractFrontRequestType() pipelineRequestType {
 	}
 }
 
+func (s *pipelineState) PushBackStatementData(sd *StatementDescription, resultFormats []int16) {
+	s.statementDescriptionsQueue.PushBack(sd)
+	s.resultFormatsQueue.PushBack(resultFormats)
+}
+
+func (s *pipelineState) ExtractFrontStatementData() (*StatementDescription, []int16) {
+	sdElem := s.statementDescriptionsQueue.Front()
+	var sd *StatementDescription
+	if sdElem != nil {
+		s.statementDescriptionsQueue.Remove(sdElem)
+		sd = sdElem.Value.(*StatementDescription)
+	}
+
+	rfElem := s.resultFormatsQueue.Front()
+	var resultFormats []int16
+	if rfElem != nil {
+		s.resultFormatsQueue.Remove(rfElem)
+		resultFormats = rfElem.Value.([]int16)
+	}
+
+	return sd, resultFormats
+}
+
 func (s *pipelineState) HandleError(err *PgError) {
 	s.pgErr = err
 }
@@ -2328,6 +2357,8 @@ func (pgConn *PgConn) StartPipeline(ctx context.Context) *Pipeline {
 
 		return pipeline
 	}
+
+	pgConn.resultReader = ResultReader{closed: true}
 
 	pgConn.pipeline = Pipeline{
 		conn: pgConn,
@@ -2396,6 +2427,18 @@ func (p *Pipeline) SendQueryPrepared(stmtName string, paramValues [][]byte, para
 	p.conn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
 	p.conn.frontend.SendExecute(&pgproto3.Execute{})
 	p.state.PushBackRequestType(pipelineQueryPrepared)
+}
+
+// SendQueryStatement is the pipeline version of *PgConn.ExecStatement.
+func (p *Pipeline) SendQueryStatement(statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) {
+	if p.closed {
+		return
+	}
+
+	p.conn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+	p.conn.frontend.SendExecute(&pgproto3.Execute{})
+	p.state.PushBackRequestType(pipelineQueryStatement)
+	p.state.PushBackStatementData(statementDescription, resultFormats)
 }
 
 // SendFlushRequest sends a request for the server to flush its output buffer.
@@ -2472,15 +2515,75 @@ func (p *Pipeline) GetResults() (results any, err error) {
 		return nil, errors.New("pipeline closed")
 	}
 
-	if p.state.ExtractFrontRequestType() == pipelineNil {
-		return nil, nil
-	}
-
 	return p.getResults()
 }
 
 func (p *Pipeline) getResults() (results any, err error) {
+	if !p.conn.resultReader.closed {
+		_, err := p.conn.resultReader.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Get the current request type. Skip over flush requests.
+	var currentRequestType pipelineRequestType
 	for {
+		currentRequestType = p.state.ExtractFrontRequestType()
+		if currentRequestType == pipelineNil {
+			return nil, nil
+		}
+
+		if currentRequestType != pipelineFlushRequest {
+			break
+		}
+	}
+
+	for {
+		if currentRequestType == pipelineQueryStatement {
+			msg, _ := p.conn.peekMessage()
+			if _, ok := msg.(*pgproto3.DataRow); ok {
+				sd, resultFormats := p.state.ExtractFrontStatementData()
+				if sd != nil || resultFormats != nil {
+					sdFields := sd.Fields
+					rr := ResultReader{
+						pgConn:            p.conn,
+						pipeline:          p,
+						ctx:               p.ctx,
+						fieldDescriptions: p.conn.getFieldDescriptionSlice(len(sdFields)),
+					}
+
+					switch {
+					case len(resultFormats) == 0:
+						// No format codes provided means text format for all columns.
+						for i := range sdFields {
+							rr.fieldDescriptions[i] = sdFields[i]
+							rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
+						}
+					case len(resultFormats) == 1:
+						// Single format code applies to all columns.
+						format := resultFormats[0]
+						for i := range sdFields {
+							rr.fieldDescriptions[i] = sdFields[i]
+							rr.fieldDescriptions[i].Format = format
+						}
+					case len(resultFormats) == len(sdFields):
+						// One format code per column.
+						for i := range sdFields {
+							rr.fieldDescriptions[i] = sdFields[i]
+							rr.fieldDescriptions[i].Format = resultFormats[i]
+						}
+					default:
+						// This should not occur if Bind validation is correct, but handle gracefully
+						return nil, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields))
+					}
+
+					p.conn.resultReader = rr
+					return &p.conn.resultReader, nil
+				}
+			}
+		}
+
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
 			p.closed = true
@@ -2491,6 +2594,11 @@ func (p *Pipeline) getResults() (results any, err error) {
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
+			if currentRequestType != pipelineQueryParams && currentRequestType != pipelineQueryPrepared {
+				p.conn.asyncClose()
+				return nil, fmt.Errorf("unexpected RowDescription for request type %d", currentRequestType)
+			}
+
 			p.conn.resultReader = ResultReader{
 				pgConn:            p.conn,
 				pipeline:          p,
@@ -2507,12 +2615,7 @@ func (p *Pipeline) getResults() (results any, err error) {
 			}
 			return &p.conn.resultReader, nil
 		case *pgproto3.ParseComplete:
-			peekedMsg, err := p.conn.peekMessage()
-			if err != nil {
-				p.conn.asyncClose()
-				return nil, normalizeTimeoutError(p.ctx, err)
-			}
-			if _, ok := peekedMsg.(*pgproto3.ParameterDescription); ok {
+			if currentRequestType == pipelinePrepare {
 				return p.getResultsPrepare()
 			}
 		case *pgproto3.CloseComplete:
@@ -2521,8 +2624,14 @@ func (p *Pipeline) getResults() (results any, err error) {
 			p.state.HandleReadyForQuery()
 			return &PipelineSync{}, nil
 		case *pgproto3.ErrorResponse:
+			// Error message that is received while expecting a Sync message still consumes the expected Sync. Put it back.
+			if currentRequestType == pipelineSyncRequest {
+				p.state.requestEventQueue.PushFront(pipelineRequestEvent{RequestType: pipelineSyncRequest, WasSentToServer: true, BeforeFlushOrSync: true})
+			}
+
 			pgErr := ErrorResponseToPgError(msg)
 			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
 			return nil, pgErr
 		}
 	}
