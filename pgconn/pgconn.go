@@ -1740,11 +1740,12 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 // error will be stored in the ResultReader.
 func (rr *ResultReader) readUntilRowDescription(statementDescription *StatementDescription, resultFormats []int16) {
 	for !rr.commandConcluded {
-		// Peek before receive to avoid consuming a DataRow if the result set does not include a RowDescription method. This
-		// is expected if statementDescription is not nil, but it is also possible if SendBytes and ReceiveResults are
-		// manually used to construct a query that does not issue a describe statement.
-		msg, _ := rr.pgConn.peekMessage()
-		if _, ok := msg.(*pgproto3.DataRow); ok {
+		msg, _ := rr.receiveMessage()
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			return
+		case *pgproto3.DataRow:
+			rr.preloadRowValues(msg.Values)
 			if statementDescription != nil {
 				sdFields := statementDescription.Fields
 				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
@@ -1755,11 +1756,16 @@ func (rr *ResultReader) readUntilRowDescription(statementDescription *StatementD
 				}
 			}
 			return
-		}
+		case *pgproto3.CommandComplete:
+			if statementDescription != nil {
+				sdFields := statementDescription.Fields
+				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
 
-		// Consume the message
-		msg, _ = rr.receiveMessage()
-		if _, ok := msg.(*pgproto3.RowDescription); ok {
+				err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sdFields, resultFormats)
+				if err != nil {
+					rr.concludeCommand(CommandTag{}, err)
+				}
+			}
 			return
 		}
 	}
@@ -2604,34 +2610,34 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 		return nil, err
 	}
 
+	sd, resultFormats := p.state.ExtractFrontStatementData()
+	if sd == nil {
+		return nil, errors.New("BUG: missing statement description or result formats for QueryStatement")
+	}
+	sdFields := sd.Fields
+	fieldDescriptions := p.conn.getFieldDescriptionSlice(len(sdFields))
+	err = combineFieldDescriptionsAndResultFormats(fieldDescriptions, sdFields, resultFormats)
+	if err != nil {
+		return nil, err
+	}
+
 	switch msg := msg.(type) {
 	case *pgproto3.DataRow:
-		sd, resultFormats := p.state.ExtractFrontStatementData()
-		if sd == nil {
-			return nil, errors.New("BUG: missing statement description or result formats for QueryStatement")
-		}
-		sdFields := sd.Fields
 		rr := ResultReader{
 			pgConn:            p.conn,
 			pipeline:          p,
 			ctx:               p.ctx,
-			fieldDescriptions: p.conn.getFieldDescriptionSlice(len(sdFields)),
+			fieldDescriptions: fieldDescriptions,
 		}
-
-		err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sdFields, resultFormats)
-		if err != nil {
-			return nil, err
-		}
-
 		rr.preloadRowValues(msg.Values)
-
 		p.conn.resultReader = rr
 		return &p.conn.resultReader, nil
 	case *pgproto3.CommandComplete:
 		p.conn.resultReader = ResultReader{
-			commandTag:       p.conn.makeCommandTag(msg.CommandTag),
-			commandConcluded: true,
-			closed:           true,
+			commandTag:        p.conn.makeCommandTag(msg.CommandTag),
+			commandConcluded:  true,
+			closed:            true,
+			fieldDescriptions: fieldDescriptions,
 		}
 		return &p.conn.resultReader, nil
 	case *pgproto3.ErrorResponse:
