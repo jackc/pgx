@@ -1539,29 +1539,9 @@ func (mrr *MultiResultReader) NextResult() bool {
 				sdFields := sd.Fields
 				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
 
-				switch {
-				case len(resultFormats) == 0:
-					// No format codes provided means text format for all columns.
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
-					}
-				case len(resultFormats) == 1:
-					// Single format code applies to all columns.
-					format := resultFormats[0]
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = format
-					}
-				case len(resultFormats) == len(sdFields):
-					// One format code per column.
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = resultFormats[i]
-					}
-				default:
-					// This should not occur if Bind validation is correct, but handle gracefully
-					rr.concludeCommand(CommandTag{}, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields)))
+				err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sdFields, resultFormats)
+				if err != nil {
+					rr.concludeCommand(CommandTag{}, err)
 				}
 
 				mrr.pgConn.resultReader = rr
@@ -1769,29 +1749,9 @@ func (rr *ResultReader) readUntilRowDescription(statementDescription *StatementD
 				sdFields := statementDescription.Fields
 				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
 
-				switch {
-				case len(resultFormats) == 0:
-					// No format codes provided means text format for all columns.
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
-					}
-				case len(resultFormats) == 1:
-					// Single format code applies to all columns.
-					format := resultFormats[0]
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = format
-					}
-				case len(resultFormats) == len(sdFields):
-					// One format code per column.
-					for i := range sdFields {
-						rr.fieldDescriptions[i] = sdFields[i]
-						rr.fieldDescriptions[i].Format = resultFormats[i]
-					}
-				default:
-					// This should not occur if Bind validation is correct, but handle gracefully
-					rr.concludeCommand(CommandTag{}, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields)))
+				err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sdFields, resultFormats)
+				if err != nil {
+					rr.concludeCommand(CommandTag{}, err)
 				}
 			}
 			return
@@ -2658,29 +2618,9 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 			fieldDescriptions: p.conn.getFieldDescriptionSlice(len(sdFields)),
 		}
 
-		switch {
-		case len(resultFormats) == 0:
-			// No format codes provided means text format for all columns.
-			for i := range sdFields {
-				rr.fieldDescriptions[i] = sdFields[i]
-				rr.fieldDescriptions[i].Format = pgtype.TextFormatCode
-			}
-		case len(resultFormats) == 1:
-			// Single format code applies to all columns.
-			format := resultFormats[0]
-			for i := range sdFields {
-				rr.fieldDescriptions[i] = sdFields[i]
-				rr.fieldDescriptions[i].Format = format
-			}
-		case len(resultFormats) == len(sdFields):
-			// One format code per column.
-			for i := range sdFields {
-				rr.fieldDescriptions[i] = sdFields[i]
-				rr.fieldDescriptions[i].Format = resultFormats[i]
-			}
-		default:
-			// This should not occur if Bind validation is correct, but handle gracefully
-			return nil, fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(sdFields))
+		err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sdFields, resultFormats)
+		if err != nil {
+			return nil, err
 		}
 
 		rr.preloadRowValues(msg.Values)
@@ -2958,4 +2898,33 @@ func (h *CancelRequestContextWatcherHandler) HandleUnwatchAfterCancel() {
 	<-h.cancelFinishedChan
 
 	h.Conn.conn.SetDeadline(time.Time{})
+}
+
+func combineFieldDescriptionsAndResultFormats(outputFields, inputFields []FieldDescription, resultFormats []int16) error {
+	switch {
+	case len(resultFormats) == 0:
+		// No format codes provided means text format for all columns.
+		for i := range inputFields {
+			outputFields[i] = inputFields[i]
+			outputFields[i].Format = pgtype.TextFormatCode
+		}
+	case len(resultFormats) == 1:
+		// Single format code applies to all columns.
+		format := resultFormats[0]
+		for i := range inputFields {
+			outputFields[i] = inputFields[i]
+			outputFields[i].Format = format
+		}
+	case len(resultFormats) == len(inputFields):
+		// One format code per column.
+		for i := range inputFields {
+			outputFields[i] = inputFields[i]
+			outputFields[i].Format = resultFormats[i]
+		}
+	default:
+		// This should not occur if Bind validation is correct, but handle gracefully
+		return fmt.Errorf("result format codes length %d does not match field count %d", len(resultFormats), len(inputFields))
+	}
+
+	return nil
 }
