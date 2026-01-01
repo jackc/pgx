@@ -1043,15 +1043,12 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 		assert.NoError(t, err)
 
 		// get pg_sleep results
-		rows, err := br.Query()
-		assert.NoError(t, err)
+		rows, _ := br.Query()
 
 		// Consume rows and check error
-		for rows.Next() {
-		}
+		rows.Close()
 		err = rows.Err()
 		assert.ErrorContains(t, err, "(SQLSTATE 57014)")
-		rows.Close()
 
 		// The last error should be repeated when closing the batch
 		err = br.Close()
@@ -1161,8 +1158,8 @@ func TestBatchNetworkUsage(t *testing.T) {
 	err := conn.SendBatch(context.Background(), batch).Close()
 	require.NoError(t, err)
 
-	assert.Equal(t, 4116, counterConn.bytesRead)
-	assert.Equal(t, 1478, counterConn.bytesWritten)
+	assert.Equal(t, 1736, counterConn.bytesRead)
+	assert.Equal(t, 1408, counterConn.bytesWritten)
 
 	ensureConnValid(t, conn)
 }
