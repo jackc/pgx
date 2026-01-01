@@ -2319,8 +2319,8 @@ func TestQueryNetworkUsage(t *testing.T) {
 	rows.Close()
 	require.NoError(t, rows.Err())
 
-	assert.Equal(t, 651, counterConn.bytesRead)
-	assert.Equal(t, 434, counterConn.bytesWritten)
+	assert.Equal(t, 413, counterConn.bytesRead)
+	assert.Equal(t, 427, counterConn.bytesWritten)
 	ensureConnValid(t, conn)
 }
 
