@@ -17,17 +17,17 @@ func TestMultirangeCodecTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int4multirange", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Multirange[pgtype.Range[pgtype.Int4]](nil),
-			new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
-			func(a any) bool { return reflect.DeepEqual(pgtype.Multirange[pgtype.Range[pgtype.Int4]](nil), a) },
+			Param:  pgtype.Multirange[pgtype.Range[pgtype.Int4]](nil),
+			Result: new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
+			Test:   func(a any) bool { return reflect.DeepEqual(pgtype.Multirange[pgtype.Range[pgtype.Int4]](nil), a) },
 		},
 		{
-			pgtype.Multirange[pgtype.Range[pgtype.Int4]]{},
-			new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
-			func(a any) bool { return reflect.DeepEqual(pgtype.Multirange[pgtype.Range[pgtype.Int4]]{}, a) },
+			Param:  pgtype.Multirange[pgtype.Range[pgtype.Int4]]{},
+			Result: new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
+			Test:   func(a any) bool { return reflect.DeepEqual(pgtype.Multirange[pgtype.Range[pgtype.Int4]]{}, a) },
 		},
 		{
-			pgtype.Multirange[pgtype.Range[pgtype.Int4]]{
+			Param: pgtype.Multirange[pgtype.Range[pgtype.Int4]]{
 				{
 					Lower:     pgtype.Int4{Int32: 1, Valid: true},
 					Upper:     pgtype.Int4{Int32: 5, Valid: true},
@@ -43,8 +43,8 @@ func TestMultirangeCodecTranscode(t *testing.T) {
 					Valid:     true,
 				},
 			},
-			new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
-			func(a any) bool {
+			Result: new(pgtype.Multirange[pgtype.Range[pgtype.Int4]]),
+			Test: func(a any) bool {
 				return reflect.DeepEqual(pgtype.Multirange[pgtype.Range[pgtype.Int4]]{
 					{
 						Lower:     pgtype.Int4{Int32: 1, Valid: true},

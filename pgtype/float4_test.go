@@ -10,15 +10,15 @@ import (
 
 func TestFloat4Codec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float4", []pgxtest.ValueRoundTripTest{
-		{pgtype.Float4{Float32: -1, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: -1, Valid: true})},
-		{pgtype.Float4{Float32: 0, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: 0, Valid: true})},
-		{pgtype.Float4{Float32: 1, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: 1, Valid: true})},
-		{float32(0.00001), new(float32), isExpectedEq(float32(0.00001))},
-		{float32(9999.99), new(float32), isExpectedEq(float32(9999.99))},
-		{pgtype.Float4{}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{})},
-		{int64(1), new(int64), isExpectedEq(int64(1))},
-		{"1.23", new(string), isExpectedEq("1.23")},
-		{nil, new(*float32), isExpectedEq((*float32)(nil))},
+		{Param: pgtype.Float4{Float32: -1, Valid: true}, Result: new(pgtype.Float4), Test: isExpectedEq(pgtype.Float4{Float32: -1, Valid: true})},
+		{Param: pgtype.Float4{Float32: 0, Valid: true}, Result: new(pgtype.Float4), Test: isExpectedEq(pgtype.Float4{Float32: 0, Valid: true})},
+		{Param: pgtype.Float4{Float32: 1, Valid: true}, Result: new(pgtype.Float4), Test: isExpectedEq(pgtype.Float4{Float32: 1, Valid: true})},
+		{Param: float32(0.00001), Result: new(float32), Test: isExpectedEq(float32(0.00001))},
+		{Param: float32(9999.99), Result: new(float32), Test: isExpectedEq(float32(9999.99))},
+		{Param: pgtype.Float4{}, Result: new(pgtype.Float4), Test: isExpectedEq(pgtype.Float4{})},
+		{Param: int64(1), Result: new(int64), Test: isExpectedEq(int64(1))},
+		{Param: "1.23", Result: new(string), Test: isExpectedEq("1.23")},
+		{Param: nil, Result: new(*float32), Test: isExpectedEq((*float32)(nil))},
 	})
 }
 

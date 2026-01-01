@@ -160,7 +160,6 @@ func TestSQLOpen(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-
 		t.Run(tt.driverName, func(t *testing.T) {
 			db, err := sql.Open(tt.driverName, os.Getenv("PGX_TEST_DATABASE"))
 			require.NoError(t, err)
