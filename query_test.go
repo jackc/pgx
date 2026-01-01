@@ -2217,6 +2217,38 @@ $$;`)
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2456
+func TestQueryWithProcedureParametersInAndOut(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support plpgsql")
+
+		_, err := conn.Exec(ctx, `
+	create procedure test_proc(in a int, inout b int, out c int) language plpgsql as $$
+	begin
+		b := b + 1;
+		c := a + b;
+		return;
+	end;
+	$$;`)
+		require.NoError(t, err)
+		defer func() {
+			_, err := conn.Exec(ctx, `drop procedure if exists test_proc(in a int, inout b int, out c int)`)
+			require.NoError(t, err)
+		}()
+
+		var b, c int
+		err = conn.QueryRow(ctx, `call test_proc(1, 2, null)`).Scan(&b, &c)
+		require.NoError(t, err)
+		require.Equal(t, 3, b)
+		require.Equal(t, 4, c)
+	})
+}
+
 // This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another
 // helper function should be used.
 func ExampleConn_Query() {
