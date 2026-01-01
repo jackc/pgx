@@ -1130,6 +1130,43 @@ func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
 	})
 }
 
+func TestBatchNetworkUsage(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	var counterConn *byteCounterConn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		counterConn = &byteCounterConn{conn: conn}
+		return counterConn, nil
+	}
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server uses different number of bytes for same operations")
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	batch := &pgx.Batch{}
+
+	for range 10 {
+		batch.Queue(
+			"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n",
+			1,
+		)
+	}
+
+	err := conn.SendBatch(context.Background(), batch).Close()
+	require.NoError(t, err)
+
+	assert.Equal(t, 4116, counterConn.bytesRead)
+	assert.Equal(t, 1478, counterConn.bytesWritten)
+
+	ensureConnValid(t, conn)
+}
+
 func ExampleConn_SendBatch() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
