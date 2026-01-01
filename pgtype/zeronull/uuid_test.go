@@ -11,19 +11,19 @@ import (
 func TestUUIDTranscode(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "uuid", []pgxtest.ValueRoundTripTest{
 		{
-			(zeronull.UUID)([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
-			new(zeronull.UUID),
-			isExpectedEq((zeronull.UUID)([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})),
+			Param:  (zeronull.UUID)([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
+			Result: new(zeronull.UUID),
+			Test:   isExpectedEq((zeronull.UUID)([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})),
 		},
 		{
-			nil,
-			new(zeronull.UUID),
-			isExpectedEq((zeronull.UUID)([16]byte{})),
+			Param:  nil,
+			Result: new(zeronull.UUID),
+			Test:   isExpectedEq((zeronull.UUID)([16]byte{})),
 		},
 		{
-			(zeronull.UUID)([16]byte{}),
-			new(any),
-			isExpectedEq(nil),
+			Param:  (zeronull.UUID)([16]byte{}),
+			Result: new(any),
+			Test:   isExpectedEq(nil),
 		},
 	})
 }

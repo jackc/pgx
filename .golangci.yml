@@ -1,6 +1,11 @@
 # See for configurations: https://golangci-lint.run/usage/configuration/
 version: 2
 
+linters:
+  default: none
+  enable:
+    - govet
+
 # See: https://golangci-lint.run/usage/formatters/
 formatters:
   default: none

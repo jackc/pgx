@@ -848,7 +848,7 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 			}
 		}
 	}
-	return
+	return i
 }
 
 // structRowField describes a field of a struct.
