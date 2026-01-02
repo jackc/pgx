@@ -2,7 +2,6 @@ package pgxpool
 
 import (
 	"context"
-	"errors"
 	"math/rand/v2"
 	"runtime"
 	"strconv"
@@ -652,7 +651,7 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		return cr.getConn(p, res), nil
 	}
-	return nil, errors.New("pgxpool: detected infinite loop acquiring connection; likely bug in PrepareConn or BeforeAcquire hook")
+	return nil, ErrInfiniteAcquireLoop
 }
 
 // AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
