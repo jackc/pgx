@@ -11,13 +11,32 @@ import (
 	"time"
 )
 
+// Pre-allocated error sentinels for NULL scans (hot path optimization)
+var (
+	errNullInt8    = errors.New("cannot scan NULL into *int8")
+	errNullInt16   = errors.New("cannot scan NULL into *int16")
+	errNullInt32   = errors.New("cannot scan NULL into *int32")
+	errNullInt64   = errors.New("cannot scan NULL into *int64")
+	errNullInt     = errors.New("cannot scan NULL into *int")
+	errNullUint8   = errors.New("cannot scan NULL into *uint8")
+	errNullUint16  = errors.New("cannot scan NULL into *uint16")
+	errNullUint32  = errors.New("cannot scan NULL into *uint32")
+	errNullUint64  = errors.New("cannot scan NULL into *uint64")
+	errNullUint    = errors.New("cannot scan NULL into *uint")
+	errNullFloat32 = errors.New("cannot scan NULL into *float32")
+	errNullFloat64 = errors.New("cannot scan NULL into *float64")
+	errNullString  = errors.New("cannot scan NULL into *string")
+	errNullTime    = errors.New("cannot scan NULL into *time.Time")
+	errNullBytes   = errors.New("cannot scan NULL into *[16]byte")
+)
+
 type int8Wrapper int8
 
 func (w int8Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *int8Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *int8")
+		return errNullInt8
 	}
 
 	if v.Int64 < math.MinInt8 {
@@ -41,7 +60,7 @@ func (w int16Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *int16Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *int16")
+		return errNullInt16
 	}
 
 	if v.Int64 < math.MinInt16 {
@@ -65,7 +84,7 @@ func (w int32Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *int32Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *int32")
+		return errNullInt32
 	}
 
 	if v.Int64 < math.MinInt32 {
@@ -89,7 +108,7 @@ func (w int64Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *int64Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *int64")
+		return errNullInt64
 	}
 
 	*w = int64Wrapper(v.Int64)
@@ -107,7 +126,7 @@ func (w intWrapper) SkipUnderlyingTypePlan() {}
 
 func (w *intWrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *int")
+		return errNullInt
 	}
 
 	if v.Int64 < math.MinInt {
@@ -132,7 +151,7 @@ func (w uint8Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *uint8Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint8")
+		return errNullUint8
 	}
 
 	if v.Int64 < 0 {
@@ -156,7 +175,7 @@ func (w uint16Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *uint16Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint16")
+		return errNullUint16
 	}
 
 	if v.Int64 < 0 {
@@ -180,7 +199,7 @@ func (w uint32Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *uint32Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint32")
+		return errNullUint32
 	}
 
 	if v.Int64 < 0 {
@@ -204,7 +223,7 @@ func (w uint64Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *uint64Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint64")
+		return errNullUint64
 	}
 
 	if v.Int64 < 0 {
@@ -226,7 +245,7 @@ func (w uint64Wrapper) Int64Value() (Int8, error) {
 
 func (w *uint64Wrapper) ScanNumeric(v Numeric) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint64")
+		return errNullUint64
 	}
 
 	bi, err := v.toBigInt()
@@ -253,7 +272,7 @@ func (w uintWrapper) SkipUnderlyingTypePlan() {}
 
 func (w *uintWrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint64")
+		return errNullUint
 	}
 
 	if v.Int64 < 0 {
@@ -279,7 +298,7 @@ func (w uintWrapper) Int64Value() (Int8, error) {
 
 func (w *uintWrapper) ScanNumeric(v Numeric) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *uint")
+		return errNullUint
 	}
 
 	bi, err := v.toBigInt()
@@ -312,7 +331,7 @@ func (w float32Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *float32Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *float32")
+		return errNullFloat32
 	}
 
 	*w = float32Wrapper(v.Int64)
@@ -330,7 +349,7 @@ func (w float32Wrapper) Int64Value() (Int8, error) {
 
 func (w *float32Wrapper) ScanFloat64(v Float8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *float32")
+		return errNullFloat32
 	}
 
 	*w = float32Wrapper(v.Float64)
@@ -348,7 +367,7 @@ func (w float64Wrapper) SkipUnderlyingTypePlan() {}
 
 func (w *float64Wrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *float64")
+		return errNullFloat64
 	}
 
 	*w = float64Wrapper(v.Int64)
@@ -366,7 +385,7 @@ func (w float64Wrapper) Int64Value() (Int8, error) {
 
 func (w *float64Wrapper) ScanFloat64(v Float8) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *float64")
+		return errNullFloat64
 	}
 
 	*w = float64Wrapper(v.Float64)
@@ -384,7 +403,7 @@ func (w stringWrapper) SkipUnderlyingTypePlan() {}
 
 func (w *stringWrapper) ScanText(v Text) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *string")
+		return errNullString
 	}
 
 	*w = stringWrapper(v.String)
@@ -399,7 +418,7 @@ type timeWrapper time.Time
 
 func (w *timeWrapper) ScanDate(v Date) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *time.Time")
+		return errNullTime
 	}
 
 	switch v.InfinityModifier {
@@ -421,7 +440,7 @@ func (w timeWrapper) DateValue() (Date, error) {
 
 func (w *timeWrapper) ScanTimestamp(v Timestamp) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *time.Time")
+		return errNullTime
 	}
 
 	switch v.InfinityModifier {
@@ -443,7 +462,7 @@ func (w timeWrapper) TimestampValue() (Timestamp, error) {
 
 func (w *timeWrapper) ScanTimestamptz(v Timestamptz) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *time.Time")
+		return errNullTime
 	}
 
 	switch v.InfinityModifier {
@@ -465,7 +484,7 @@ func (w timeWrapper) TimestamptzValue() (Timestamptz, error) {
 
 func (w *timeWrapper) ScanTime(v Time) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *time.Time")
+		return errNullTime
 	}
 
 	// 24:00:00 is max allowed time in PostgreSQL, but time.Time will normalize that to 00:00:00 the next day.
@@ -656,7 +675,7 @@ type byte16Wrapper [16]byte
 
 func (w *byte16Wrapper) ScanUUID(v UUID) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *[16]byte")
+		return errNullBytes
 	}
 	*w = byte16Wrapper(v.Bytes)
 	return nil
