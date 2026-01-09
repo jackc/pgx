@@ -788,7 +788,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			// Attempt decryption with pass phrase
 			// NOTE: only supports RSA (PKCS#1)
 			if sslpassword != "" {
-				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
+				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword)) //nolint:ineffassign
 			}
 			// if sslpassword not provided or has decryption error when use it
 			// try to find sslpassword with callback function
