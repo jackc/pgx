@@ -203,7 +203,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		case "simple_protocol":
 			defaultQueryExecMode = QueryExecModeSimpleProtocol
 		default:
-			return nil, pgconn.NewParseConfigError(connString, "invalid default_query_exec_mode", err)
+			return nil, pgconn.NewParseConfigError(
+				connString, "invalid default_query_exec_mode", fmt.Errorf("unknown value %q", s),
+			)
 		}
 	}
 
