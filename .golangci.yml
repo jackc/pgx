@@ -1,5 +1,5 @@
 # See for configurations: https://golangci-lint.run/usage/configuration/
-version: 2
+version: "2"
 
 linters:
   default: none
@@ -8,7 +8,6 @@ linters:
 
 # See: https://golangci-lint.run/usage/formatters/
 formatters:
-  default: none
   enable:
     - gofmt # https://pkg.go.dev/cmd/gofmt
     - gofumpt # https://github.com/mvdan/gofumpt
