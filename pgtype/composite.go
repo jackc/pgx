@@ -289,7 +289,7 @@ type CompositeBinaryScanner struct {
 	err        error
 }
 
-// NewCompositeBinaryScanner a scanner over a binary encoded composite balue.
+// NewCompositeBinaryScanner a scanner over a binary encoded composite value.
 func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
 	rp := 0
 	if len(src[rp:]) < 4 {
