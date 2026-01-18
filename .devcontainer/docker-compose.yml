@@ -1,0 +1,35 @@
+version: '3.8'
+
+volumes:
+  postgres-18-data:
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    volumes:
+      - ../..:/workspaces:cached
+
+    environment:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: pgx_test
+      PGHOST: localhost
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+  postgres-18:
+    image: postgres:18
+    restart: unless-stopped
+    volumes:
+      - postgres-18-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
