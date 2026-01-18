@@ -53,9 +53,17 @@ func getDefaultUser(t *testing.T) string {
 	return osUserName
 }
 
+var pgEnvvars = []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
+
+func clearPgEnvvars(t *testing.T) {
+	for _, env := range pgEnvvars {
+		t.Setenv(env, "")
+	}
+}
+
 func TestParseConfig(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	config, err := pgconn.ParseConfig("")
 	require.NoError(t, err)
@@ -933,8 +941,6 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 	}
 
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
-
 	tests := []struct {
 		name    string
 		envvars map[string]string
@@ -1021,7 +1027,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 
 func TestParseConfigReadsPgPassfile(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	tfName := filepath.Join(t.TempDir(), "config")
 	err := os.WriteFile(tfName, []byte("test1:5432:curlydb:curly:nyuknyuknyuk"), 0o600)
@@ -1046,7 +1052,7 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 
 func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	tfName := filepath.Join(t.TempDir(), "config")
 
