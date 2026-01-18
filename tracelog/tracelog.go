@@ -112,6 +112,8 @@ func logQueryArgs(args []any) []any {
 					a = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
 				}
 			}
+		case pgx.QueryResultFormatsByOID:
+			continue
 		}
 		logArgs = append(logArgs, a)
 	}
