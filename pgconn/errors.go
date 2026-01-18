@@ -137,17 +137,21 @@ func (e *ParseConfigError) Unwrap() error {
 
 func normalizeTimeoutError(ctx context.Context, err error) error {
 	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
-		if ctx.Err() == context.Canceled {
-			// Since the timeout was caused by a context cancellation, the actual error is context.Canceled not the timeout error.
-			return context.Canceled
-		} else if ctx.Err() == context.DeadlineExceeded {
-			return &errTimeout{err: ctx.Err()}
-		} else {
-			return &errTimeout{err: netErr}
-		}
+	if !errors.As(err, &netErr) || !netErr.Timeout() {
+		return err
 	}
-	return err
+
+	ctxErr := ctx.Err()
+	if ctxErr == nil {
+		return &errTimeout{err: netErr}
+	}
+
+	if errors.Is(ctxErr, context.Canceled) {
+		// Since the timeout was caused by a context cancellation, the actual error is context.Canceled not the timeout error.
+		return context.Canceled
+	}
+
+	return &errTimeout{err: ctxErr}
 }
 
 type pgconnError struct {
