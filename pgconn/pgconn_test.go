@@ -797,7 +797,7 @@ func TestConnDeallocateSucceedsInAbortedTransaction(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
-func TestConnDeallocateNonExistantStatementSucceeds(t *testing.T) {
+func TestConnDeallocateNonExistentStatementSucceeds(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -3701,7 +3701,7 @@ func TestConnOnPgError(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, pgConn.IsClosed())
 
-	_, err = pgConn.Exec(ctx, "select * from non_existant_table").ReadAll()
+	_, err = pgConn.Exec(ctx, "select * from non_existent_table").ReadAll()
 	assert.Error(t, err)
 	assert.True(t, pgConn.IsClosed())
 }
