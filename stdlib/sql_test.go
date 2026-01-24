@@ -1403,6 +1403,32 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 	require.True(t, hookCalled, "hook should be called on reuse")
 }
 
+// https://github.com/jackc/pgx/pull/2481
+func TestOpenTransactionsDiscarded(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	ctx := context.Background()
+
+	for range 3 {
+		func() {
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			defer conn.Close()
+
+			_, err = conn.ExecContext(ctx, "begin;")
+			require.NoError(t, err)
+
+			// If the open transaction is not discarded, the second time this is run it will fail.
+			_, err = conn.ExecContext(ctx, "create temporary table in_tx_discard_test(id int);")
+			require.NoError(t, err)
+		}()
+	}
+
+	ensureDBValid(t, db)
+}
+
 func TestRowsColumnTypeLength(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support type")
