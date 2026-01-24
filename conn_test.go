@@ -1252,7 +1252,7 @@ func TestStmtCacheInvalidationConn(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	rows, err = conn.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Next()
@@ -1321,7 +1321,7 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	rows, err = tx.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Next()
@@ -1397,7 +1397,7 @@ func TestStmtCacheInvalidationConnWithBatch(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	batch := &pgx.Batch{}
 	batch.Queue(getSQL, 1)
 	br := conn.SendBatch(ctx, batch)
@@ -1476,7 +1476,7 @@ func TestStmtCacheInvalidationTxWithBatch(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	batch := &pgx.Batch{}
 	batch.Queue(getSQL, 1)
 	br := tx.SendBatch(ctx, batch)
@@ -1564,7 +1564,7 @@ func TestStmtCacheInvalidationExec(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	_, err = conn.Exec(ctx, insertSQL, true, 2)
 	require.ErrorContains(t, err, "failed to encode args[0]")
 
