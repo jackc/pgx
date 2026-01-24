@@ -91,6 +91,10 @@ type ParseConfigOptions struct {
 	// GetSSLPassword gets the password to decrypt a SSL client certificate. This is analogous to the libpq function
 	// PQsetSSLKeyPassHook_OpenSSL.
 	GetSSLPassword GetSSLPasswordFunc
+	// EscapePassword, when true, will URL-encode the password in database URLs before parsing.
+	// This is useful when passwords contain special characters like @, [, }, < that need to be escaped.
+	// When enabled, passwords with unescaped special characters will be automatically escaped.
+	EscapePassword bool
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -261,7 +265,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		var err error
 		// connString may be a database URL or in PostgreSQL keyword/value format
 		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, err = parseURLSettings(connString)
+			connStringSettings, err = parseURLSettings(connString, options)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
 			}
@@ -479,8 +483,41 @@ func parseEnvSettings() map[string]string {
 	return settings
 }
 
-func parseURLSettings(connString string) (map[string]string, error) {
+func escapePasswordInURL(conn string) (string, error) {
+	schemeEnd := strings.Index(conn, "://")
+	if schemeEnd == -1 {
+		return conn, nil
+	}
+
+	scheme := conn[:schemeEnd+3]
+	rest := conn[schemeEnd+3:]
+
+	colon := strings.Index(rest, ":")
+	at := strings.LastIndex(rest, "@")
+
+	if colon == -1 || at == -1 || colon > at {
+		return conn, nil
+	}
+
+	user := rest[:colon]
+	password := rest[colon+1 : at]
+	host := rest[at:]
+
+	escaped := url.QueryEscape(password)
+
+	return scheme + user + ":" + escaped + host, nil
+}
+
+func parseURLSettings(connString string, options ParseConfigOptions) (map[string]string, error) {
 	settings := make(map[string]string)
+
+	if options.EscapePassword {
+		var err error
+		connString, err = escapePasswordInURL(connString)
+		if err != nil {
+			return nil, fmt.Errorf("failed to escape password in URL: %w", err)
+		}
+	}
 
 	parsedURL, err := url.Parse(connString)
 	if err != nil {
