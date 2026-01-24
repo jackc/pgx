@@ -116,6 +116,7 @@ func TestContextWatcherStress(t *testing.T) {
 
 	for i := range cycleCount {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel() // satisfy linter; cancel is idempotent
 		cw.Watch(ctx)
 		if i%2 == 0 {
 			cancel()

@@ -2648,7 +2648,8 @@ func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 
 	pgConn.Exec(ctx, "select n from generate_series(1,10) n")
 
-	closeCtx, _ := context.WithCancel(ctx)
+	closeCtx, closeCancel := context.WithCancel(ctx)
+	defer closeCancel()
 	pgConn.Close(closeCtx)
 	select {
 	case <-pgConn.CleanupDone():
@@ -3909,7 +3910,7 @@ func TestSNISupport(t *testing.T) {
 
 			_, port, _ := strings.Cut(ln.Addr().String(), ":")
 			connStr := fmt.Sprintf("sslmode=require host=localhost port=%s %s", port, tt.sni_param)
-			_, err = pgconn.Connect(ctx, connStr)
+			_, _ = pgconn.Connect(ctx, connStr)
 
 			select {
 			case sniHost := <-serverSNINameChan:
