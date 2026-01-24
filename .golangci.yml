@@ -5,6 +5,7 @@ linters:
   default: none
   enable:
     - govet
+    - ineffassign
 
 # See: https://golangci-lint.run/usage/formatters/
 formatters:
