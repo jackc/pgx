@@ -555,6 +555,12 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 		return driver.ErrBadConn
 	}
 
+	// Discard connection if it has an open transaction. This can happen if the
+	// application did not properly commit or rollback a transaction.
+	if c.conn.PgConn().TxStatus() != 'I' {
+		return driver.ErrBadConn
+	}
+
 	now := time.Now()
 	idle := now.Sub(c.lastResetSessionTime)
 
