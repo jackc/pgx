@@ -1813,9 +1813,11 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 		return multiResult
 	}
 
-	pgConn.enterPotentialWriteReadDeadlock()
-	defer pgConn.exitPotentialWriteReadDeadlock()
-	_, err := pgConn.conn.Write(batch.buf)
+	_, err := func(buf []byte) (int, error) {
+		pgConn.enterPotentialWriteReadDeadlock()
+		defer pgConn.exitPotentialWriteReadDeadlock()
+		return pgConn.conn.Write(buf)
+	}(batch.buf)
 	if err != nil {
 		pgConn.contextWatcher.Unwatch()
 		multiResult.err = normalizeTimeoutError(multiResult.ctx, err)
