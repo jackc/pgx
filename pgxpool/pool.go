@@ -737,13 +737,13 @@ func (p *Pool) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 func (p *Pool) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return errRows{err: err}, err
+		return pgx.ErrRows(err), err
 	}
 
 	rows, err := c.Query(ctx, sql, args...)
 	if err != nil {
 		c.Release()
-		return errRows{err: err}, err
+		return pgx.ErrRows(err), err
 	}
 
 	return c.getPoolRows(rows), nil
@@ -764,7 +764,7 @@ func (p *Pool) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, er
 func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return errRow{err: err}
+		return pgx.ErrRow(err)
 	}
 
 	row := c.QueryRow(ctx, sql, args...)
@@ -774,11 +774,11 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return errBatchResults{err: err}
+		return pgx.ErrBatchResults(err)
 	}
 
 	br := c.SendBatch(ctx, b)
-	return &poolBatchResults{br: br, c: c}
+	return PoolBatchResults(br, c)
 }
 
 // Begin acquires a connection from the Pool and starts a transaction. Unlike database/sql, the context only affects the begin command. i.e. there is no

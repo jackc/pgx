@@ -70,6 +70,24 @@ type Rows interface {
 	Conn() *Conn
 }
 
+type errRows struct {
+	err error
+}
+
+func ErrRows(err error) Rows {
+	return errRows{err: err}
+}
+
+func (errRows) Close()                                       {}
+func (e errRows) Err() error                                 { return e.err }
+func (errRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (errRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
+func (errRows) Next() bool                                   { return false }
+func (e errRows) Scan(dest ...any) error                     { return e.err }
+func (e errRows) Values() ([]any, error)                     { return nil, e.err }
+func (e errRows) RawValues() [][]byte                        { return nil }
+func (e errRows) Conn() *Conn                                { return nil }
+
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
 //
 // Row is an interface instead of a struct to allow tests to mock QueryRow. However,
@@ -82,6 +100,16 @@ type Row interface {
 	// ignores all but the first.
 	Scan(dest ...any) error
 }
+
+type errRow struct {
+	err error
+}
+
+func ErrRow(err error) Row {
+	return errRow{err: err}
+}
+
+func (e errRow) Scan(dest ...any) error { return e.err }
 
 // RowScanner scans an entire row at a time into the RowScanner.
 type RowScanner interface {

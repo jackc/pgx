@@ -5,29 +5,13 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type errBatchResults struct {
-	err error
-}
-
-func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, br.err
-}
-
-func (br errBatchResults) Query() (pgx.Rows, error) {
-	return errRows{err: br.err}, br.err
-}
-
-func (br errBatchResults) QueryRow() pgx.Row {
-	return errRow{err: br.err}
-}
-
-func (br errBatchResults) Close() error {
-	return br.err
-}
-
 type poolBatchResults struct {
 	br pgx.BatchResults
 	c  *Conn
+}
+
+func PoolBatchResults(br pgx.BatchResults, c *Conn) pgx.BatchResults {
+	return &poolBatchResults{br: br, c: c}
 }
 
 func (br *poolBatchResults) Exec() (pgconn.CommandTag, error) {
