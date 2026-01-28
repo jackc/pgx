@@ -64,12 +64,28 @@ func TestBackendReceiveUnexpectedEOF(t *testing.T) {
 func TestStartupMessage(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid StartupMessage", func(t *testing.T) {
+	t.Run("valid StartupMessage 3.0", func(t *testing.T) {
 		want := &pgproto3.StartupMessage{
-			ProtocolVersion: pgproto3.ProtocolVersionNumber,
-			Parameters: map[string]string{
-				"username": "tester",
-			},
+			ProtocolVersion: pgproto3.ProtocolVersion30,
+			Parameters:      map[string]string{"username": "tester"},
+		}
+		dst, err := want.Encode([]byte{})
+		require.NoError(t, err)
+
+		server := &interruptReader{}
+		server.push(dst)
+
+		backend := pgproto3.NewBackend(server, nil)
+
+		msg, err := backend.ReceiveStartupMessage()
+		require.NoError(t, err)
+		require.Equal(t, want, msg)
+	})
+
+	t.Run("valid StartupMessage 3.2", func(t *testing.T) {
+		want := &pgproto3.StartupMessage{
+			ProtocolVersion: pgproto3.ProtocolVersion32,
+			Parameters:      map[string]string{"username": "tester"},
 		}
 		dst, err := want.Encode([]byte{})
 		require.NoError(t, err)
@@ -107,7 +123,7 @@ func TestStartupMessage(t *testing.T) {
 				server := &interruptReader{}
 				dst := []byte{}
 				dst = pgio.AppendUint32(dst, tt.packetLen)
-				dst = pgio.AppendUint32(dst, pgproto3.ProtocolVersionNumber)
+				dst = pgio.AppendUint32(dst, pgproto3.ProtocolVersion30)
 				server.push(dst)
 
 				backend := pgproto3.NewBackend(server, nil)
