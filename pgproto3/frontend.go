@@ -52,6 +52,7 @@ type Frontend struct {
 	readyForQuery                   ReadyForQuery
 	rowDescription                  RowDescription
 	portalSuspended                 PortalSuspended
+	negotiateProtocolVersion        NegotiateProtocolVersion
 
 	bodyLen    int
 	maxBodyLen int // maxBodyLen is the maximum length of a message body in octets. If a message body exceeds this length, Receive will return an error.
@@ -383,6 +384,8 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 		msg = &f.copyBothResponse
 	case 'Z':
 		msg = &f.readyForQuery
+	case 'v':
+		msg = &f.negotiateProtocolVersion
 	default:
 		return nil, fmt.Errorf("unknown message type: %c", f.msgType)
 	}

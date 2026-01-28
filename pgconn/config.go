@@ -83,6 +83,15 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// MinProtocolVersion is the minimum acceptable PostgreSQL protocol version.
+	// If the server does not support at least this version, the connection will fail.
+	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0".
+	MinProtocolVersion string
+
+	// MaxProtocolVersion is the maximum PostgreSQL protocol version to request from the server.
+	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0" for compatibility.
+	MaxProtocolVersion string
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -213,6 +222,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //	PGCONNECT_TIMEOUT
 //	PGTARGETSESSIONATTRS
 //	PGTZ
+//	PGMINPROTOCOLVERSION
+//	PGMAXPROTOCOLVERSION
 //
 // See http://www.postgresql.org/docs/current/static/libpq-envars.html for details on the meaning of environment variables.
 //
@@ -338,6 +349,8 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"target_session_attrs": {},
 		"service":              {},
 		"servicefile":          {},
+		"min_protocol_version": {},
+		"max_protocol_version": {},
 	}
 
 	// Adding kerberos configuration
@@ -430,6 +443,27 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("unknown target_session_attrs value: %v", tsa)}
 	}
 
+	minProto, err := parseProtocolVersion(settings["min_protocol_version"])
+	if err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid min_protocol_version", err: err}
+	}
+	maxProto, err := parseProtocolVersion(settings["max_protocol_version"])
+	if err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid max_protocol_version", err: err}
+	}
+	if minProto > maxProto {
+		return nil, &ParseConfigError{ConnString: connString, msg: "min_protocol_version cannot be greater than max_protocol_version"}
+	}
+
+	config.MinProtocolVersion = settings["min_protocol_version"]
+	config.MaxProtocolVersion = settings["max_protocol_version"]
+	if config.MinProtocolVersion == "" {
+		config.MinProtocolVersion = "3.0"
+	}
+	if config.MaxProtocolVersion == "" {
+		config.MaxProtocolVersion = "3.0"
+	}
+
 	return config, nil
 }
 
@@ -467,6 +501,8 @@ func parseEnvSettings() map[string]string {
 		"PGSERVICEFILE":        "servicefile",
 		"PGTZ":                 "timezone",
 		"PGOPTIONS":            "options",
+		"PGMINPROTOCOLVERSION": "min_protocol_version",
+		"PGMAXPROTOCOLVERSION": "max_protocol_version",
 	}
 
 	for envname, realname := range nameMap {
@@ -959,4 +995,15 @@ func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn 
 	}
 
 	return nil
+}
+
+func parseProtocolVersion(s string) (uint32, error) {
+	switch s {
+	case "", "3.0":
+		return pgproto3.ProtocolVersion30, nil
+	case "3.2", "latest":
+		return pgproto3.ProtocolVersion32, nil
+	default:
+		return 0, fmt.Errorf("invalid protocol version: %q", s)
+	}
 }

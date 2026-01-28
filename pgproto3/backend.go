@@ -137,7 +137,7 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 	code := binary.BigEndian.Uint32(buf)
 
 	switch code {
-	case ProtocolVersionNumber:
+	case ProtocolVersion30, ProtocolVersion32:
 		err = b.startupMessage.Decode(buf)
 		if err != nil {
 			return nil, err

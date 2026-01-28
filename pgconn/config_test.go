@@ -1198,3 +1198,119 @@ func TestParseConfigExplicitEmptyUserDefaultsToOSUser(t *testing.T) {
 		)
 	}
 }
+
+func TestParseConfigProtocolVersion(t *testing.T) {
+	tests := []struct {
+		name               string
+		connString         string
+		envMin             string
+		envMax             string
+		expectedMin        string
+		expectedMax        string
+		expectError        bool
+		expectedErrContain string
+	}{
+		{
+			name:        "defaults to 3.0",
+			connString:  "postgres://localhost/test",
+			expectedMin: "3.0",
+			expectedMax: "3.0",
+		},
+		{
+			name:        "max_protocol_version=3.2",
+			connString:  "postgres://localhost/test?max_protocol_version=3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "min_protocol_version=3.2 and max_protocol_version=3.2",
+			connString:  "postgres://localhost/test?min_protocol_version=3.2&max_protocol_version=3.2",
+			expectedMin: "3.2",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "max_protocol_version=latest",
+			connString:  "postgres://localhost/test?max_protocol_version=latest",
+			expectedMin: "3.0",
+			expectedMax: "latest",
+		},
+		{
+			name:        "min and max = latest",
+			connString:  "postgres://localhost/test?min_protocol_version=latest&max_protocol_version=latest",
+			expectedMin: "latest",
+			expectedMax: "latest",
+		},
+		{
+			name:               "invalid min_protocol_version",
+			connString:         "postgres://localhost/test?min_protocol_version=2.0",
+			expectError:        true,
+			expectedErrContain: "invalid min_protocol_version",
+		},
+		{
+			name:               "invalid max_protocol_version",
+			connString:         "postgres://localhost/test?max_protocol_version=4.0",
+			expectError:        true,
+			expectedErrContain: "invalid max_protocol_version",
+		},
+		{
+			name:               "min > max",
+			connString:         "postgres://localhost/test?min_protocol_version=3.2&max_protocol_version=3.0",
+			expectError:        true,
+			expectedErrContain: "min_protocol_version cannot be greater than max_protocol_version",
+		},
+		{
+			name:               "environment variable PGMINPROTOCOLVERSION without matching max fails",
+			connString:         "postgres://localhost/test",
+			envMin:             "3.2",
+			expectError:        true,
+			expectedErrContain: "min_protocol_version cannot be greater than max_protocol_version",
+		},
+		{
+			name:        "environment variables PGMINPROTOCOLVERSION and PGMAXPROTOCOLVERSION together",
+			connString:  "postgres://localhost/test",
+			envMin:      "3.2",
+			envMax:      "3.2",
+			expectedMin: "3.2",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "environment variable PGMAXPROTOCOLVERSION",
+			connString:  "postgres://localhost/test",
+			envMax:      "3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "conn string overrides environment variable",
+			connString:  "postgres://localhost/test?max_protocol_version=3.0",
+			envMax:      "3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear protocol version env vars
+			t.Setenv("PGMINPROTOCOLVERSION", "")
+			t.Setenv("PGMAXPROTOCOLVERSION", "")
+
+			if tt.envMin != "" {
+				t.Setenv("PGMINPROTOCOLVERSION", tt.envMin)
+			}
+			if tt.envMax != "" {
+				t.Setenv("PGMAXPROTOCOLVERSION", tt.envMax)
+			}
+
+			config, err := pgconn.ParseConfig(tt.connString)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.expectedErrContain)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedMin, config.MinProtocolVersion, "MinProtocolVersion")
+			assert.Equal(t, tt.expectedMax, config.MaxProtocolVersion, "MaxProtocolVersion")
+		})
+	}
+}

@@ -215,10 +215,10 @@ func TestConnectTimeout(t *testing.T) {
 			t.Parallel()
 			script := &pgmock.Script{
 				Steps: []pgmock.Step{
-					pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersionNumber, Parameters: map[string]string{}}),
+					pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
 					pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
 					pgmockWaitStep(time.Millisecond * 500),
-					pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}),
+					pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}}),
 					pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 				},
 			}
@@ -4112,7 +4112,7 @@ func TestSNISupport(t *testing.T) {
 				}
 
 				srv.Write(mustEncode((&pgproto3.AuthenticationOk{}).Encode(nil)))
-				srv.Write(mustEncode((&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}).Encode(nil)))
+				srv.Write(mustEncode((&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}}).Encode(nil)))
 				srv.Write(mustEncode((&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(nil)))
 
 				serverSNINameChan <- sniHost
@@ -4551,5 +4551,39 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 				}()
 			}
 		})
+	}
+}
+
+func TestConnectProtocolVersion32(t *testing.T) {
+	t.Parallel()
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE") + " max_protocol_version=3.2")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("CockroachDB does not support protocol version 3.2 yet")
+	}
+
+	result, err := pgConn.Exec(context.Background(), "show server_version_num").ReadAll()
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Len(t, result[0].Rows, 1)
+	require.Len(t, result[0].Rows[0], 1)
+	pgVersion, err := strconv.Atoi(string(result[0].Rows[0][0]))
+	require.NoError(t, err)
+
+	// Check secret key length - PG18+ returns 32 bytes, older versions return 4
+	secretKey := pgConn.SecretKey()
+
+	if pgVersion < 180000 {
+		assert.Len(t, secretKey, 4)
+	} else {
+		assert.Len(t, secretKey, 32)
 	}
 }
