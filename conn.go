@@ -1194,7 +1194,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 			for _, sd := range distinctNewQueries {
 				results, err := pipeline.GetResults()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to prepare statement: %s: %w", sd.SQL, err)
 				}
 
 				resultSD, ok := results.(*pgconn.StatementDescription)
