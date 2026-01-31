@@ -1435,6 +1435,146 @@ func TestConnExecPreparedEmptySQL(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecStatement(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	psd, err := pgConn.Prepare(ctx, "ps1", "select $1::text as msg", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, 1)
+	assert.Len(t, psd.Fields, 1)
+
+	result := pgConn.ExecStatement(ctx, psd, [][]byte{[]byte("Hello, world")}, nil, nil)
+	require.Len(t, result.FieldDescriptions(), 1)
+	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
+
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+		assert.Equal(t, "Hello, world", string(result.Values()[0]))
+	}
+	assert.Equal(t, 1, rowCount)
+	commandTag, err := result.Close()
+	assert.Equal(t, "SELECT 1", commandTag.String())
+	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+type byteCounterConn struct {
+	conn         net.Conn
+	bytesRead    int
+	bytesWritten int
+}
+
+func (cbn *byteCounterConn) Read(b []byte) (n int, err error) {
+	n, err = cbn.conn.Read(b)
+	cbn.bytesRead += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Write(b []byte) (n int, err error) {
+	n, err = cbn.conn.Write(b)
+	cbn.bytesWritten += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Close() error {
+	return cbn.conn.Close()
+}
+
+func (cbn *byteCounterConn) LocalAddr() net.Addr {
+	return cbn.conn.LocalAddr()
+}
+
+func (cbn *byteCounterConn) RemoteAddr() net.Addr {
+	return cbn.conn.RemoteAddr()
+}
+
+func (cbn *byteCounterConn) SetDeadline(t time.Time) error {
+	return cbn.conn.SetDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetReadDeadline(t time.Time) error {
+	return cbn.conn.SetReadDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetWriteDeadline(t time.Time) error {
+	return cbn.conn.SetWriteDeadline(t)
+}
+
+func TestConnExecStatementNetworkUsage(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var counterConn *byteCounterConn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		counterConn = &byteCounterConn{conn: conn}
+		return counterConn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+	require.NotNil(t, counterConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server uses different number of bytes for same operations")
+	}
+
+	psd, err := pgConn.Prepare(ctx, "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, 1)
+	assert.Len(t, psd.Fields, 9)
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	result := pgConn.ExecPrepared(ctx,
+		psd.Name,
+		[][]byte{[]byte("1")},
+		nil,
+		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode},
+	).Read()
+	require.NoError(t, result.Err)
+	withDescribeBytesWritten := counterConn.bytesWritten
+	withDescribeBytesRead := counterConn.bytesRead
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	result = pgConn.ExecStatement(
+		ctx,
+		psd,
+		[][]byte{[]byte("1")},
+		nil,
+		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode, pgx.BinaryFormatCode},
+	).Read()
+	require.NoError(t, result.Err)
+	noDescribeBytesWritten := counterConn.bytesWritten
+	noDescribeBytesRead := counterConn.bytesRead
+
+	assert.Equal(t, 61, withDescribeBytesWritten)
+	assert.Equal(t, 54, noDescribeBytesWritten)
+	assert.Equal(t, 391, withDescribeBytesRead)
+	assert.Equal(t, 153, noDescribeBytesRead)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
@@ -1448,14 +1588,20 @@ func TestConnExecBatch(t *testing.T) {
 	_, err = pgConn.Prepare(ctx, "ps1", "select $1::text", nil)
 	require.NoError(t, err)
 
+	sd, err := pgConn.Prepare(ctx, "ps2", "select $1::text as name, $2::bigint as age", nil)
+	require.NoError(t, err)
+
 	batch := &pgconn.Batch{}
 
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 1")}, nil, nil, nil)
 	batch.ExecPrepared("ps1", [][]byte{[]byte("ExecPrepared 1")}, nil, nil)
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 1"), []byte("42")}, nil, nil)
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 2"), []byte("43")}, nil, []int16{pgx.BinaryFormatCode})
+	batch.ExecStatement(sd, [][]byte{[]byte("ExecStatement 3"), []byte("44")}, nil, []int16{pgx.TextFormatCode, pgx.BinaryFormatCode})
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 2")}, nil, nil, nil)
 	results, err := pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 6)
 
 	require.Len(t, results[0].Rows, 1)
 	require.Equal(t, "ExecParams 1", string(results[0].Rows[0][0]))
@@ -1466,7 +1612,22 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", results[1].CommandTag.String())
 
 	require.Len(t, results[2].Rows, 1)
-	require.Equal(t, "ExecParams 2", string(results[2].Rows[0][0]))
+	require.Equal(t, "ExecStatement 1", string(results[2].Rows[0][0]))
+	require.Equal(t, "42", string(results[2].Rows[0][1]))
+	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
+
+	require.Len(t, results[3].Rows, 1)
+	require.Equal(t, "ExecStatement 2", string(results[3].Rows[0][0]))
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 43}, results[3].Rows[0][1])
+	assert.Equal(t, "SELECT 1", results[3].CommandTag.String())
+
+	require.Len(t, results[4].Rows, 1)
+	require.Equal(t, "ExecStatement 3", string(results[4].Rows[0][0]))
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 44}, results[4].Rows[0][1])
+	assert.Equal(t, "SELECT 1", results[4].CommandTag.String())
+
+	require.Len(t, results[5].Rows, 1)
+	require.Equal(t, "ExecParams 2", string(results[5].Rows[0][0]))
 	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
 }
 
@@ -3599,6 +3760,47 @@ func TestPipelineFlushWithError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelineGetResultsHandlesPartiallyReadResults(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	sd, err := pgConn.Prepare(ctx, "ps", "select n from generate_series($1::int, $2::int) n", nil)
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("1"), []byte("3")}, nil, nil)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("5"), []byte("7")}, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	require.True(t, rr.NextRow())
+	require.Equal(t, "1", string(rr.Values()[0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	require.True(t, rr.NextRow())
+	require.Equal(t, "5", string(rr.Values()[0]))
+	require.True(t, rr.NextRow())
+	require.Equal(t, "6", string(rr.Values()[0]))
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 	t.Parallel()
 
@@ -3609,6 +3811,9 @@ func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	sd, err := pgConn.Prepare(ctx, "ps", "select $1::text as msg", nil)
+	require.NoError(t, err)
+
 	pipeline := pgConn.StartPipeline(ctx)
 	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
 	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
@@ -3618,6 +3823,11 @@ func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 
 	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
 	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("6")}, nil, nil)
+	pipeline.SendQueryStatement(sd, [][]byte{[]byte("7")}, nil, nil)
 	err = pipeline.Sync()
 	require.NoError(t, err)
 
@@ -4108,6 +4318,8 @@ func TestFatalErrorReceivedInPipelineMode(t *testing.T) {
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Describe{}))
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Parse{}))
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Describe{}))
+	steps = append(steps, pgmock.SendMessage(&pgproto3.ParseComplete{}))
+	steps = append(steps, pgmock.SendMessage(&pgproto3.ParameterDescription{}))
 	steps = append(steps, pgmock.SendMessage(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
 		{Name: []byte("mock")},
 	}}))

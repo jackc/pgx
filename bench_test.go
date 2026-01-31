@@ -158,6 +158,41 @@ func BenchmarkMinimalPgConnPreparedSelect(b *testing.B) {
 	}
 }
 
+func BenchmarkMinimalPgConnPreparedStatementDescriptionSelect(b *testing.B) {
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	pgConn := conn.PgConn()
+
+	psd, err := pgConn.Prepare(context.Background(), "ps1", "select $1::int8", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	encodedBytes := make([]byte, 8)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+
+		rr := pgConn.ExecStatement(context.Background(), psd, [][]byte{encodedBytes}, []int16{1}, []int16{1})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for rr.NextRow() {
+			for i := range rr.Values() {
+				if !bytes.Equal(rr.Values()[0], encodedBytes) {
+					b.Fatalf("unexpected values: %s %s", rr.Values()[i], encodedBytes)
+				}
+			}
+		}
+		_, err = rr.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
@@ -1244,6 +1279,51 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 						rr := conn.PgConn().ExecPrepared(
 							context.Background(),
 							"ps1",
+							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
+							nil,
+							[]int16{format.code, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, format.code, format.code, format.code, format.code, format.code},
+						)
+						for rr.NextRow() {
+							rr.Values()
+						}
+
+						_, err := rr.Close()
+						if err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsPgConnExecStatement(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	psd, err := conn.PgConn().Prepare(context.Background(), "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			formats := []struct {
+				name string
+				code int16
+			}{
+				{"text", pgx.TextFormatCode},
+				{"binary - mostly", pgx.BinaryFormatCode},
+			}
+			for _, format := range formats {
+				b.Run(format.name, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						rr := conn.PgConn().ExecStatement(
+							context.Background(),
+							psd,
 							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
 							nil,
 							[]int16{format.code, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, format.code, format.code, format.code, format.code, format.code},
