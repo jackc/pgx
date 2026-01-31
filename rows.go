@@ -529,7 +529,7 @@ func RowTo[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
-// RowTo returns a the address of a T scanned from row.
+// RowToAddrOf returns the address of a T scanned from row.
 func RowToAddrOf[T any](row CollectableRow) (*T, error) {
 	var value T
 	err := row.Scan(&value)
