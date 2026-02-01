@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -305,13 +304,6 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		},
 	}
 
-	if _, present := settings["user"]; present && config.User == "" {
-		currentUser, err := user.Current()
-		if err == nil {
-			config.User = currentUser.Username
-		}
-	}
-
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
 		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
@@ -499,7 +491,9 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	if parsedURL.User != nil {
-		settings["user"] = parsedURL.User.Username()
+		if u := parsedURL.User.Username(); u != "" {
+			settings["user"] = u
+		}
 		if password, present := parsedURL.User.Password(); present {
 			settings["password"] = password
 		}
@@ -626,6 +620,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			return nil, errors.New("invalid keyword/value")
 		}
 
+		if key == "user" && val == "" {
+			continue
+		}
 		settings[key] = val
 	}
 

@@ -1161,8 +1161,23 @@ func TestParseConfigExplicitEmptyUserDefaultsToOSUser(t *testing.T) {
 		expected   string
 	}{
 		{
-			name:       "explicit empty user parameter",
+			name:       "keyword value explicit empty user",
 			connString: "host=localhost dbname=test user=",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "keyword value quoted empty user",
+			connString: "host=localhost dbname=test user=''",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user without password",
+			connString: "postgres://@localhost/test",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user with password",
+			connString: "postgres://:secret@localhost/test",
 			expected:   currentUser.Username,
 		},
 	}
