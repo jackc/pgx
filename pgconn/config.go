@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -302,6 +303,13 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 			}
 			return true
 		},
+	}
+
+	if _, present := settings["user"]; present && config.User == "" {
+		currentUser, err := user.Current()
+		if err == nil {
+			config.User = currentUser.Username
+		}
 	}
 
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
