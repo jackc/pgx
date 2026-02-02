@@ -1145,3 +1145,56 @@ application_name = spaced string
 		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
 	}
 }
+
+func TestParseConfigExplicitEmptyUserDefaultsToOSUser(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	currentUser, err := user.Current()
+	if err != nil {
+		t.Skip("cannot determine current OS user")
+	}
+
+	tests := []struct {
+		name       string
+		connString string
+		expected   string
+	}{
+		{
+			name:       "keyword value explicit empty user",
+			connString: "host=localhost dbname=test user=",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "keyword value quoted empty user",
+			connString: "host=localhost dbname=test user=''",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user without password",
+			connString: "postgres://@localhost/test",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user with password",
+			connString: "postgres://:secret@localhost/test",
+			expected:   currentUser.Username,
+		},
+	}
+
+	for i, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		if !assert.NoErrorf(t, err, "Test %d (%s)", i, tt.name) {
+			continue
+		}
+
+		assert.Equalf(
+			t,
+			tt.expected,
+			config.User,
+			"Test %d (%s): unexpected user",
+			i,
+			tt.name,
+		)
+	}
+}
