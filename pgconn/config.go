@@ -491,7 +491,9 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	if parsedURL.User != nil {
-		settings["user"] = parsedURL.User.Username()
+		if u := parsedURL.User.Username(); u != "" {
+			settings["user"] = u
+		}
 		if password, present := parsedURL.User.Password(); present {
 			settings["password"] = password
 		}
@@ -618,6 +620,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			return nil, errors.New("invalid keyword/value")
 		}
 
+		if key == "user" && val == "" {
+			continue
+		}
 		settings[key] = val
 	}
 
