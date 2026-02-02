@@ -505,3 +505,27 @@ func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
 		}
 	}
 }
+
+type errBatchResults struct {
+	err error
+}
+
+func ErrBatchResults(err error) BatchResults {
+	return errBatchResults{err: err}
+}
+
+func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, br.err
+}
+
+func (br errBatchResults) Query() (Rows, error) {
+	return ErrRows(br.err), br.err
+}
+
+func (br errBatchResults) QueryRow() Row {
+	return ErrRow(br.err)
+}
+
+func (br errBatchResults) Close() error {
+	return br.err
+}

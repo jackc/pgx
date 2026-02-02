@@ -5,26 +5,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type errRows struct {
-	err error
-}
-
-func (errRows) Close()                                       {}
-func (e errRows) Err() error                                 { return e.err }
-func (errRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
-func (errRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
-func (errRows) Next() bool                                   { return false }
-func (e errRows) Scan(dest ...any) error                     { return e.err }
-func (e errRows) Values() ([]any, error)                     { return nil, e.err }
-func (e errRows) RawValues() [][]byte                        { return nil }
-func (e errRows) Conn() *pgx.Conn                            { return nil }
-
-type errRow struct {
-	err error
-}
-
-func (e errRow) Scan(dest ...any) error { return e.err }
-
 type poolRows struct {
 	r   pgx.Rows
 	c   *Conn
