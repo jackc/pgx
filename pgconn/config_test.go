@@ -781,6 +781,82 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseConfigWithOptionsEscapePassword(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	tests := []struct {
+		name       string
+		connString string
+		config     *pgconn.Config
+	}{
+		{
+			name:       "URL password with unescaped special characters",
+			connString: "postgresql://testuser:AbC123[}xYz<@test.example.com:5432/testdb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "testuser",
+				Password:      "AbC123[}xYz<",
+				Host:          "test.example.com",
+				Port:          5432,
+				Database:      "testdb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "URL password with unescaped @ character",
+			connString: "postgresql://testuser:AbC123[}@xYz<@test.example.com:5432/testdb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "testuser",
+				Password:      "AbC123[}@xYz<",
+				Host:          "test.example.com",
+				Port:          5432,
+				Database:      "testdb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "URL with normal password",
+			connString: "postgresql://testuser:mypassword@test.example.com:5432/testdb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "testuser",
+				Password:      "mypassword",
+				Host:          "test.example.com",
+				Port:          5432,
+				Database:      "testdb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "URL with no password",
+			connString: "postgresql://testuser@test.example.com:5432/testdb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "testuser",
+				Password:      "",
+				Host:          "test.example.com",
+				Port:          5432,
+				Database:      "testdb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		options := pgconn.ParseConfigOptions{
+			EscapePassword: true,
+		}
+		config, err := pgconn.ParseConfigWithOptions(tt.connString, options)
+		if !assert.Nilf(t, err, "Test %d (%s)", i, tt.name) {
+			continue
+		}
+
+		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
+	}
+}
+
 // https://github.com/jackc/pgconn/issues/47
 func TestParseConfigKVWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
 	_, err := pgconn.ParseConfig("host= user= password= port= database=")
