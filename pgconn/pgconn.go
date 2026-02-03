@@ -77,7 +77,7 @@ type NotificationHandler func(*PgConn, *Notification)
 type PgConn struct {
 	conn              net.Conn
 	pid               uint32            // backend pid
-	secretKey         uint32            // key to use to send a cancel query message to the server
+	secretKey         []byte            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	txStatus          byte
 	frontend          *pgproto3.Frontend
@@ -319,6 +319,15 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return e
 	}
 
+	maxProtocolVersion, err := parseProtocolVersion(config.MaxProtocolVersion)
+	if err != nil {
+		return nil, newPerDialConnectError("invalid max_protocol_version", err)
+	}
+	minProtocolVersion, err := parseProtocolVersion(config.MinProtocolVersion)
+	if err != nil {
+		return nil, newPerDialConnectError("invalid min_protocol_version", err)
+	}
+
 	pgConn.conn, err = config.DialFunc(ctx, connectConfig.network, connectConfig.address)
 	if err != nil {
 		return nil, newPerDialConnectError("dial error", err)
@@ -371,7 +380,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	pgConn.frontend = config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
-		ProtocolVersion: pgproto3.ProtocolVersionNumber,
+		ProtocolVersion: maxProtocolVersion,
 		Parameters:      make(map[string]string),
 	}
 
@@ -452,6 +461,12 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			return pgConn, nil
 		case *pgproto3.ParameterStatus, *pgproto3.NoticeResponse:
 			// handled by ReceiveMessage
+		case *pgproto3.NegotiateProtocolVersion:
+			serverVersion := pgproto3.ProtocolVersion30&0xFFFF0000 | uint32(msg.NewestMinorProtocol)
+			if serverVersion < minProtocolVersion {
+				pgConn.conn.Close()
+				return nil, newPerDialConnectError("server protocol version too low", nil)
+			}
 		case *pgproto3.ErrorResponse:
 			pgConn.conn.Close()
 			return nil, newPerDialConnectError("server error", ErrorResponseToPgError(msg))
@@ -641,7 +656,7 @@ func (pgConn *PgConn) TxStatus() byte {
 }
 
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
-func (pgConn *PgConn) SecretKey() uint32 {
+func (pgConn *PgConn) SecretKey() []byte {
 	return pgConn.secretKey
 }
 
@@ -1040,11 +1055,11 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 		defer contextWatcher.Unwatch()
 	}
 
-	buf := make([]byte, 16)
-	binary.BigEndian.PutUint32(buf[0:4], 16)
+	buf := make([]byte, 12+len(pgConn.secretKey))
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(buf)))
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
 	binary.BigEndian.PutUint32(buf[8:12], pgConn.pid)
-	binary.BigEndian.PutUint32(buf[12:16], pgConn.secretKey)
+	copy(buf[12:], pgConn.secretKey)
 
 	if _, err := cancelConn.Write(buf); err != nil {
 		return fmt.Errorf("write to connection for cancellation: %w", err)
@@ -2077,7 +2092,7 @@ func (pgConn *PgConn) CustomData() map[string]any {
 type HijackedConn struct {
 	Conn              net.Conn
 	PID               uint32            // backend pid
-	SecretKey         uint32            // key to use to send a cancel query message to the server
+	SecretKey         []byte            // key to use to send a cancel query message to the server
 	ParameterStatuses map[string]string // parameters that have been reported by the server
 	TxStatus          byte
 	Frontend          *pgproto3.Frontend

@@ -128,9 +128,9 @@ func WaitForClose() Step {
 
 func AcceptUnauthenticatedConnRequestSteps() []Step {
 	return []Step{
-		ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersionNumber, Parameters: map[string]string{}}),
+		ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
 		SendMessage(&pgproto3.AuthenticationOk{}),
-		SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}),
+		SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}}),
 		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 	}
 }
