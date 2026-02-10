@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math/rand/v2"
+	"sync"
 	"testing"
 	"time"
 
@@ -137,4 +138,67 @@ func TestBGReaderStress(t *testing.T) {
 			bytesRead += n
 		}
 	}
+}
+
+type blockingReader struct {
+	started    chan struct{}
+	allowFirst chan struct{}
+	mu         sync.Mutex
+	reads      int
+}
+
+func newBlockingReader() *blockingReader {
+	return &blockingReader{
+		started:    make(chan struct{}),
+		allowFirst: make(chan struct{}),
+	}
+}
+
+func (r *blockingReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	r.reads++
+	reads := r.reads
+	r.mu.Unlock()
+
+	if reads == 1 {
+		close(r.started)
+		<-r.allowFirst
+		return 0, io.EOF
+	}
+
+	return copy(p, []byte("direct")), nil
+}
+
+func TestBGReaderReadDoesNotWaitWhenStopping(t *testing.T) {
+	rr := newBlockingReader()
+	defer close(rr.allowFirst)
+
+	bgr := bgreader.New(rr)
+	bgr.Start()
+
+	select {
+	case <-rr.started:
+	case <-time.After(1 * time.Second):
+		t.Fatal("background read did not start")
+	}
+
+	bgr.Stop()
+
+	buf := make([]byte, 6)
+	done := make(chan struct{})
+	var n int
+	var err error
+	go func() {
+		n, err = bgr.Read(buf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("Read blocked while status was StatusStopping")
+	}
+
+	require.NoError(t, err)
+	require.Equal(t, "direct", string(buf[:n]))
 }

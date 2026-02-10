@@ -95,8 +95,8 @@ func (r *BGReader) Read(p []byte) (int, error) {
 		return r.readFromReadResults(p)
 	}
 
-	// There are no unread background read results and the background reader is stopped.
-	if r.status == StatusStopped {
+	// There are no unread background read results and the background reader is stopped or stopping.
+	if r.status == StatusStopped || r.status == StatusStopping {
 		return r.r.Read(p)
 	}
 
