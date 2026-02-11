@@ -4556,8 +4556,9 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 
 func TestConnectProtocolVersion32(t *testing.T) {
 	t.Parallel()
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE") + " max_protocol_version=3.2")
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
+	config.MaxProtocolVersion = "3.2"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
