@@ -521,7 +521,8 @@ func newErrPreprocessingBatch(step, sql string, err error) ErrPreprocessingBatch
 
 func (e ErrPreprocessingBatch) Error() string {
 	// intentionally not including the SQL query in the error message
-	// to avoid leaking potentially sensitive information into logs
+	// to avoid leaking potentially sensitive information into logs.
+	// If the user wants the SQL, they can call SQL().
 	return fmt.Sprintf("error preprocessing batch (%s): %v", e.step, e.err)
 }
 
