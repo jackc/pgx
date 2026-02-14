@@ -10,7 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
-const ProtocolVersionNumber = 196608 // 3.0
+const (
+	ProtocolVersion30     = 196608            // 3.0
+	ProtocolVersion32     = 196610            // 3.2
+	ProtocolVersionNumber = ProtocolVersion30 // Default is still 3.0
+)
 
 type StartupMessage struct {
 	ProtocolVersion uint32
@@ -30,8 +34,8 @@ func (dst *StartupMessage) Decode(src []byte) error {
 	dst.ProtocolVersion = binary.BigEndian.Uint32(src)
 	rp := 4
 
-	if dst.ProtocolVersion != ProtocolVersionNumber {
-		return fmt.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
+	if dst.ProtocolVersion != ProtocolVersion30 && dst.ProtocolVersion != ProtocolVersion32 {
+		return fmt.Errorf("Bad startup message version number. Expected %d or %d, got %d", ProtocolVersion30, ProtocolVersion32, dst.ProtocolVersion)
 	}
 
 	dst.Parameters = make(map[string]string)

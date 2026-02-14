@@ -93,11 +93,29 @@ func TestJSONUnmarshalAuthenticationSASLFinal(t *testing.T) {
 	}
 }
 
-func TestJSONUnmarshalBackendKeyData(t *testing.T) {
-	data := []byte(`{"Type":"BackendKeyData","ProcessID":8864,"SecretKey":3641487067}`)
+func TestJSONUnmarshalBackendKeyData30(t *testing.T) {
+	// SecretKey is now hex-encoded: d90caedb = 3641487067 in big-endian
+	data := []byte(`{"Type":"BackendKeyData","ProcessID":8864,"SecretKey":"d90caedb"}`)
 	want := BackendKeyData{
 		ProcessID: 8864,
-		SecretKey: 3641487067,
+		SecretKey: []byte{0xd9, 0x0c, 0xae, 0xdb},
+	}
+
+	var got BackendKeyData
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Errorf("cannot JSON unmarshal %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Error("unmarshaled BackendKeyData struct doesn't match expected value")
+	}
+}
+
+func TestJSONUnmarshalBackendKeyData32(t *testing.T) {
+	// 32-byte key as hex
+	data := []byte(`{"Type":"BackendKeyData","ProcessID":8864,"SecretKey":"0102030405060708091011121314151617181920212223242526272829303132"}`)
+	want := BackendKeyData{
+		ProcessID: 8864,
+		SecretKey: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x30, 0x31, 0x32},
 	}
 
 	var got BackendKeyData
@@ -367,10 +385,28 @@ func TestJSONUnmarshalBind(t *testing.T) {
 }
 
 func TestJSONUnmarshalCancelRequest(t *testing.T) {
-	data := []byte(`{"Type":"CancelRequest","ProcessID":8864,"SecretKey":3641487067}`)
+	// SecretKey is now hex-encoded: d90caedb = 3641487067 in big-endian
+	data := []byte(`{"Type":"CancelRequest","ProcessID":8864,"SecretKey":"d90caedb"}`)
 	want := CancelRequest{
 		ProcessID: 8864,
-		SecretKey: 3641487067,
+		SecretKey: []byte{0xd9, 0x0c, 0xae, 0xdb},
+	}
+
+	var got CancelRequest
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Errorf("cannot JSON unmarshal %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Error("unmarshaled CancelRequest struct doesn't match expected value")
+	}
+}
+
+func TestJSONUnmarshalCancelRequestLongKey(t *testing.T) {
+	// 32-byte key as hex
+	data := []byte(`{"Type":"CancelRequest","ProcessID":8864,"SecretKey":"0102030405060708091011121314151617181920212223242526272829303132"}`)
+	want := CancelRequest{
+		ProcessID: 8864,
+		SecretKey: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x30, 0x31, 0x32},
 	}
 
 	var got CancelRequest
