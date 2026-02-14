@@ -370,6 +370,10 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	pgConn.bgReaderStarted = make(chan struct{})
 	pgConn.frontend = config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
+	if config.Tracer != nil {
+		pgConn.frontend.Trace(config.Tracer, config.TracerOptions)
+	}
+
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: pgproto3.ProtocolVersionNumber,
 		Parameters:      make(map[string]string),

@@ -2,10 +2,12 @@ package pgproto3
 
 import (
 	"bytes"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -17,7 +19,7 @@ type tracer struct {
 
 	mux sync.Mutex
 	w   io.Writer
-	buf *bytes.Buffer
+	buf bytes.Buffer
 }
 
 // TracerOptions controls tracing behavior. It is roughly equivalent to the libpq function PQsetTraceFlags.
@@ -27,6 +29,212 @@ type TracerOptions struct {
 
 	// RegressMode redacts fields that may be vary between executions.
 	RegressMode bool
+}
+
+const timestampFormat = "2006-01-02 15:04:05.000000"
+
+var (
+	errUnclosedDoubleQuote = errors.New("unclosed double quote")
+	errUnclosedSingleQuote = errors.New("unclosed single quote")
+	errExpectedSingleQuote = errors.New("expected single quote")
+)
+
+// Parse parses a single trace line into its components.
+// Returns the timestamp (zero if SuppressTimestamps was true), actor ('F' or 'B'),
+// message type name, encoded message size, and the args portion (may be empty).
+func (opts TracerOptions) Parse(line []byte) (timestamp time.Time, actor byte, msgType string, size int32, args []byte, err error) {
+	// Parse fields by scanning for tabs manually to avoid allocation from bytes.Split
+	data := line
+
+	// Parse timestamp if present
+	if !opts.SuppressTimestamps {
+		tabIdx := indexByte(data, '\t')
+		if tabIdx < 0 {
+			return time.Time{}, 0, "", 0, nil, errors.New("invalid trace line: not enough fields")
+		}
+		timestamp, err = time.Parse(timestampFormat, string(data[:tabIdx]))
+		if err != nil {
+			return time.Time{}, 0, "", 0, nil, fmt.Errorf("invalid timestamp: %w", err)
+		}
+		data = data[tabIdx+1:]
+	}
+
+	// Parse actor
+	if len(data) < 1 {
+		return time.Time{}, 0, "", 0, nil, errors.New("invalid trace line: not enough fields")
+	}
+	actor = data[0]
+	if actor != 'F' && actor != 'B' {
+		return time.Time{}, 0, "", 0, nil, fmt.Errorf("invalid actor: expected 'F' or 'B', got '%c'", actor)
+	}
+	data = data[1:]
+
+	// Expect tab after actor
+	if len(data) == 0 || data[0] != '\t' {
+		return time.Time{}, 0, "", 0, nil, errors.New("invalid actor: expected single character")
+	}
+	data = data[1:]
+
+	// Parse message type
+	tabIdx := indexByte(data, '\t')
+	if tabIdx < 0 {
+		return time.Time{}, 0, "", 0, nil, errors.New("invalid trace line: not enough fields")
+	}
+	msgType = string(data[:tabIdx])
+	data = data[tabIdx+1:]
+
+	// Parse size
+	tabIdx = indexByte(data, '\t')
+	var sizeBytes []byte
+	if tabIdx < 0 {
+		sizeBytes = data
+		data = nil
+	} else {
+		sizeBytes = data[:tabIdx]
+		data = data[tabIdx+1:]
+	}
+	sizeVal, err := strconv.ParseInt(string(sizeBytes), 10, 32)
+	if err != nil {
+		return time.Time{}, 0, "", 0, nil, fmt.Errorf("invalid size: %w", err)
+	}
+	size = int32(sizeVal)
+
+	// Remaining data is args
+	args = data
+
+	return timestamp, actor, msgType, size, args, nil
+}
+
+// indexByte returns the index of the first instance of c in s, or -1 if c is not present.
+func indexByte(s []byte, c byte) int {
+	return bytes.IndexByte(s, c)
+}
+
+// ParseArgs returns an iterator over space-separated arguments in the args portion.
+// Each value is unquoted and unescaped:
+//   - Double-quoted strings: "value" → value (quotes removed)
+//   - Single-quoted strings with hex escapes: 'hello\x0aworld' → hello\nworld (unescaped)
+//   - Unquoted values returned as-is
+func (opts TracerOptions) ParseArgs(args []byte) iter.Seq2[[]byte, error] {
+	return func(yield func([]byte, error) bool) {
+		data := args
+
+		for len(data) > 0 {
+			// Skip leading spaces
+			for len(data) > 0 && data[0] == ' ' {
+				data = data[1:]
+			}
+			if len(data) == 0 {
+				break
+			}
+
+			var value []byte
+			var err error
+
+			switch data[0] {
+			case '"':
+				// Double-quoted string: find closing quote
+				end := bytes.IndexByte(data[1:], '"')
+				if end < 0 {
+					if !yield(nil, errUnclosedDoubleQuote) {
+						return
+					}
+					return
+				}
+				value = data[1 : end+1]
+				data = data[end+2:]
+
+			case '\'':
+				// Single-quoted string with hex escapes
+				value, data, err = parseSingleQuoted(data)
+				if err != nil {
+					if !yield(nil, err) {
+						return
+					}
+					return
+				}
+
+			default:
+				// Unquoted value: read until space
+				end := bytes.IndexByte(data, ' ')
+				if end < 0 {
+					value = data
+					data = nil
+				} else {
+					value = data[:end]
+					data = data[end:]
+				}
+			}
+
+			if !yield(value, nil) {
+				return
+			}
+		}
+	}
+}
+
+// parseSingleQuoted parses a single-quoted string with hex escapes.
+// Returns the unescaped value, remaining data, and any error.
+// Optimized to avoid allocations when there are no escape sequences.
+func parseSingleQuoted(data []byte) (value []byte, remaining []byte, err error) {
+	if len(data) == 0 || data[0] != '\'' {
+		return nil, data, errExpectedSingleQuote
+	}
+	data = data[1:]
+
+	// First, scan to find the closing quote and check if any escapes exist
+	hasEscape := false
+	closeIdx := -1
+	for i := range data {
+		if data[i] == '\'' {
+			closeIdx = i
+			break
+		}
+		if data[i] == '\\' && i+1 < len(data) && data[i+1] == 'x' {
+			hasEscape = true
+		}
+	}
+
+	if closeIdx < 0 {
+		return nil, nil, errUnclosedSingleQuote
+	}
+
+	content := data[:closeIdx]
+	remaining = data[closeIdx+1:]
+
+	// Fast path: no escapes, return a subslice directly
+	if !hasEscape {
+		return content, remaining, nil
+	}
+
+	// Slow path: need to unescape
+	// Pre-calculate the result size to avoid reallocations
+	resultLen := 0
+	for i := 0; i < len(content); i++ {
+		if len(content) >= i+4 && content[i] == '\\' && content[i+1] == 'x' {
+			resultLen++
+			i += 3 // skip \xNN, loop will add 1 more
+		} else {
+			resultLen++
+		}
+	}
+
+	result := make([]byte, 0, resultLen)
+	var decoded [1]byte
+	for i := 0; i < len(content); i++ {
+		if len(content) >= i+4 && content[i] == '\\' && content[i+1] == 'x' {
+			_, err := hex.Decode(decoded[:], content[i+2:i+4])
+			if err != nil {
+				return nil, data, fmt.Errorf("invalid hex escape: %w", err)
+			}
+			result = append(result, decoded[0])
+			i += 3
+		} else {
+			result = append(result, content[i])
+		}
+	}
+
+	return result, remaining, nil
 }
 
 func (t *tracer) traceMessage(sender byte, encodedLen int32, msg Message) {
@@ -163,24 +371,24 @@ func (t *tracer) traceBackendKeyData(sender byte, encodedLen int32, msg *Backend
 		if t.RegressMode {
 			t.buf.WriteString("\t NNNN NNNN")
 		} else {
-			fmt.Fprintf(t.buf, "\t %d %d", msg.ProcessID, msg.SecretKey)
+			fmt.Fprintf(&t.buf, "\t %d %d", msg.ProcessID, msg.SecretKey)
 		}
 	})
 }
 
 func (t *tracer) traceBind(sender byte, encodedLen int32, msg *Bind) {
 	t.writeTrace(sender, encodedLen, "Bind", func() {
-		fmt.Fprintf(t.buf, "\t %s %s %d", traceDoubleQuotedString([]byte(msg.DestinationPortal)), traceDoubleQuotedString([]byte(msg.PreparedStatement)), len(msg.ParameterFormatCodes))
+		fmt.Fprintf(&t.buf, "\t %s %s %d", doubleQuotedString{&msg.DestinationPortal}, doubleQuotedString{&msg.PreparedStatement}, len(msg.ParameterFormatCodes))
 		for _, fc := range msg.ParameterFormatCodes {
-			fmt.Fprintf(t.buf, " %d", fc)
+			fmt.Fprintf(&t.buf, " %d", fc)
 		}
-		fmt.Fprintf(t.buf, " %d", len(msg.Parameters))
-		for _, p := range msg.Parameters {
-			fmt.Fprintf(t.buf, " %s", traceSingleQuotedString(p))
+		fmt.Fprintf(&t.buf, " %d", len(msg.Parameters))
+		for i := range msg.Parameters {
+			fmt.Fprintf(&t.buf, " %s", singleQuotedEscaped{&msg.Parameters[i]})
 		}
-		fmt.Fprintf(t.buf, " %d", len(msg.ResultFormatCodes))
+		fmt.Fprintf(&t.buf, " %d", len(msg.ResultFormatCodes))
 		for _, fc := range msg.ResultFormatCodes {
-			fmt.Fprintf(t.buf, " %d", fc)
+			fmt.Fprintf(&t.buf, " %d", fc)
 		}
 	})
 }
@@ -203,7 +411,7 @@ func (t *tracer) traceCloseComplete(sender byte, encodedLen int32, msg *CloseCom
 
 func (t *tracer) traceCommandComplete(sender byte, encodedLen int32, msg *CommandComplete) {
 	t.writeTrace(sender, encodedLen, "CommandComplete", func() {
-		fmt.Fprintf(t.buf, "\t %s", traceDoubleQuotedString(msg.CommandTag))
+		fmt.Fprintf(&t.buf, "\t %s", doubleQuotedBytes{&msg.CommandTag})
 	})
 }
 
@@ -221,7 +429,7 @@ func (t *tracer) traceCopyDone(sender byte, encodedLen int32, msg *CopyDone) {
 
 func (t *tracer) traceCopyFail(sender byte, encodedLen int32, msg *CopyFail) {
 	t.writeTrace(sender, encodedLen, "CopyFail", func() {
-		fmt.Fprintf(t.buf, "\t %s", traceDoubleQuotedString([]byte(msg.Message)))
+		fmt.Fprintf(&t.buf, "\t %s", doubleQuotedString{&msg.Message})
 	})
 }
 
@@ -235,12 +443,12 @@ func (t *tracer) traceCopyOutResponse(sender byte, encodedLen int32, msg *CopyOu
 
 func (t *tracer) traceDataRow(sender byte, encodedLen int32, msg *DataRow) {
 	t.writeTrace(sender, encodedLen, "DataRow", func() {
-		fmt.Fprintf(t.buf, "\t %d", len(msg.Values))
-		for _, v := range msg.Values {
-			if v == nil {
+		fmt.Fprintf(&t.buf, "\t %d", len(msg.Values))
+		for i := range msg.Values {
+			if msg.Values[i] == nil {
 				t.buf.WriteString(" -1")
 			} else {
-				fmt.Fprintf(t.buf, " %d %s", len(v), traceSingleQuotedString(v))
+				fmt.Fprintf(&t.buf, " %d %s", len(msg.Values[i]), singleQuotedEscaped{&msg.Values[i]})
 			}
 		}
 	})
@@ -248,7 +456,7 @@ func (t *tracer) traceDataRow(sender byte, encodedLen int32, msg *DataRow) {
 
 func (t *tracer) traceDescribe(sender byte, encodedLen int32, msg *Describe) {
 	t.writeTrace(sender, encodedLen, "Describe", func() {
-		fmt.Fprintf(t.buf, "\t %c %s", msg.ObjectType, traceDoubleQuotedString([]byte(msg.Name)))
+		fmt.Fprintf(&t.buf, "\t %c %s", msg.ObjectType, doubleQuotedString{&msg.Name})
 	})
 }
 
@@ -262,7 +470,7 @@ func (t *tracer) traceErrorResponse(sender byte, encodedLen int32, msg *ErrorRes
 
 func (t *tracer) TraceQueryute(sender byte, encodedLen int32, msg *Execute) {
 	t.writeTrace(sender, encodedLen, "Execute", func() {
-		fmt.Fprintf(t.buf, "\t %s %d", traceDoubleQuotedString([]byte(msg.Portal)), msg.MaxRows)
+		fmt.Fprintf(&t.buf, "\t %s %d", doubleQuotedString{&msg.Portal}, msg.MaxRows)
 	})
 }
 
@@ -292,7 +500,7 @@ func (t *tracer) traceNoticeResponse(sender byte, encodedLen int32, msg *NoticeR
 
 func (t *tracer) traceNotificationResponse(sender byte, encodedLen int32, msg *NotificationResponse) {
 	t.writeTrace(sender, encodedLen, "NotificationResponse", func() {
-		fmt.Fprintf(t.buf, "\t %d %s %s", msg.PID, traceDoubleQuotedString([]byte(msg.Channel)), traceDoubleQuotedString([]byte(msg.Payload)))
+		fmt.Fprintf(&t.buf, "\t %d %s %s", msg.PID, doubleQuotedString{&msg.Channel}, doubleQuotedString{&msg.Payload})
 	})
 }
 
@@ -302,15 +510,15 @@ func (t *tracer) traceParameterDescription(sender byte, encodedLen int32, msg *P
 
 func (t *tracer) traceParameterStatus(sender byte, encodedLen int32, msg *ParameterStatus) {
 	t.writeTrace(sender, encodedLen, "ParameterStatus", func() {
-		fmt.Fprintf(t.buf, "\t %s %s", traceDoubleQuotedString([]byte(msg.Name)), traceDoubleQuotedString([]byte(msg.Value)))
+		fmt.Fprintf(&t.buf, "\t %s %s", doubleQuotedString{&msg.Name}, doubleQuotedString{&msg.Value})
 	})
 }
 
 func (t *tracer) traceParse(sender byte, encodedLen int32, msg *Parse) {
 	t.writeTrace(sender, encodedLen, "Parse", func() {
-		fmt.Fprintf(t.buf, "\t %s %s %d", traceDoubleQuotedString([]byte(msg.Name)), traceDoubleQuotedString([]byte(msg.Query)), len(msg.ParameterOIDs))
+		fmt.Fprintf(&t.buf, "\t %s %s %d", doubleQuotedString{&msg.Name}, doubleQuotedString{&msg.Query}, len(msg.ParameterOIDs))
 		for _, oid := range msg.ParameterOIDs {
-			fmt.Fprintf(t.buf, " %d", oid)
+			fmt.Fprintf(&t.buf, " %d", oid)
 		}
 	})
 }
@@ -325,21 +533,21 @@ func (t *tracer) tracePortalSuspended(sender byte, encodedLen int32, msg *Portal
 
 func (t *tracer) traceQuery(sender byte, encodedLen int32, msg *Query) {
 	t.writeTrace(sender, encodedLen, "Query", func() {
-		fmt.Fprintf(t.buf, "\t %s", traceDoubleQuotedString([]byte(msg.String)))
+		fmt.Fprintf(&t.buf, "\t %s", doubleQuotedString{&msg.String})
 	})
 }
 
 func (t *tracer) traceReadyForQuery(sender byte, encodedLen int32, msg *ReadyForQuery) {
 	t.writeTrace(sender, encodedLen, "ReadyForQuery", func() {
-		fmt.Fprintf(t.buf, "\t %c", msg.TxStatus)
+		fmt.Fprintf(&t.buf, "\t %c", msg.TxStatus)
 	})
 }
 
 func (t *tracer) traceRowDescription(sender byte, encodedLen int32, msg *RowDescription) {
 	t.writeTrace(sender, encodedLen, "RowDescription", func() {
-		fmt.Fprintf(t.buf, "\t %d", len(msg.Fields))
-		for _, fd := range msg.Fields {
-			fmt.Fprintf(t.buf, ` %s %d %d %d %d %d %d`, traceDoubleQuotedString(fd.Name), fd.TableOID, fd.TableAttributeNumber, fd.DataTypeOID, fd.DataTypeSize, fd.TypeModifier, fd.Format)
+		fmt.Fprintf(&t.buf, "\t %d", len(msg.Fields))
+		for i := range msg.Fields {
+			fmt.Fprintf(&t.buf, ` %s %d %d %d %d %d %d`, doubleQuotedBytes{&msg.Fields[i].Name}, msg.Fields[i].TableOID, msg.Fields[i].TableAttributeNumber, msg.Fields[i].DataTypeOID, msg.Fields[i].DataTypeSize, msg.Fields[i].TypeModifier, msg.Fields[i].Format)
 		}
 	})
 }
@@ -365,7 +573,7 @@ func (t *tracer) writeTrace(sender byte, encodedLen int32, msgType string, write
 	defer t.mux.Unlock()
 	defer func() {
 		if t.buf.Cap() > 1024 {
-			t.buf = &bytes.Buffer{}
+			t.buf = bytes.Buffer{}
 		} else {
 			t.buf.Reset()
 		}
@@ -373,7 +581,7 @@ func (t *tracer) writeTrace(sender byte, encodedLen int32, msgType string, write
 
 	if !t.SuppressTimestamps {
 		now := time.Now()
-		t.buf.WriteString(now.Format("2006-01-02 15:04:05.000000"))
+		t.buf.Write(now.AppendFormat(t.buf.AvailableBuffer(), timestampFormat))
 		t.buf.WriteByte('\t')
 	}
 
@@ -381,7 +589,7 @@ func (t *tracer) writeTrace(sender byte, encodedLen int32, msgType string, write
 	t.buf.WriteByte('\t')
 	t.buf.WriteString(msgType)
 	t.buf.WriteByte('\t')
-	t.buf.WriteString(strconv.FormatInt(int64(encodedLen), 10))
+	t.buf.Write(strconv.AppendInt(t.buf.AvailableBuffer(), int64(encodedLen), 10))
 
 	if writeDetails != nil {
 		writeDetails()
@@ -391,26 +599,48 @@ func (t *tracer) writeTrace(sender byte, encodedLen int32, msgType string, write
 	t.buf.WriteTo(t.w)
 }
 
-// traceDoubleQuotedString returns t.buf as a double-quoted string without any escaping. It is roughly equivalent to
-// pqTraceOutputString in libpq.
-func traceDoubleQuotedString(buf []byte) string {
-	return `"` + string(buf) + `"`
+// doubleQuotedString wraps a pointer to string for zero-copy double-quoted formatting.
+// Using a pointer avoids copying the string header when passed to fmt.Fprintf.
+type doubleQuotedString struct{ data *string }
+
+func (dq doubleQuotedString) Format(f fmt.State, verb rune) {
+	io.WriteString(f, `"`)
+	io.WriteString(f, *dq.data)
+	io.WriteString(f, `"`)
 }
 
-// traceSingleQuotedString returns buf as a single-quoted string with non-printable characters hex-escaped. It is
-// roughly equivalent to pqTraceOutputNchar in libpq.
-func traceSingleQuotedString(buf []byte) string {
-	sb := &strings.Builder{}
+// doubleQuotedBytes wraps a pointer to []byte for zero-copy double-quoted formatting.
+// Using a pointer avoids copying the slice header when passed to fmt.Fprintf.
+type doubleQuotedBytes struct{ data *[]byte }
 
-	sb.WriteByte('\'')
-	for _, b := range buf {
-		if b < 32 || b > 126 {
-			fmt.Fprintf(sb, `\x%x`, b)
-		} else {
-			sb.WriteByte(b)
+func (dq doubleQuotedBytes) Format(f fmt.State, verb rune) {
+	io.WriteString(f, `"`)
+	f.Write(*dq.data)
+	io.WriteString(f, `"`)
+}
+
+// singleQuotedEscaped wraps a pointer to []byte for zero-copy single-quoted formatting
+// with hex escaping for non-printable characters (libpq style).
+type singleQuotedEscaped struct{ data *[]byte }
+
+func (sq singleQuotedEscaped) Format(f fmt.State, verb rune) {
+	io.WriteString(f, `'`)
+
+	data := *sq.data
+	for len(data) > 0 {
+		i := 0
+		for i < len(data) && data[i] >= 32 && data[i] <= 126 {
+			i++
+		}
+		if i > 0 {
+			f.Write(data[:i])
+			data = data[i:]
+		}
+		if len(data) > 0 && (data[0] < 32 || data[0] > 126) {
+			fmt.Fprintf(f, `\x%x`, data[0])
+			data = data[1:]
 		}
 	}
-	sb.WriteByte('\'')
 
-	return sb.String()
+	io.WriteString(f, `'`)
 }

@@ -1,7 +1,6 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -105,7 +104,6 @@ func (b *Backend) Flush() error {
 func (b *Backend) Trace(w io.Writer, options TracerOptions) {
 	b.tracer = &tracer{
 		w:             w,
-		buf:           &bytes.Buffer{},
 		TracerOptions: options,
 	}
 }
