@@ -609,6 +609,35 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	})
 }
 
+func TestConnSendBatchPrepareSyntaxErrorReturnsErrPreprocessingBatch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	// Only test exec modes that go through sendBatchExtendedWithDescription which wraps errors with ErrPreprocessingBatch.
+	modes := []pgx.QueryExecMode{
+		pgx.QueryExecModeCacheStatement,
+		pgx.QueryExecModeCacheDescribe,
+		pgx.QueryExecModeDescribeExec,
+	}
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select 1 1") // syntax error
+
+		err := conn.SendBatch(ctx, batch).Close()
+		require.Error(t, err)
+
+		var preprocessingErr pgx.ErrPreprocessingBatch
+		require.ErrorAs(t, err, &preprocessingErr)
+		assert.Equal(t, "select 1 1", preprocessingErr.SQL())
+		assert.NotContains(t, preprocessingErr.Error(), "select 1 1")
+		assert.Contains(t, preprocessingErr.Error(), "error preprocessing batch (prepare)")
+	})
+}
+
 func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
@@ -1012,7 +1041,7 @@ func TestConnSendBatchErrorDoesNotLeaveOrphanedPreparedStatement(t *testing.T) {
 		batch.Queue("select col1 from foo")
 		batch.Queue("select col1 from baz")
 		err := conn.SendBatch(ctx, batch).Close()
-		require.EqualError(t, err, `ERROR: relation "baz" does not exist (SQLSTATE 42P01)`)
+		require.ErrorContains(t, err, `relation "baz" does not exist (SQLSTATE 42P01)`)
 
 		mustExec(t, conn, `create temporary table baz(col1 text primary key);`)
 
