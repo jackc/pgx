@@ -4389,6 +4389,110 @@ func TestFatalErrorReceivedInPipelineMode(t *testing.T) {
 	require.Error(t, err)
 }
 
+// https://github.com/jackc/pgx/issues/2470
+// When the server sends multiple FATAL errors in a single batch (as PgBouncer can do when
+// terminating idle-in-transaction connections), Pipeline.Close() must not panic with
+// "close of closed channel" on cleanupDone. The first FATAL triggers OnPgError which closes
+// the connection and cleanupDone. The second FATAL, still in the read buffer, must not
+// attempt to close cleanupDone again.
+//
+// This test sends all server responses in a single TCP write to guarantee both FATAL errors
+// are in the chunkReader buffer simultaneously.
+func TestPipelineCloseDoesNotPanicOnMultipleFatalErrors(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	serverErrChan := make(chan error, 1)
+	go func() {
+		defer close(serverErrChan)
+
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(59 * time.Second))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		backend := pgproto3.NewBackend(conn, conn)
+
+		// Handle startup
+		_, err = backend.ReceiveStartupMessage()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+		backend.Send(&pgproto3.AuthenticationOk{})
+		backend.Send(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0})
+		backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+		err = backend.Flush()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		// Read all client pipeline messages (Parse, Describe, Parse, Describe, Sync)
+		for i := 0; i < 5; i++ {
+			_, err = backend.Receive()
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+		}
+
+		// Send ALL responses in a single write so they all end up in the chunkReader buffer.
+		// This simulates PgBouncer sending a FATAL and then the real PostgreSQL also sending
+		// a FATAL, both arriving in the same TCP segment.
+		backend.Send(&pgproto3.ParseComplete{})
+		backend.Send(&pgproto3.ParameterDescription{})
+		backend.Send(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
+			{Name: []byte("mock")},
+		}})
+		// Two FATAL errors back-to-back in the same write buffer
+		backend.Send(&pgproto3.ErrorResponse{Severity: "FATAL", Code: "57P01", Message: "terminating connection due to administrator command"})
+		backend.Send(&pgproto3.ErrorResponse{Severity: "FATAL", Code: "57P01", Message: "terminating connection due to administrator command"})
+		err = backend.Flush()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+	}()
+
+	parts := strings.Split(ln.Addr().String(), ":")
+	host := parts[0]
+	port := parts[1]
+	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+
+	ctx, cancel = context.WithTimeout(ctx, 59*time.Second)
+	defer cancel()
+	conn, err := pgconn.Connect(ctx, connStr)
+	require.NoError(t, err)
+
+	pipeline := conn.StartPipeline(ctx)
+	pipeline.SendPrepare("s1", "select 1", nil)
+	pipeline.SendPrepare("s2", "select 2", nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	// Do NOT call GetResults. Call Close() directly so it drains results via getResults().
+	// The first FATAL closes the connection via OnPgError, including close(cleanupDone).
+	// The second FATAL is still buffered in chunkReader. Without the fix, processing it
+	// would attempt to close cleanupDone again, causing a panic.
+	err = pipeline.Close()
+	require.Error(t, err)
+}
+
 func mustEncode(buf []byte, err error) []byte {
 	if err != nil {
 		panic(err)
