@@ -598,7 +598,8 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 
 		var n int32
 		err := br.QueryRow().Scan(&n)
-		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42601") {
+		var pgErr *pgconn.PgError
+		if !(errors.As(err, &pgErr) && pgErr.Code == "42601") {
 			t.Errorf("rows.Err() => %v, want error code %v", err, 42601)
 		}
 
@@ -609,7 +610,7 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	})
 }
 
-func TestConnSendBatchPrepareSyntaxErrorReturnsErrPreprocessingBatch(t *testing.T) {
+func TestConnSendBatchErrorReturnsErrPreprocessingBatch(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -623,18 +624,31 @@ func TestConnSendBatchPrepareSyntaxErrorReturnsErrPreprocessingBatch(t *testing.
 	}
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var preprocessingErr pgx.ErrPreprocessingBatch
+
+		// Test prepare step failure: syntax error in a non-first statement.
 		batch := &pgx.Batch{}
 		batch.Queue("select 1")
-		batch.Queue("select 1 1") // syntax error
+		batch.Queue("select 1 1") // syntax error triggers prepare failure
 
 		err := conn.SendBatch(ctx, batch).Close()
 		require.Error(t, err)
-
-		var preprocessingErr pgx.ErrPreprocessingBatch
 		require.ErrorAs(t, err, &preprocessingErr)
 		assert.Equal(t, "select 1 1", preprocessingErr.SQL())
-		assert.NotContains(t, preprocessingErr.Error(), "select 1 1")
+		assert.NotContains(t, preprocessingErr.Error(), "select 1 1") // we don't want to leak the SQL query in the error message
 		assert.Contains(t, preprocessingErr.Error(), "error preprocessing batch (prepare)")
+
+		// Test build step failure: wrong number of arguments in a statement.
+		batch = &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select $1::int", 1, 2) // mismatched argument count triggers build failure
+
+		err = conn.SendBatch(ctx, batch).Close()
+		require.Error(t, err)
+		require.ErrorAs(t, err, &preprocessingErr)
+		assert.Equal(t, "select $1::int", preprocessingErr.SQL())
+		assert.NotContains(t, preprocessingErr.Error(), "select $1::int") // we don't want to leak the SQL query in the error message
+		assert.Contains(t, preprocessingErr.Error(), "error preprocessing batch (build)")
 	})
 }
 
