@@ -4434,7 +4434,7 @@ func TestPipelineCloseDoesNotPanicOnMultipleFatalErrors(t *testing.T) {
 			return
 		}
 		backend.Send(&pgproto3.AuthenticationOk{})
-		backend.Send(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0})
+		backend.Send(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}})
 		backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
 		err = backend.Flush()
 		if err != nil {
