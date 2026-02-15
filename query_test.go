@@ -195,6 +195,7 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 
 func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -222,6 +223,7 @@ func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 
 func TestConnQueryArgsAndScanWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()

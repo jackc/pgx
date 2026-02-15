@@ -1033,6 +1033,8 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not recover connection after batch statement timeout")
+
 		batch := &pgx.Batch{}
 		batch.Queue("SET statement_timeout='1ms'")
 		batch.Queue("SELECT pg_sleep(10)")
