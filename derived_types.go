@@ -24,7 +24,7 @@ func buildLoadDerivedTypesSQL(pgVersion int64, typeNames []string) string {
 		// This should not occur; this will not return any types
 		typeNamesClause = "= ''"
 	} else {
-		typeNamesClause = "= ANY($1)"
+		typeNamesClause = "= ANY($1::text[])"
 	}
 	parts := make([]string, 0, 10)
 
@@ -169,7 +169,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	// the SQL not support recent structures such as multirange
 	serverVersion, _ := serverVersion(c)
 	sql := buildLoadDerivedTypesSQL(serverVersion, typeNames)
-	rows, err := c.Query(ctx, sql, QueryExecModeSimpleProtocol, typeNames)
+	rows, err := c.Query(ctx, sql, QueryResultFormats{TextFormatCode}, typeNames)
 	if err != nil {
 		return nil, fmt.Errorf("While generating load types query: %w", err)
 	}
