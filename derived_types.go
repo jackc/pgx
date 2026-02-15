@@ -169,7 +169,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	// the SQL not support recent structures such as multirange
 	serverVersion, _ := serverVersion(c)
 	sql := buildLoadDerivedTypesSQL(serverVersion, typeNames)
-	rows, err := c.Query(ctx, sql, typeNames)
+	rows, err := c.Query(ctx, sql, QueryResultFormats{TextFormatCode}, typeNames)
 	if err != nil {
 		return nil, fmt.Errorf("While generating load types query: %w", err)
 	}
