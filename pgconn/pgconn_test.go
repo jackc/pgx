@@ -4556,20 +4556,30 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 
 func TestConnectProtocolVersion32(t *testing.T) {
 	t.Parallel()
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	config.MaxProtocolVersion = "3.2"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
+	// Check if we're connecting to CockroachDB before attempting protocol v3.2, since CockroachDB
+	// does not support protocol version 3.2 and will close the connection.
+	{
+		checkConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+		if err == nil {
+			isCRDB := checkConn.ParameterStatus("crdb_version") != ""
+			checkConn.Close(ctx)
+			if isCRDB {
+				t.Skip("CockroachDB does not support protocol version 3.2 yet")
+			}
+		}
+	}
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	config.MaxProtocolVersion = "3.2"
+
 	pgConn, err := pgconn.ConnectConfig(ctx, config)
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
-
-	if pgConn.ParameterStatus("crdb_version") != "" {
-		t.Skip("CockroachDB does not support protocol version 3.2 yet")
-	}
 
 	result, err := pgConn.Exec(context.Background(), "show server_version_num").ReadAll()
 	require.NoError(t, err)
