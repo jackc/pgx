@@ -10,6 +10,18 @@ proposal. This will help to ensure your proposed change has a reasonable chance 
 Adding a dependency is a big deal. While on occasion a new dependency may be accepted, the default answer to any change
 that adds a dependency is no.
 
+## AI
+
+Using AI is acceptable (not that it can really be stopped) under one the following conditions.
+
+* AI was used, but you deeply understand the code and you can answer questions regarding your change. You are not going
+  to answer questions with "I don't know", AI did it. You are not going to "answer" questions by relaying them to your
+  agent. This is wasteful of the code reviewer's time.
+* AI was used to solve a problem without your deep understanding. This can still be a good starting point for a fix or
+  feature. But you need to clearly state that this is an AI proposal. You should include additional information such as
+  the AI used and what prompts were used. You should also be aware that large, complicated, or subtle changes may be
+  rejected simply because the reviewer is not confident in a change that no human understands.
+
 ## Development Environment Setup
 
 pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE`
