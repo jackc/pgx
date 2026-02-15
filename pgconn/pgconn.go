@@ -599,6 +599,10 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 
 // receiveMessage receives a message without setting up context cancellation
 func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
+	if pgConn.status == connStatusClosed {
+		return nil, &connLockError{status: "conn closed"}
+	}
+
 	msg, err := pgConn.peekMessage()
 	if err != nil {
 		return nil, err
@@ -2836,7 +2840,7 @@ func (p *Pipeline) Close() error {
 	}
 
 	for p.state.ExpectedReadyForQuery() > 0 {
-		_, err := p.getResults()
+		results, err := p.getResults()
 		if err != nil {
 			p.err = err
 			var pgErr *PgError
@@ -2844,6 +2848,15 @@ func (p *Pipeline) Close() error {
 				p.conn.asyncClose()
 				break
 			}
+		} else if results == nil {
+			// getResults returns (nil, nil) when the request queue is exhausted but
+			// ExpectedReadyForQuery is still > 0. This can happen when FATAL errors consume
+			// queued request slots without the server ever sending ReadyForQuery.
+			p.conn.asyncClose()
+			if p.err == nil {
+				p.err = errors.New("pipeline: no more results but expected ReadyForQuery")
+			}
+			break
 		}
 	}
 
