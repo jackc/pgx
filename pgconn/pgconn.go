@@ -676,6 +676,7 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	if pgConn.status == connStatusClosed {
 		return nil
 	}
+	wasBusy := pgConn.status == connStatusBusy
 	pgConn.status = connStatusClosed
 
 	defer close(pgConn.cleanupDone)
@@ -691,6 +692,14 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 
 		pgConn.contextWatcher.Watch(ctx)
 		defer pgConn.contextWatcher.Unwatch()
+	}
+
+	// When the connection was busy, an operation is or was in progress (e.g. Close was called during a panic or
+	// asyncClose started a goroutine). The slow write timer may be active, so we must not call
+	// flushWithPotentialWriteReadDeadlock which would try to reset the timer and panic. The deferred
+	// pgConn.conn.Close() will close the underlying connection regardless.
+	if wasBusy {
+		return pgConn.conn.Close()
 	}
 
 	// Ignore any errors sending Terminate message and waiting for server to close connection.
