@@ -505,3 +505,31 @@ func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
 		}
 	}
 }
+
+// ErrPreprocessingBatch occurs when an error is encountered while preprocessing a batch.
+// The two preprocessing steps are "prepare" (server-side SQL parse/plan) and
+// "build" (client-side argument encoding).
+type ErrPreprocessingBatch struct {
+	step string // "prepare" or "build"
+	sql  string
+	err  error
+}
+
+func newErrPreprocessingBatch(step, sql string, err error) ErrPreprocessingBatch {
+	return ErrPreprocessingBatch{step: step, sql: sql, err: err}
+}
+
+func (e ErrPreprocessingBatch) Error() string {
+	// intentionally not including the SQL query in the error message
+	// to avoid leaking potentially sensitive information into logs.
+	// If the user wants the SQL, they can call SQL().
+	return fmt.Sprintf("error preprocessing batch (%s): %v", e.step, e.err)
+}
+
+func (e ErrPreprocessingBatch) Unwrap() error {
+	return e.err
+}
+
+func (e ErrPreprocessingBatch) SQL() string {
+	return e.sql
+}
