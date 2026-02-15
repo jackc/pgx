@@ -17,7 +17,12 @@ environment variable. The `PGX_TEST_DATABASE` environment variable can either be
 the standard `PG*` environment variables will be respected. Consider using [direnv](https://github.com/direnv/direnv) to
 simplify environment variable handling.
 
-### Using an Existing PostgreSQL Cluster
+### Devcontainer
+
+The easiest way to start development is with the included devcontainer. It includes containers for each supported
+PostgreSQL version as well as CockroachDB. `./test.sh all` will run the tests against all database types.
+
+### Using an Existing PostgreSQL Cluster Outside of a Devcontainer
 
 If you already have a PostgreSQL development server this is the quickest way to start and run the majority of the pgx
 test suite. Some tests will be skipped that require server configuration changes (e.g. those testing different
@@ -49,7 +54,7 @@ go test ./...
 
 This will run the vast majority of the tests, but some tests will be skipped (e.g. those testing different connection methods).
 
-### Creating a New PostgreSQL Cluster Exclusively for Testing
+### Creating a New PostgreSQL Cluster Exclusively for Testing Outside of a Devcontainer
 
 The following environment variables need to be set both for initial setup and whenever the tests are run. (direnv is
 highly recommended). Depending on your platform, you may need to change the host for `PGX_TEST_UNIX_SOCKET_CONN_STRING`.
