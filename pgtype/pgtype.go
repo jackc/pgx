@@ -932,6 +932,52 @@ func TryWrapStructScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValu
 	return nil, nil, false
 }
 
+// TryWrapStructFieldNameScanPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
+func TryWrapStructFieldNameScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Ptr {
+		return nil, nil, false
+	}
+
+	var targetElemValue reflect.Value
+	if targetValue.IsNil() {
+		targetElemValue = reflect.Zero(targetValue.Type().Elem())
+	} else {
+		targetElemValue = targetValue.Elem()
+	}
+	targetElemType := targetElemValue.Type()
+
+	if targetElemType.Kind() == reflect.Struct {
+		exportedFields := getExportedFieldNameValues(targetElemValue)
+		if len(exportedFields) == 0 {
+			return nil, nil, false
+		}
+
+		w := ptrStructNameWrapper{
+			s:              target,
+			exportedFields: exportedFields,
+		}
+		return &wrapAnyPtrStructFieldNameScanPlan{}, &w, true
+	}
+
+	return nil, nil, false
+}
+
+type wrapAnyPtrStructFieldNameScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapAnyPtrStructFieldNameScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapAnyPtrStructFieldNameScanPlan) Scan(src []byte, target any) error {
+	w := ptrStructNameWrapper{
+		s:              target,
+		exportedFields: getExportedFieldNameValues(reflect.ValueOf(target).Elem()),
+	}
+
+	return plan.next.Scan(src, &w)
+}
+
 type wrapAnyPtrStructScanPlan struct {
 	next ScanPlan
 }
@@ -1795,6 +1841,27 @@ func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 		sf := structType.Field(i)
 		if sf.IsExported() {
 			exportedFields = append(exportedFields, structValue.Field(i))
+		}
+	}
+
+	return exportedFields
+}
+
+func getExportedFieldNameValues(structValue reflect.Value) map[string]reflect.Value {
+	structType := structValue.Type()
+	exportedFields := make(map[string]reflect.Value, structValue.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		sf := structType.Field(i)
+		if sf.IsExported() {
+			name := sf.Name
+			value, ok := sf.Tag.Lookup("db")
+			if ok {
+				if value == "-" {
+					continue
+				}
+				name = value
+			}
+			exportedFields[name] = structValue.Field(i)
 		}
 	}
 
