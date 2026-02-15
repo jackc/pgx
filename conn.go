@@ -1194,7 +1194,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 			for _, sd := range distinctNewQueries {
 				results, err := pipeline.GetResults()
 				if err != nil {
-					return err
+					return newErrPreprocessingBatch("prepare", sd.SQL, err)
 				}
 
 				resultSD, ok := results.(*pgconn.StatementDescription)
@@ -1228,8 +1228,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	for _, bi := range b.QueuedQueries {
 		err := c.eqb.Build(c.typeMap, bi.sd, bi.Arguments)
 		if err != nil {
-			// we wrap the error so we the user can understand which query failed inside the batch
-			err = fmt.Errorf("error building query %s: %w", bi.SQL, err)
+			err = newErrPreprocessingBatch("build", bi.SQL, err)
 			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 		}
 
