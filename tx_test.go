@@ -356,6 +356,7 @@ func TestBeginFuncRollbackOnError(t *testing.T) {
 
 func TestBeginReadOnly(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)

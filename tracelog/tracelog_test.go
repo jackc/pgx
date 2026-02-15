@@ -339,6 +339,8 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 	}
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "CockroachDB auto commits DDL by default")
+
 		logger.Clear() // Clear any logs written when establishing connection
 
 		batch := &pgx.Batch{}

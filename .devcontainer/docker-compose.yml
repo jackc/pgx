@@ -93,7 +93,7 @@ services:
       POSTGRES_HOSTNAME: localhost
 
   cockroachdb:
-    image: cockroachdb/cockroach:v24.3.3
+    image: cockroachdb/cockroach:v25.4.4
     restart: unless-stopped
     network_mode: service:app
     command: start-single-node --insecure --listen-addr=127.0.0.1:26257 --store=type=mem,size=1024MiB

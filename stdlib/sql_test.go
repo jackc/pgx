@@ -745,6 +745,8 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 
 func TestBeginTxContextCancel(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
+
 		_, err := db.Exec("drop table if exists t")
 		require.NoError(t, err)
 
@@ -1407,6 +1409,8 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 func TestOpenTransactionsDiscarded(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
+
+	skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
 
 	db.SetMaxOpenConns(1)
 	ctx := context.Background()
