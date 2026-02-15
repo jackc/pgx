@@ -2033,6 +2033,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	defer closeConn(t, conn)
 
 	pgxtest.SkipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
+	pgxtest.SkipPostgreSQLVersionGreaterThan(t, conn, 18) // PG19 stopped supporting standard_conforming_strings = off
 
 	mustExec(t, conn, "set standard_conforming_strings to off")
 
