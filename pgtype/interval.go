@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	microsecondsPerSecond = 1000000
+	microsecondsPerSecond = 1_000_000
 	microsecondsPerMinute = 60 * microsecondsPerSecond
 	microsecondsPerHour   = 60 * microsecondsPerMinute
 	microsecondsPerDay    = 24 * microsecondsPerHour
@@ -223,6 +223,8 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 			months += int32(scalar)
 		case "day", "days":
 			days = int32(scalar)
+		default:
+			return fmt.Errorf("bad interval format: %q", parts[i+1])
 		}
 	}
 

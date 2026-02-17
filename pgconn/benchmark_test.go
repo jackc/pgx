@@ -20,14 +20,13 @@ func BenchmarkConnect(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
 			connString := os.Getenv(bm.env)
 			if connString == "" {
 				b.Skipf("Skipping due to missing environment variable %v", bm.env)
 			}
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				conn, err := pgconn.Connect(context.Background(), connString)
 				require.Nil(b, err)
 
@@ -51,7 +50,6 @@ func BenchmarkExec(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
 			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_DATABASE"))
 			require.Nil(b, err)
@@ -59,7 +57,7 @@ func BenchmarkExec(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				mrr := conn.Exec(bm.ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
 
 				for mrr.NextResult() {
@@ -102,12 +100,9 @@ func BenchmarkExecPossibleToCancel(b *testing.B) {
 
 	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
 
-	b.ResetTimer()
+	ctx := b.Context()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mrr := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
 
 		for mrr.NextResult() {
@@ -155,7 +150,6 @@ func BenchmarkExecPrepared(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
 			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_DATABASE"))
 			require.Nil(b, err)
@@ -166,7 +160,7 @@ func BenchmarkExecPrepared(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				rr := conn.ExecPrepared(bm.ctx, "ps1", nil, nil, nil)
 
 				rowCount := 0
@@ -198,17 +192,14 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := b.Context()
 
 	_, err = conn.Prepare(ctx, "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 	require.Nil(b, err)
 
 	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rr := conn.ExecPrepared(ctx, "ps1", nil, nil, nil)
 
 		rowCount := 0

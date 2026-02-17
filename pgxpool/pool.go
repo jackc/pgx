@@ -3,7 +3,7 @@ package pgxpool
 import (
 	"context"
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 	"runtime"
 	"strconv"
 	"sync"
@@ -571,7 +571,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 
 	errs := make(chan error, targetResources)
 
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		go func() {
 			err := p.p.CreateResource(ctx)
 			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
@@ -583,7 +583,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 	}
 
 	var firstError error
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		err := <-errs
 		if err != nil && firstError == nil {
 			cancel()
@@ -652,7 +652,7 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		return cr.getConn(p, res), nil
 	}
-	return nil, errors.New("pgxpool: detected infinite loop acquiring connection; likely bug in PrepareConn or BeforeAcquire hook")
+	return nil, errors.New("pgxpool: too many failed attempts acquiring connection; likely bug in PrepareConn, BeforeAcquire, or ShouldPing hook")
 }
 
 // AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the

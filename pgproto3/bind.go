@@ -54,7 +54,7 @@ func (dst *Bind) Decode(src []byte) error {
 		if len(src[rp:]) < len(dst.ParameterFormatCodes)*2 {
 			return &invalidMessageFormatErr{messageType: "Bind"}
 		}
-		for i := 0; i < parameterFormatCodeCount; i++ {
+		for i := range parameterFormatCodeCount {
 			dst.ParameterFormatCodes[i] = int16(binary.BigEndian.Uint16(src[rp:]))
 			rp += 2
 		}
@@ -69,7 +69,7 @@ func (dst *Bind) Decode(src []byte) error {
 	if parameterCount > 0 {
 		dst.Parameters = make([][]byte, parameterCount)
 
-		for i := 0; i < parameterCount; i++ {
+		for i := range parameterCount {
 			if len(src[rp:]) < 4 {
 				return &invalidMessageFormatErr{messageType: "Bind"}
 			}
@@ -101,7 +101,7 @@ func (dst *Bind) Decode(src []byte) error {
 	if len(src[rp:]) < len(dst.ResultFormatCodes)*2 {
 		return &invalidMessageFormatErr{messageType: "Bind"}
 	}
-	for i := 0; i < resultFormatCodeCount; i++ {
+	for i := range resultFormatCodeCount {
 		dst.ResultFormatCodes[i] = int16(binary.BigEndian.Uint16(src[rp:]))
 		rp += 2
 	}

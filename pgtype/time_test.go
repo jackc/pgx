@@ -14,37 +14,37 @@ import (
 func TestTimeCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "time", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Time{Microseconds: 0, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 0, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 1, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 1, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 1, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 1, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86399999999, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86399999999, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 86_399_999_999, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 86_399_999_999, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 86400000000, Valid: true},
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 86400000000, Valid: true}),
+			Param:  pgtype.Time{Microseconds: 86_400_000_000, Valid: true},
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 86_400_000_000, Valid: true}),
 		},
 		{
-			time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			new(pgtype.Time),
-			isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
+			Param:  time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			Result: new(pgtype.Time),
+			Test:   isExpectedEq(pgtype.Time{Microseconds: 0, Valid: true}),
 		},
 		{
-			pgtype.Time{Microseconds: 0, Valid: true},
-			new(time.Time),
-			isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Param:  pgtype.Time{Microseconds: 0, Valid: true},
+			Result: new(time.Time),
+			Test:   isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
-		{pgtype.Time{}, new(pgtype.Time), isExpectedEq(pgtype.Time{})},
-		{nil, new(pgtype.Time), isExpectedEq(pgtype.Time{})},
+		{Param: pgtype.Time{}, Result: new(pgtype.Time), Test: isExpectedEq(pgtype.Time{})},
+		{Param: nil, Result: new(pgtype.Time), Test: isExpectedEq(pgtype.Time{})},
 	})
 }
 

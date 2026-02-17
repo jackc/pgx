@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func getSelectRowsCounts(b *testing.B) []int64 {
@@ -17,7 +15,7 @@ func getSelectRowsCounts(b *testing.B) []int64 {
 	{
 		s := os.Getenv("PGX_BENCH_SELECT_ROWS_COUNTS")
 		if s != "" {
-			for _, p := range strings.Split(s, " ") {
+			for p := range strings.SplitSeq(s, " ") {
 				n, err := strconv.ParseInt(p, 10, 64)
 				if err != nil {
 					b.Fatalf("Bad PGX_BENCH_SELECT_ROWS_COUNTS value: %v", err)
@@ -54,7 +52,7 @@ func BenchmarkSelectRowsScanSimple(b *testing.B) {
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(1, $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
@@ -92,7 +90,7 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100000, 100000 +  $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
@@ -107,54 +105,5 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 				}
 			}
 		})
-	}
-}
-
-func BenchmarkFlatArrayEncodeArgument(b *testing.B) {
-	db := openDB(b)
-	defer closeDB(b, db)
-
-	input := make(pgtype.FlatArray[string], 10)
-	for i := range input {
-		input[i] = fmt.Sprintf("String %d", i)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		var n int64
-		err := db.QueryRow("select cardinality($1::text[])", input).Scan(&n)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if n != int64(len(input)) {
-			b.Fatalf("Expected %d, got %d", len(input), n)
-		}
-	}
-}
-
-func BenchmarkFlatArrayScanResult(b *testing.B) {
-	db := openDB(b)
-	defer closeDB(b, db)
-
-	var input string
-	for i := 0; i < 10; i++ {
-		if i > 0 {
-			input += ","
-		}
-		input += fmt.Sprintf(`'String %d'`, i)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		var result pgtype.FlatArray[string]
-		err := db.QueryRow(fmt.Sprintf("select array[%s]::text[]", input)).Scan(&result)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(result) != 10 {
-			b.Fatalf("Expected %d, got %d", len(result), 10)
-		}
 	}
 }

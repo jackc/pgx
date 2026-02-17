@@ -227,7 +227,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 			return nil, fmt.Errorf("Unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
 		}
 
-		// the type_ is imposible to be null
+		// the type_ is impossible to be null
 		m.RegisterType(type_)
 		if ti.NspName != "" {
 			nspType := &pgtype.Type{Name: ti.NspName + "." + type_.Name, OID: type_.OID, Codec: type_.Codec}

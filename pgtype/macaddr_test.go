@@ -32,39 +32,39 @@ func TestMacaddrCodec(t *testing.T) {
 	// Only testing known OID query exec modes as net.HardwareAddr could map to macaddr or macaddr8.
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "macaddr", []pgxtest.ValueRoundTripTest{
 		{
-			mustParseMacaddr(t, "01:23:45:67:89:ab"),
-			new(net.HardwareAddr),
-			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
+			Param:  mustParseMacaddr(t, "01:23:45:67:89:ab"),
+			Result: new(net.HardwareAddr),
+			Test:   isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
 		},
 		{
-			"01:23:45:67:89:ab",
-			new(net.HardwareAddr),
-			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
+			Param:  "01:23:45:67:89:ab",
+			Result: new(net.HardwareAddr),
+			Test:   isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
 		},
 		{
-			mustParseMacaddr(t, "01:23:45:67:89:ab"),
-			new(string),
-			isExpectedEq("01:23:45:67:89:ab"),
+			Param:  mustParseMacaddr(t, "01:23:45:67:89:ab"),
+			Result: new(string),
+			Test:   isExpectedEq("01:23:45:67:89:ab"),
 		},
-		{nil, new(*net.HardwareAddr), isExpectedEq((*net.HardwareAddr)(nil))},
+		{Param: nil, Result: new(*net.HardwareAddr), Test: isExpectedEq((*net.HardwareAddr)(nil))},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "macaddr8", []pgxtest.ValueRoundTripTest{
 		{
-			mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
-			new(net.HardwareAddr),
-			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
+			Param:  mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
+			Result: new(net.HardwareAddr),
+			Test:   isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
 		},
 		{
-			"01:23:45:67:89:ab:01:08",
-			new(net.HardwareAddr),
-			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
+			Param:  "01:23:45:67:89:ab:01:08",
+			Result: new(net.HardwareAddr),
+			Test:   isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
 		},
 		{
-			mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
-			new(string),
-			isExpectedEq("01:23:45:67:89:ab:01:08"),
+			Param:  mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
+			Result: new(string),
+			Test:   isExpectedEq("01:23:45:67:89:ab:01:08"),
 		},
-		{nil, new(*net.HardwareAddr), isExpectedEq((*net.HardwareAddr)(nil))},
+		{Param: nil, Result: new(*net.HardwareAddr), Test: isExpectedEq((*net.HardwareAddr)(nil))},
 	})
 }

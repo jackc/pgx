@@ -53,9 +53,17 @@ func getDefaultUser(t *testing.T) string {
 	return osUserName
 }
 
+var pgEnvvars = []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
+
+func clearPgEnvvars(t *testing.T) {
+	for _, env := range pgEnvvars {
+		t.Setenv(env, "")
+	}
+}
+
 func TestParseConfig(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	config, err := pgconn.ParseConfig("")
 	require.NoError(t, err)
@@ -933,8 +941,6 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 	}
 
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
-
 	tests := []struct {
 		name    string
 		envvars map[string]string
@@ -1021,7 +1027,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 
 func TestParseConfigReadsPgPassfile(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	tfName := filepath.Join(t.TempDir(), "config")
 	err := os.WriteFile(tfName, []byte("test1:5432:curlydb:curly:nyuknyuknyuk"), 0o600)
@@ -1046,7 +1052,7 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 
 func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	skipOnWindows(t)
-	t.Parallel()
+	clearPgEnvvars(t)
 
 	tfName := filepath.Join(t.TempDir(), "config")
 
@@ -1137,5 +1143,174 @@ application_name = spaced string
 		}
 
 		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
+	}
+}
+
+func TestParseConfigExplicitEmptyUserDefaultsToOSUser(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	currentUser, err := user.Current()
+	if err != nil {
+		t.Skip("cannot determine current OS user")
+	}
+
+	tests := []struct {
+		name       string
+		connString string
+		expected   string
+	}{
+		{
+			name:       "keyword value explicit empty user",
+			connString: "host=localhost dbname=test user=",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "keyword value quoted empty user",
+			connString: "host=localhost dbname=test user=''",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user without password",
+			connString: "postgres://@localhost/test",
+			expected:   currentUser.Username,
+		},
+		{
+			name:       "url explicit empty user with password",
+			connString: "postgres://:secret@localhost/test",
+			expected:   currentUser.Username,
+		},
+	}
+
+	for i, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		if !assert.NoErrorf(t, err, "Test %d (%s)", i, tt.name) {
+			continue
+		}
+
+		assert.Equalf(
+			t,
+			tt.expected,
+			config.User,
+			"Test %d (%s): unexpected user",
+			i,
+			tt.name,
+		)
+	}
+}
+
+func TestParseConfigProtocolVersion(t *testing.T) {
+	tests := []struct {
+		name               string
+		connString         string
+		envMin             string
+		envMax             string
+		expectedMin        string
+		expectedMax        string
+		expectError        bool
+		expectedErrContain string
+	}{
+		{
+			name:        "defaults to 3.0",
+			connString:  "postgres://localhost/test",
+			expectedMin: "3.0",
+			expectedMax: "3.0",
+		},
+		{
+			name:        "max_protocol_version=3.2",
+			connString:  "postgres://localhost/test?max_protocol_version=3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "min_protocol_version=3.2 and max_protocol_version=3.2",
+			connString:  "postgres://localhost/test?min_protocol_version=3.2&max_protocol_version=3.2",
+			expectedMin: "3.2",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "max_protocol_version=latest",
+			connString:  "postgres://localhost/test?max_protocol_version=latest",
+			expectedMin: "3.0",
+			expectedMax: "latest",
+		},
+		{
+			name:        "min and max = latest",
+			connString:  "postgres://localhost/test?min_protocol_version=latest&max_protocol_version=latest",
+			expectedMin: "latest",
+			expectedMax: "latest",
+		},
+		{
+			name:               "invalid min_protocol_version",
+			connString:         "postgres://localhost/test?min_protocol_version=2.0",
+			expectError:        true,
+			expectedErrContain: "invalid min_protocol_version",
+		},
+		{
+			name:               "invalid max_protocol_version",
+			connString:         "postgres://localhost/test?max_protocol_version=4.0",
+			expectError:        true,
+			expectedErrContain: "invalid max_protocol_version",
+		},
+		{
+			name:               "min > max",
+			connString:         "postgres://localhost/test?min_protocol_version=3.2&max_protocol_version=3.0",
+			expectError:        true,
+			expectedErrContain: "min_protocol_version cannot be greater than max_protocol_version",
+		},
+		{
+			name:               "environment variable PGMINPROTOCOLVERSION without matching max fails",
+			connString:         "postgres://localhost/test",
+			envMin:             "3.2",
+			expectError:        true,
+			expectedErrContain: "min_protocol_version cannot be greater than max_protocol_version",
+		},
+		{
+			name:        "environment variables PGMINPROTOCOLVERSION and PGMAXPROTOCOLVERSION together",
+			connString:  "postgres://localhost/test",
+			envMin:      "3.2",
+			envMax:      "3.2",
+			expectedMin: "3.2",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "environment variable PGMAXPROTOCOLVERSION",
+			connString:  "postgres://localhost/test",
+			envMax:      "3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.2",
+		},
+		{
+			name:        "conn string overrides environment variable",
+			connString:  "postgres://localhost/test?max_protocol_version=3.0",
+			envMax:      "3.2",
+			expectedMin: "3.0",
+			expectedMax: "3.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear protocol version env vars
+			t.Setenv("PGMINPROTOCOLVERSION", "")
+			t.Setenv("PGMAXPROTOCOLVERSION", "")
+
+			if tt.envMin != "" {
+				t.Setenv("PGMINPROTOCOLVERSION", tt.envMin)
+			}
+			if tt.envMax != "" {
+				t.Setenv("PGMAXPROTOCOLVERSION", tt.envMax)
+			}
+
+			config, err := pgconn.ParseConfig(tt.connString)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.expectedErrContain)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedMin, config.MinProtocolVersion, "MinProtocolVersion")
+			assert.Equal(t, tt.expectedMax, config.MaxProtocolVersion, "MaxProtocolVersion")
+		})
 	}
 }

@@ -71,7 +71,7 @@ func TestPutHandlesWrongSizedBuffers(t *testing.T) {
 func TestPutGetBufferReuse(t *testing.T) {
 	// There is no way to guarantee a buffer will be reused. It should be, but a GC between the Put and the Get will cause
 	// it not to be. So try many times.
-	for i := 0; i < 100000; i++ {
+	for range 100_000 {
 		buf := iobufpool.Get(4)
 		(*buf)[0] = 1
 		iobufpool.Put(buf)

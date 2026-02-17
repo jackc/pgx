@@ -271,14 +271,14 @@ func TestConnSendBatchMany(t *testing.T) {
 
 		numInserts := 1000
 
-		for i := 0; i < numInserts; i++ {
+		for range numInserts {
 			batch.Queue("insert into ledger(description, amount) values($1, $2)", "q1", 1)
 		}
 		batch.Queue("select count(*) from ledger")
 
 		br := conn.SendBatch(ctx, batch)
 
-		for i := 0; i < numInserts; i++ {
+		for range numInserts {
 			ct, err := br.Exec()
 			assert.NoError(t, err)
 			assert.EqualValues(t, 1, ct.RowsAffected())
@@ -356,13 +356,13 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 		batch := &pgx.Batch{}
 
 		queryCount := 3
-		for i := 0; i < queryCount; i++ {
+		for range queryCount {
 			batch.Queue("ps1", 5)
 		}
 
 		br := conn.SendBatch(ctx, batch)
 
-		for i := 0; i < queryCount; i++ {
+		for range queryCount {
 			rows, err := br.Query()
 			if err != nil {
 				t.Fatal(err)
@@ -450,13 +450,13 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 	batch := &pgx.Batch{}
 
 	queryCount := 3
-	for i := 0; i < queryCount; i++ {
+	for range queryCount {
 		batch.Queue("ps1", 5)
 	}
 
 	br := conn.SendBatch(ctx, batch)
 
-	for i := 0; i < queryCount; i++ {
+	for range queryCount {
 		rows, err := br.Query()
 		if err != nil {
 			t.Fatal(err)
@@ -503,7 +503,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 			t.Error(err)
 		}
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !rows.Next() {
 				t.Error("expected a row to be available")
 			}
@@ -598,7 +598,8 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 
 		var n int32
 		err := br.QueryRow().Scan(&n)
-		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42601") {
+		var pgErr *pgconn.PgError
+		if !(errors.As(err, &pgErr) && pgErr.Code == "42601") {
 			t.Errorf("rows.Err() => %v, want error code %v", err, 42601)
 		}
 
@@ -606,6 +607,48 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error")
 		}
+	})
+}
+
+func TestConnSendBatchErrorReturnsErrPreprocessingBatch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	// Only test exec modes that go through sendBatchExtendedWithDescription which wraps errors with ErrPreprocessingBatch.
+	modes := []pgx.QueryExecMode{
+		pgx.QueryExecModeCacheStatement,
+		pgx.QueryExecModeCacheDescribe,
+		pgx.QueryExecModeDescribeExec,
+	}
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var preprocessingErr pgx.ErrPreprocessingBatch
+
+		// Test prepare step failure: syntax error in a non-first statement.
+		batch := &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select 1 1") // syntax error triggers prepare failure
+
+		err := conn.SendBatch(ctx, batch).Close()
+		require.Error(t, err)
+		require.ErrorAs(t, err, &preprocessingErr)
+		assert.Equal(t, "select 1 1", preprocessingErr.SQL())
+		assert.NotContains(t, preprocessingErr.Error(), "select 1 1") // we don't want to leak the SQL query in the error message
+		assert.Contains(t, preprocessingErr.Error(), "error preprocessing batch (prepare)")
+
+		// Test build step failure: wrong number of arguments in a statement.
+		batch = &pgx.Batch{}
+		batch.Queue("select 1")
+		batch.Queue("select $1::int", 1, 2) // mismatched argument count triggers build failure
+
+		err = conn.SendBatch(ctx, batch).Close()
+		require.Error(t, err)
+		require.ErrorAs(t, err, &preprocessingErr)
+		assert.Equal(t, "select $1::int", preprocessingErr.SQL())
+		assert.NotContains(t, preprocessingErr.Error(), "select $1::int") // we don't want to leak the SQL query in the error message
+		assert.Contains(t, preprocessingErr.Error(), "error preprocessing batch (build)")
 	})
 }
 
@@ -931,13 +974,13 @@ func TestConnSendBatchDescribeStatementCache(t *testing.T) {
 
 func testConnSendBatch(t *testing.T, ctx context.Context, conn *pgx.Conn, queryCount int) {
 	batch := &pgx.Batch{}
-	for j := 0; j < queryCount; j++ {
+	for range queryCount {
 		batch.Queue("select n from generate_series(0,5) n")
 	}
 
 	br := conn.SendBatch(ctx, batch)
 
-	for j := 0; j < queryCount; j++ {
+	for range queryCount {
 		rows, err := br.Query()
 		require.NoError(t, err)
 
@@ -1012,7 +1055,7 @@ func TestConnSendBatchErrorDoesNotLeaveOrphanedPreparedStatement(t *testing.T) {
 		batch.Queue("select col1 from foo")
 		batch.Queue("select col1 from baz")
 		err := conn.SendBatch(ctx, batch).Close()
-		require.EqualError(t, err, `ERROR: relation "baz" does not exist (SQLSTATE 42P01)`)
+		require.ErrorContains(t, err, `relation "baz" does not exist (SQLSTATE 42P01)`)
 
 		mustExec(t, conn, `create temporary table baz(col1 text primary key);`)
 
@@ -1033,6 +1076,8 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not recover connection after batch statement timeout")
+
 		batch := &pgx.Batch{}
 		batch.Queue("SET statement_timeout='1ms'")
 		batch.Queue("SELECT pg_sleep(10)")
@@ -1043,15 +1088,12 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 		assert.NoError(t, err)
 
 		// get pg_sleep results
-		rows, err := br.Query()
-		assert.NoError(t, err)
+		rows, _ := br.Query()
 
 		// Consume rows and check error
-		for rows.Next() {
-		}
+		rows.Close()
 		err = rows.Err()
 		assert.ErrorContains(t, err, "(SQLSTATE 57014)")
-		rows.Close()
 
 		// The last error should be repeated when closing the batch
 		err = br.Close()
@@ -1061,7 +1103,6 @@ func TestSendBatchStatementTimeout(t *testing.T) {
 		_, err = conn.Exec(context.Background(), "Select 1")
 		assert.NoError(t, err)
 	})
-
 }
 
 func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
@@ -1129,6 +1170,43 @@ func TestSendBatchHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
 		err = conn.SendBatch(ctx, batch).Close()
 		require.NoError(t, err)
 	})
+}
+
+func TestBatchNetworkUsage(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	var counterConn *byteCounterConn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		counterConn = &byteCounterConn{conn: conn}
+		return counterConn, nil
+	}
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server uses different number of bytes for same operations")
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	batch := &pgx.Batch{}
+
+	for range 10 {
+		batch.Queue(
+			"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n",
+			1,
+		)
+	}
+
+	err := conn.SendBatch(context.Background(), batch).Close()
+	require.NoError(t, err)
+
+	assert.Equal(t, 1736, counterConn.bytesRead)
+	assert.Equal(t, 1408, counterConn.bytesWritten)
+
+	ensureConnValid(t, conn)
 }
 
 func ExampleConn_SendBatch() {

@@ -2,7 +2,7 @@ package pgproto3
 
 import (
 	"bytes"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -52,18 +52,21 @@ type randomReader struct {
 
 // Read reads a random number of random bytes.
 func (r *randomReader) Read(p []byte) (n int, err error) {
-	n = r.rnd.Intn(len(p) + 1)
-	return r.rnd.Read(p[:n])
+	n = r.rnd.IntN(len(p) + 1)
+	for i := 0; i < n; i++ {
+		p[i] = byte(r.rnd.Uint64())
+	}
+	return n, nil
 }
 
 func TestChunkReaderNextFuzz(t *testing.T) {
-	rr := &randomReader{rnd: rand.New(rand.NewSource(1))}
+	rr := &randomReader{rnd: rand.New(rand.NewPCG(1, 0))}
 	r := newChunkReader(rr, 8192)
 
-	randomSizes := rand.New(rand.NewSource(0))
+	randomSizes := rand.New(rand.NewPCG(0, 0))
 
-	for i := 0; i < 100000; i++ {
-		size := randomSizes.Intn(16384) + 1
+	for range 100_000 {
+		size := randomSizes.IntN(16384) + 1
 		buf, err := r.Next(size)
 		if err != nil {
 			t.Fatal(err)

@@ -11,12 +11,12 @@ import (
 func TestUint32Codec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "oid", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Uint32{Uint32: pgtype.TextOID, Valid: true},
-			new(pgtype.Uint32),
-			isExpectedEq(pgtype.Uint32{Uint32: pgtype.TextOID, Valid: true}),
+			Param:  pgtype.Uint32{Uint32: pgtype.TextOID, Valid: true},
+			Result: new(pgtype.Uint32),
+			Test:   isExpectedEq(pgtype.Uint32{Uint32: pgtype.TextOID, Valid: true}),
 		},
-		{pgtype.Uint32{}, new(pgtype.Uint32), isExpectedEq(pgtype.Uint32{})},
-		{nil, new(pgtype.Uint32), isExpectedEq(pgtype.Uint32{})},
-		{"1147", new(string), isExpectedEq("1147")},
+		{Param: pgtype.Uint32{}, Result: new(pgtype.Uint32), Test: isExpectedEq(pgtype.Uint32{})},
+		{Param: nil, Result: new(pgtype.Uint32), Test: isExpectedEq(pgtype.Uint32{})},
+		{Param: "1147", Result: new(string), Test: isExpectedEq("1147")},
 	})
 }

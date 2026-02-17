@@ -43,7 +43,7 @@ func (dst *Parse) Decode(src []byte) error {
 	}
 	parameterOIDCount := int(binary.BigEndian.Uint16(buf.Next(2)))
 
-	for i := 0; i < parameterOIDCount; i++ {
+	for range parameterOIDCount {
 		if buf.Len() < 4 {
 			return &invalidMessageFormatErr{messageType: "Parse"}
 		}

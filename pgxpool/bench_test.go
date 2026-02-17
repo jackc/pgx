@@ -15,8 +15,7 @@ func BenchmarkAcquireAndRelease(b *testing.B) {
 	require.NoError(b, err)
 	defer pool.Close()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		c, err := pool.Acquire(context.Background())
 		if err != nil {
 			b.Fatal(err)
@@ -43,8 +42,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 
 	var n int64
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		err = conn.QueryRow(context.Background(), "ps1", i).Scan(&n)
 		if err != nil {
 			b.Fatal(err)
@@ -70,8 +68,7 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 
 	var n int64
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		err = db.QueryRow(context.Background(), "ps1", i).Scan(&n)
 		if err != nil {
 			b.Fatal(err)

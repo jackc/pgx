@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/url"
@@ -82,6 +83,15 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// MinProtocolVersion is the minimum acceptable PostgreSQL protocol version.
+	// If the server does not support at least this version, the connection will fail.
+	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0".
+	MinProtocolVersion string
+
+	// MaxProtocolVersion is the maximum PostgreSQL protocol version to request from the server.
+	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0" for compatibility.
+	MaxProtocolVersion string
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -103,9 +113,7 @@ func (c *Config) Copy() *Config {
 	}
 	if newConf.RuntimeParams != nil {
 		newConf.RuntimeParams = make(map[string]string, len(c.RuntimeParams))
-		for k, v := range c.RuntimeParams {
-			newConf.RuntimeParams[k] = v
-		}
+		maps.Copy(newConf.RuntimeParams, c.RuntimeParams)
 	}
 	if newConf.Fallbacks != nil {
 		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
@@ -214,6 +222,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //	PGCONNECT_TIMEOUT
 //	PGTARGETSESSIONATTRS
 //	PGTZ
+//	PGMINPROTOCOLVERSION
+//	PGMAXPROTOCOLVERSION
 //
 // See http://www.postgresql.org/docs/current/static/libpq-envars.html for details on the meaning of environment variables.
 //
@@ -339,6 +349,8 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"target_session_attrs": {},
 		"service":              {},
 		"servicefile":          {},
+		"min_protocol_version": {},
+		"max_protocol_version": {},
 	}
 
 	// Adding kerberos configuration
@@ -431,6 +443,27 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("unknown target_session_attrs value: %v", tsa)}
 	}
 
+	minProto, err := parseProtocolVersion(settings["min_protocol_version"])
+	if err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid min_protocol_version", err: err}
+	}
+	maxProto, err := parseProtocolVersion(settings["max_protocol_version"])
+	if err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid max_protocol_version", err: err}
+	}
+	if minProto > maxProto {
+		return nil, &ParseConfigError{ConnString: connString, msg: "min_protocol_version cannot be greater than max_protocol_version"}
+	}
+
+	config.MinProtocolVersion = settings["min_protocol_version"]
+	config.MaxProtocolVersion = settings["max_protocol_version"]
+	if config.MinProtocolVersion == "" {
+		config.MinProtocolVersion = "3.0"
+	}
+	if config.MaxProtocolVersion == "" {
+		config.MaxProtocolVersion = "3.0"
+	}
+
 	return config, nil
 }
 
@@ -438,9 +471,7 @@ func mergeSettings(settingSets ...map[string]string) map[string]string {
 	settings := make(map[string]string)
 
 	for _, s2 := range settingSets {
-		for k, v := range s2 {
-			settings[k] = v
-		}
+		maps.Copy(settings, s2)
 	}
 
 	return settings
@@ -470,6 +501,8 @@ func parseEnvSettings() map[string]string {
 		"PGSERVICEFILE":        "servicefile",
 		"PGTZ":                 "timezone",
 		"PGOPTIONS":            "options",
+		"PGMINPROTOCOLVERSION": "min_protocol_version",
+		"PGMAXPROTOCOLVERSION": "max_protocol_version",
 	}
 
 	for envname, realname := range nameMap {
@@ -494,7 +527,9 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	if parsedURL.User != nil {
-		settings["user"] = parsedURL.User.Username()
+		if u := parsedURL.User.Username(); u != "" {
+			settings["user"] = u
+		}
 		if password, present := parsedURL.User.Password(); present {
 			settings["password"] = password
 		}
@@ -503,7 +538,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
 	var hosts []string
 	var ports []string
-	for _, host := range strings.Split(parsedURL.Host, ",") {
+	for host := range strings.SplitSeq(parsedURL.Host, ",") {
 		if host == "" {
 			continue
 		}
@@ -621,6 +656,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			return nil, errors.New("invalid keyword/value")
 		}
 
+		if key == "user" && val == "" {
+			continue
+		}
 		settings[key] = val
 	}
 
@@ -791,7 +829,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			// Attempt decryption with pass phrase
 			// NOTE: only supports RSA (PKCS#1)
 			if sslpassword != "" {
-				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
+				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword)) //nolint:ineffassign
 			}
 			// if sslpassword not provided or has decryption error when use it
 			// try to find sslpassword with callback function
@@ -957,4 +995,15 @@ func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn 
 	}
 
 	return nil
+}
+
+func parseProtocolVersion(s string) (uint32, error) {
+	switch s {
+	case "", "3.0":
+		return pgproto3.ProtocolVersion30, nil
+	case "3.2", "latest":
+		return pgproto3.ProtocolVersion32, nil
+	default:
+		return 0, fmt.Errorf("invalid protocol version: %q", s)
+	}
 }

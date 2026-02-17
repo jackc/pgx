@@ -21,29 +21,29 @@ type xmlStruct struct {
 func TestXMLCodec(t *testing.T) {
 	skipCockroachDB(t, "CockroachDB does not support XML.")
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "xml", []pgxtest.ValueRoundTripTest{
-		{nil, new(*xmlStruct), isExpectedEq((*xmlStruct)(nil))},
-		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
-		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new(*xmlStruct), Test: isExpectedEq((*xmlStruct)(nil))},
+		{Param: map[string]any(nil), Result: new(*string), Test: isExpectedEq((*string)(nil))},
+		{Param: map[string]any(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: []byte(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
 
 		// Test sql.Scanner.
-		{"", new(sql.NullString), isExpectedEq(sql.NullString{String: "", Valid: true})},
+		{Param: "", Result: new(sql.NullString), Test: isExpectedEq(sql.NullString{String: "", Valid: true})},
 
 		// Test driver.Valuer.
-		{sql.NullString{String: "", Valid: true}, new(sql.NullString), isExpectedEq(sql.NullString{String: "", Valid: true})},
+		{Param: sql.NullString{String: "", Valid: true}, Result: new(sql.NullString), Test: isExpectedEq(sql.NullString{String: "", Valid: true})},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "xml", []pgxtest.ValueRoundTripTest{
-		{[]byte(`<?xml version="1.0"?><Root></Root>`), new([]byte), isExpectedEqBytes([]byte(`<Root></Root>`))},
-		{[]byte(`<?xml version="1.0"?>`), new([]byte), isExpectedEqBytes([]byte(``))},
-		{[]byte(`<?xml version="1.0"?>`), new(string), isExpectedEq(``)},
-		{[]byte(`<Root></Root>`), new([]byte), isExpectedEqBytes([]byte(`<Root></Root>`))},
-		{[]byte(`<Root></Root>`), new(string), isExpectedEq(`<Root></Root>`)},
-		{[]byte(""), new([]byte), isExpectedEqBytes([]byte(""))},
-		{xmlStruct{Name: "Adam", Age: 10}, new(xmlStruct), isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
-		{xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10}, new(xmlStruct), isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
-		{[]byte(`<person age="10"><name>Adam</name></person>`), new(xmlStruct), isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
+		{Param: []byte(`<?xml version="1.0"?><Root></Root>`), Result: new([]byte), Test: isExpectedEqBytes([]byte(`<Root></Root>`))},
+		{Param: []byte(`<?xml version="1.0"?>`), Result: new([]byte), Test: isExpectedEqBytes([]byte(``))},
+		{Param: []byte(`<?xml version="1.0"?>`), Result: new(string), Test: isExpectedEq(``)},
+		{Param: []byte(`<Root></Root>`), Result: new([]byte), Test: isExpectedEqBytes([]byte(`<Root></Root>`))},
+		{Param: []byte(`<Root></Root>`), Result: new(string), Test: isExpectedEq(`<Root></Root>`)},
+		{Param: []byte(""), Result: new([]byte), Test: isExpectedEqBytes([]byte(""))},
+		{Param: xmlStruct{Name: "Adam", Age: 10}, Result: new(xmlStruct), Test: isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
+		{Param: xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10}, Result: new(xmlStruct), Test: isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
+		{Param: []byte(`<person age="10"><name>Adam</name></person>`), Result: new(xmlStruct), Test: isExpectedEq(xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10})},
 	})
 }
 

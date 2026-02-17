@@ -31,16 +31,13 @@ func (dst *DataRow) Decode(src []byte) error {
 	// large reallocate. This is too avoid one row with many columns from
 	// permanently allocating memory.
 	if cap(dst.Values) < fieldCount || cap(dst.Values)-fieldCount > 32 {
-		newCap := 32
-		if newCap < fieldCount {
-			newCap = fieldCount
-		}
+		newCap := max(32, fieldCount)
 		dst.Values = make([][]byte, fieldCount, newCap)
 	} else {
 		dst.Values = dst.Values[:fieldCount]
 	}
 
-	for i := 0; i < fieldCount; i++ {
+	for i := range fieldCount {
 		if len(src[rp:]) < 4 {
 			return &invalidMessageFormatErr{messageType: "DataRow"}
 		}

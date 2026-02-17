@@ -42,7 +42,7 @@ for i in "${!commits[@]}"; do
         exit 1
     }
 
-    # Sanitized commmit message
+    # Sanitized commit message
     commit_message=$(git log -1 --pretty=format:"%s" | tr -c '[:alnum:]-_' '_')
 
     # Benchmark data will go there

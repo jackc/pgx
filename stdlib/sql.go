@@ -57,24 +57,12 @@
 //
 // # PostgreSQL Specific Data Types
 //
-// As of Go 1.26 the database/sql allows drivers to implement their own scanning logic by implementing the
-// driver.RowsColumnScanner interface. This allows PostgreSQL arrays to be scanned directly into Go slices.
-//
-//	var a []int64
-//	err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(&a)
-//
-// In older versions of Go, *pgtype.Map.SQLScanner can be used as an adapter that makes these types usable as a
-// sql.Scanner.
+// The pgtype package provides support for PostgreSQL specific types. *pgtype.Map.SQLScanner is an adapter that makes
+// these types usable as a sql.Scanner.
 //
 //	m := pgtype.NewMap()
 //	var a []int64
 //	err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
-//
-// The pgtype package provides support for PostgreSQL specific types. These types can be used directly in Go 1.26 and
-// with *pgtype.Map.SQLScanner in older Go versions.
-//
-//	var r pgtype.Range[pgtype.Int4]
-//	err := db.QueryRow("select int4range(1, 5)").Scan(&r)
 package stdlib
 
 import (
@@ -85,7 +73,7 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"strconv"
@@ -567,6 +555,12 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 		return driver.ErrBadConn
 	}
 
+	// Discard connection if it has an open transaction. This can happen if the
+	// application did not properly commit or rollback a transaction.
+	if c.conn.PgConn().TxStatus() != 'I' {
+		return driver.ErrBadConn
+	}
+
 	now := time.Now()
 	idle := now.Sub(c.lastResetSessionTime)
 
@@ -676,6 +670,8 @@ func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
 		return math.MaxInt64, true
 	case pgtype.VarcharOID, pgtype.BPCharArrayOID:
 		return int64(fd.TypeModifier - varHeaderSize), true
+	case pgtype.VarbitOID:
+		return int64(fd.TypeModifier), true
 	default:
 		return 0, false
 	}
@@ -901,12 +897,6 @@ func convertNamedArguments(args []any, argsV []driver.NamedValue) {
 			args[i] = nil
 		}
 	}
-}
-
-func (r *Rows) ScanColumn(dest any, index int) error {
-	m := r.conn.conn.TypeMap()
-	fd := r.rows.FieldDescriptions()[index]
-	return m.Scan(fd.DataTypeOID, fd.Format, r.rows.RawValues()[index], dest)
 }
 
 type wrapTx struct {

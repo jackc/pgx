@@ -15,17 +15,17 @@ func TestPointCodec(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "point", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
-			new(pgtype.Point),
-			isExpectedEq(pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true}),
+			Param:  pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
+			Result: new(pgtype.Point),
+			Test:   isExpectedEq(pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true}),
 		},
 		{
-			pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true},
-			new(pgtype.Point),
-			isExpectedEq(pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true}),
+			Param:  pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true},
+			Result: new(pgtype.Point),
+			Test:   isExpectedEq(pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true}),
 		},
-		{pgtype.Point{}, new(pgtype.Point), isExpectedEq(pgtype.Point{})},
-		{nil, new(pgtype.Point), isExpectedEq(pgtype.Point{})},
+		{Param: pgtype.Point{}, Result: new(pgtype.Point), Test: isExpectedEq(pgtype.Point{})},
+		{Param: nil, Result: new(pgtype.Point), Test: isExpectedEq(pgtype.Point{})},
 	})
 }
 

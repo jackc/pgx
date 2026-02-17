@@ -110,32 +110,6 @@ func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
 	}
 }
 
-func testWithKnownOIDQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
-	for _, mode := range []pgx.QueryExecMode{
-		pgx.QueryExecModeCacheStatement,
-		pgx.QueryExecModeCacheDescribe,
-		pgx.QueryExecModeDescribeExec,
-	} {
-		t.Run(mode.String(),
-			func(t *testing.T) {
-				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-				require.NoError(t, err)
-
-				config.DefaultQueryExecMode = mode
-				db := stdlib.OpenDB(*config)
-				defer func() {
-					err := db.Close()
-					require.NoError(t, err)
-				}()
-
-				f(t, db)
-
-				ensureDBValid(t, db)
-			},
-		)
-	}
-}
-
 // Do a simple query to ensure the DB is still usable. This is of less use in stdlib as the connection pool should
 // cover broken connections.
 func ensureDBValid(t testing.TB, db *sql.DB) {
@@ -186,8 +160,6 @@ func TestSQLOpen(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.driverName, func(t *testing.T) {
 			db, err := sql.Open(tt.driverName, os.Getenv("PGX_TEST_DATABASE"))
 			require.NoError(t, err)
@@ -538,6 +510,43 @@ func TestConnQueryScanGoArray(t *testing.T) {
 	})
 }
 
+func TestConnQueryScanArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		m := pgtype.NewMap()
+
+		var a pgtype.Array[int64]
+		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: []int64{1, 2, 3}, Dims: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}}, Valid: true}, a)
+
+		err = db.QueryRow("select null::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: nil, Dims: nil, Valid: false}, a)
+	})
+}
+
+func TestConnQueryScanRange(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support int4range")
+
+		m := pgtype.NewMap()
+
+		var r pgtype.Range[pgtype.Int4]
+		err := db.QueryRow("select int4range(1, 5)").Scan(m.SQLScanner(&r))
+		require.NoError(t, err)
+		assert.Equal(
+			t,
+			pgtype.Range[pgtype.Int4]{
+				Lower:     pgtype.Int4{Int32: 1, Valid: true},
+				Upper:     pgtype.Int4{Int32: 5, Valid: true},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Valid:     true,
+			},
+			r)
+	})
+}
+
 // Test type that pgx would handle natively in binary, but since it is not a
 // database/sql native type should be passed through as a string
 func TestConnQueryRowPgxBinary(t *testing.T) {
@@ -736,6 +745,8 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 
 func TestBeginTxContextCancel(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
+
 		_, err := db.Exec("drop table if exists t")
 		require.NoError(t, err)
 
@@ -1255,7 +1266,7 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	// If we don't succeed within this many iterations, something is certainly wrong
-	for i := 0; i < 100000; i++ {
+	for range 100_000 {
 		connCopy := *config
 		stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
 
@@ -1316,7 +1327,7 @@ func TestCheckIdleConn(t *testing.T) {
 	defer closeDB(t, db)
 
 	var conns []*sql.Conn
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		c, err := db.Conn(context.Background())
 		require.NoError(t, err)
 		conns = append(conns, c)
@@ -1392,4 +1403,98 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, hookCalled, "hook should be called on reuse")
+}
+
+// https://github.com/jackc/pgx/pull/2481
+func TestOpenTransactionsDiscarded(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
+
+	db.SetMaxOpenConns(1)
+	ctx := context.Background()
+
+	for range 3 {
+		func() {
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			defer conn.Close()
+
+			_, err = conn.ExecContext(ctx, "begin;")
+			require.NoError(t, err)
+
+			// If the open transaction is not discarded, the second time this is run it will fail.
+			_, err = conn.ExecContext(ctx, "create temporary table in_tx_discard_test(id int);")
+			require.NoError(t, err)
+		}()
+	}
+
+	ensureDBValid(t, db)
+}
+
+func TestRowsColumnTypeLength(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support type")
+
+		columnTypeLengthTests := []struct {
+			Len int64
+			OK  bool
+		}{
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				255,
+				true,
+			},
+			{
+				10,
+				true,
+			},
+			{
+				50,
+				true,
+			},
+			{
+				0,
+				false,
+			},
+		}
+
+		_, err := db.Exec(`CREATE TEMPORARY TABLE temp_column_type_length (
+						   text_column TEXT,
+						   bytea_column BYTEA,
+						   varchar_column VARCHAR(255),
+						   bpcharA_column BPCHAR(10)[],
+						   varbit_column VARBIT(50),
+						   int_column INT
+					);`)
+		require.NoError(t, err)
+
+		rows, err := db.Query("SELECT * FROM temp_column_type_length")
+		require.NoError(t, err)
+
+		columns, err := rows.ColumnTypes()
+		require.NoError(t, err)
+		assert.Len(t, columns, 6)
+
+		for i, tt := range columnTypeLengthTests {
+			c := columns[i]
+
+			l, ok := c.Length()
+			if l != tt.Len {
+				t.Errorf("(%d) got: %d, want: %d", i, l, tt.Len)
+			}
+			if ok != tt.OK {
+				t.Errorf("(%d) got: %t, want: %t", i, ok, tt.OK)
+			}
+
+		}
+	})
 }

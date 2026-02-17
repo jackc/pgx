@@ -2,7 +2,7 @@ package pgconn_test
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"runtime"
 	"strconv"
@@ -18,7 +18,7 @@ func TestConnStress(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	actionCount := 10000
+	actionCount := 10_000
 	if s := os.Getenv("PGX_TEST_STRESS_FACTOR"); s != "" {
 		stressFactor, err := strconv.ParseInt(s, 10, 64)
 		require.Nil(t, err, "Failed to parse PGX_TEST_STRESS_FACTOR")
@@ -37,7 +37,7 @@ func TestConnStress(t *testing.T) {
 	}
 
 	for i := 0; i < actionCount; i++ {
-		action := actions[rand.Intn(len(actions))]
+		action := actions[rand.IntN(len(actions))]
 		err := action.fn(pgConn)
 		require.Nilf(t, err, "%d: %s", i, action.name)
 	}

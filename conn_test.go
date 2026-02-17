@@ -394,8 +394,7 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	commandTag, err := conn.Exec(ctx, "create temporary table foo(name varchar primary key);")
 	if err != nil {
@@ -553,7 +552,7 @@ func TestPrepareIdempotency(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			_, err := conn.Prepare(context.Background(), "test", "select 42::integer")
 			if err != nil {
 				t.Fatalf("%d. Unable to prepare statement: %v", i, err)
@@ -750,7 +749,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		mustExec(t, conn, "listen busysafe")
 		listening <- true
 
-		for i := 0; i < 5000; i++ {
+		for range 5000 {
 			var sum int32
 			var rowCount int32
 
@@ -796,7 +795,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 		<-listening
 
-		for i := 0; i < 100000; i++ {
+		for range 100_000 {
 			mustExec(t, conn, "notify busysafe, 'hello'")
 		}
 	}()
@@ -880,7 +879,7 @@ func TestFatalTxError(t *testing.T) {
 	t.Parallel()
 
 	// Run timing sensitive test many times
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		func() {
 			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer closeConn(t, conn)
@@ -1253,7 +1252,7 @@ func TestStmtCacheInvalidationConn(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	rows, err = conn.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Next()
@@ -1322,7 +1321,7 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	rows, err = tx.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Next()
@@ -1398,7 +1397,7 @@ func TestStmtCacheInvalidationConnWithBatch(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	batch := &pgx.Batch{}
 	batch.Queue(getSQL, 1)
 	br := conn.SendBatch(ctx, batch)
@@ -1477,7 +1476,7 @@ func TestStmtCacheInvalidationTxWithBatch(t *testing.T) {
 	// It is up to the application to determine if it wants to try again. We punt to
 	// the application because there is no clear recovery path in the case of failed transactions
 	// or batch operations and because automatic retry is tricky and we don't want to get
-	// it wrong at such an importaint layer of the stack.
+	// it wrong at such an important layer of the stack.
 	batch := &pgx.Batch{}
 	batch.Queue(getSQL, 1)
 	br := tx.SendBatch(ctx, batch)
@@ -1530,6 +1529,52 @@ func TestStmtCacheInvalidationTxWithBatch(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+// https://github.com/jackc/pgx/issues/2442
+func TestStmtCacheInvalidationExec(t *testing.T) {
+	ctx := context.Background()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("CockroachDB does not support column column type from int to bool")
+	}
+
+	// create a table and fill it with some data
+	_, err := conn.Exec(ctx, `
+				DROP TABLE IF EXISTS drop_cols;
+        CREATE TABLE drop_cols (
+            id SERIAL PRIMARY KEY NOT NULL,
+            f1 int NOT NULL,
+            f2 int NOT NULL
+        );
+    `)
+	require.NoError(t, err)
+
+	insertSQL := "INSERT INTO drop_cols (f1, f2) VALUES ($1, $2)"
+	// This query will populate the statement cache.
+	_, err = conn.Exec(ctx, insertSQL, 1, 2)
+	require.NoError(t, err)
+
+	// Now, change the schema of the table out from under the statement, making it invalid.
+	_, err = conn.Exec(ctx, "ALTER TABLE drop_cols ALTER COLUMN f1 TYPE boolean USING f1::boolean")
+	require.NoError(t, err)
+
+	// We must get an error the first time we try to re-execute a bad statement.
+	// It is up to the application to determine if it wants to try again. We punt to
+	// the application because there is no clear recovery path in the case of failed transactions
+	// or batch operations and because automatic retry is tricky and we don't want to get
+	// it wrong at such an important layer of the stack.
+	_, err = conn.Exec(ctx, insertSQL, true, 2)
+	require.ErrorContains(t, err, "failed to encode args[0]")
+
+	// On retry, the statement should have been flushed from the cache.
+	_, err = conn.Exec(ctx, insertSQL, true, 2)
+	require.NoError(t, err)
+
+	ensureConnValid(t, conn)
+}
+
 func TestInsertDurationInterval(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -1562,7 +1607,7 @@ func TestRawValuesUnderlyingMemoryReused(t *testing.T) {
 		original := make([]byte, len(buf))
 		copy(original, buf)
 
-		for i := 0; i < 1_000_000; i++ {
+		for i := range 1_000_000 {
 			rows, err := conn.Query(ctx, `select $1::int`, i)
 			require.NoError(t, err)
 			rows.Close()

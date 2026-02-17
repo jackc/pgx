@@ -20,7 +20,7 @@ func BenchmarkCommandTagRowsAffected(b *testing.B) {
 		ct := CommandTag{s: bm.commandTag}
 		b.Run(bm.commandTag, func(b *testing.B) {
 			var n int64
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				n = ct.RowsAffected()
 			}
 			if n != bm.rowsAffected {
@@ -34,7 +34,7 @@ func BenchmarkCommandTagTypeFromString(b *testing.B) {
 	ct := CommandTag{s: "UPDATE 1"}
 
 	var update bool
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		update = strings.HasPrefix(ct.String(), "UPDATE")
 	}
 	if !update {
@@ -62,7 +62,7 @@ func BenchmarkCommandTagInsert(b *testing.B) {
 		ct := CommandTag{s: bm.commandTag}
 		b.Run(bm.commandTag, func(b *testing.B) {
 			var is bool
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				is = ct.Insert()
 			}
 			if is != bm.is {
