@@ -844,7 +844,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			// Should we also provide warning for PKCS#1 needed?
 			if decryptedError != nil {
-				return nil, fmt.Errorf("unable to decrypt key: %w", err)
+				return nil, fmt.Errorf("unable to decrypt key: %w", decryptedError)
 			}
 
 			pemBytes := pem.Block{
