@@ -32,28 +32,28 @@ func TestPolygonTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "polygon", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Polygon{
+			Param: pgtype.Polygon{
 				P:     []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}, {5.0, 3.234}},
 				Valid: true,
 			},
-			new(pgtype.Polygon),
-			isExpectedEqPolygon(pgtype.Polygon{
+			Result: new(pgtype.Polygon),
+			Test: isExpectedEqPolygon(pgtype.Polygon{
 				P:     []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}, {5.0, 3.234}},
 				Valid: true,
 			}),
 		},
 		{
-			pgtype.Polygon{
+			Param: pgtype.Polygon{
 				P:     []pgtype.Vec2{{3.14, -1.678}, {7.1, -5.234}, {23.1, 9.34}},
 				Valid: true,
 			},
-			new(pgtype.Polygon),
-			isExpectedEqPolygon(pgtype.Polygon{
+			Result: new(pgtype.Polygon),
+			Test: isExpectedEqPolygon(pgtype.Polygon{
 				P:     []pgtype.Vec2{{3.14, -1.678}, {7.1, -5.234}, {23.1, 9.34}},
 				Valid: true,
 			}),
 		},
-		{pgtype.Polygon{}, new(pgtype.Polygon), isExpectedEqPolygon(pgtype.Polygon{})},
-		{nil, new(pgtype.Polygon), isExpectedEqPolygon(pgtype.Polygon{})},
+		{Param: pgtype.Polygon{}, Result: new(pgtype.Polygon), Test: isExpectedEqPolygon(pgtype.Polygon{})},
+		{Param: nil, Result: new(pgtype.Polygon), Test: isExpectedEqPolygon(pgtype.Polygon{})},
 	})
 }

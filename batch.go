@@ -272,7 +272,7 @@ func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
 		ok = true
 		br.qqIdx++
 	}
-	return
+	return query, args, ok
 }
 
 type pipelineBatchResults struct {
@@ -450,6 +450,45 @@ func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, er
 	return bi.SQL, bi.Arguments, nil
 }
 
+type emptyBatchResults struct {
+	conn   *Conn
+	closed bool
+}
+
+// Exec reads the results from the next query in the batch as if the query has been sent with Exec.
+func (br *emptyBatchResults) Exec() (pgconn.CommandTag, error) {
+	if br.closed {
+		return pgconn.CommandTag{}, fmt.Errorf("batch already closed")
+	}
+	return pgconn.CommandTag{}, errors.New("no more results in batch")
+}
+
+// Query reads the results from the next query in the batch as if the query has been sent with Query.
+func (br *emptyBatchResults) Query() (Rows, error) {
+	if br.closed {
+		alreadyClosedErr := fmt.Errorf("batch already closed")
+		return &baseRows{err: alreadyClosedErr, closed: true}, alreadyClosedErr
+	}
+
+	rows := br.conn.getRows(context.Background(), "", nil)
+	rows.err = errors.New("no more results in batch")
+	rows.closed = true
+	return rows, rows.err
+}
+
+// QueryRow reads the results from the next query in the batch as if the query has been sent with QueryRow.
+func (br *emptyBatchResults) QueryRow() Row {
+	rows, _ := br.Query()
+	return (*connRow)(rows.(*baseRows))
+}
+
+// Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
+// resyncronize the connection with the server. In this case the underlying connection will have been closed.
+func (br *emptyBatchResults) Close() error {
+	br.closed = true
+	return nil
+}
+
 // invalidates statement and description caches on batch results error
 func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
 	if err != nil && conn != nil && b != nil {
@@ -465,4 +504,32 @@ func invalidateCachesOnBatchResultsError(conn *Conn, b *Batch, err error) {
 			}
 		}
 	}
+}
+
+// ErrPreprocessingBatch occurs when an error is encountered while preprocessing a batch.
+// The two preprocessing steps are "prepare" (server-side SQL parse/plan) and
+// "build" (client-side argument encoding).
+type ErrPreprocessingBatch struct {
+	step string // "prepare" or "build"
+	sql  string
+	err  error
+}
+
+func newErrPreprocessingBatch(step, sql string, err error) ErrPreprocessingBatch {
+	return ErrPreprocessingBatch{step: step, sql: sql, err: err}
+}
+
+func (e ErrPreprocessingBatch) Error() string {
+	// intentionally not including the SQL query in the error message
+	// to avoid leaking potentially sensitive information into logs.
+	// If the user wants the SQL, they can call SQL().
+	return fmt.Sprintf("error preprocessing batch (%s): %v", e.step, e.err)
+}
+
+func (e ErrPreprocessingBatch) Unwrap() error {
+	return e.err
+}
+
+func (e ErrPreprocessingBatch) SQL() string {
+	return e.sql
 }

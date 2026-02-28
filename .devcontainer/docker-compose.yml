@@ -1,0 +1,99 @@
+volumes:
+  postgres-14-data:
+  postgres-15-data:
+  postgres-16-data:
+  postgres-17-data:
+  postgres-18-data:
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    volumes:
+      - ../..:/workspaces:cached
+
+    environment:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: pgx_test
+      PGHOST: localhost
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+  postgres-14:
+    image: postgres:14
+    restart: unless-stopped
+    volumes:
+      - postgres-14-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
+    command: postgres -c port=5414
+
+  postgres-15:
+    image: postgres:15
+    restart: unless-stopped
+    volumes:
+      - postgres-15-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
+    command: postgres -c port=5415
+
+  postgres-16:
+    image: postgres:16
+    restart: unless-stopped
+    volumes:
+      - postgres-16-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
+    command: postgres -c port=5416
+
+  postgres-17:
+    image: postgres:17
+    restart: unless-stopped
+    volumes:
+      - postgres-17-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
+    command: postgres -c port=5417
+
+  postgres-18:
+    image: postgres:18
+    restart: unless-stopped
+    volumes:
+      - postgres-18-data:/var/lib/postgresql
+      - ../testsetup/postgresql_setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    network_mode: service:app
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgx_test
+      POSTGRES_HOSTNAME: localhost
+
+  cockroachdb:
+    image: cockroachdb/cockroach:v25.4.4
+    restart: unless-stopped
+    network_mode: service:app
+    command: start-single-node --insecure --listen-addr=127.0.0.1:26257 --store=type=mem,size=1024MiB

@@ -111,9 +111,9 @@ func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	case "-infinity":
 		*ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
-		// Parse time with or without timezonr
+		// Parse time with or without timezone
 		tss := *s
-		//		PostgreSQL uses ISO 8601 without timezone for to_json function and casting from a string to timestampt
+		// PostgreSQL uses ISO 8601 without timezone for to_json function and casting from a string to timestamp
 		tim, err := time.Parse(time.RFC3339Nano, tss)
 		if err == nil {
 			*ts = Timestamp{Time: tim, Valid: true}
@@ -176,7 +176,7 @@ func (encodePlanTimestampCodecBinary) Encode(value any, buf []byte) (newBuf []by
 	switch ts.InfinityModifier {
 	case Finite:
 		t := discardTimeZone(ts.Time)
-		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
+		microsecSinceUnixEpoch := t.Unix()*1_000_000 + int64(t.Nanosecond())/1000
 		microsecSinceY2K = microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
 	case Infinity:
 		microsecSinceY2K = infinityMicrosecondOffset
@@ -279,8 +279,8 @@ func (plan *scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any)
 		ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
 		tim := time.Unix(
-			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
-			(microsecFromUnixEpochToY2K%1000000*1000)+(microsecSinceY2K%1000000*1000),
+			microsecFromUnixEpochToY2K/1_000_000+microsecSinceY2K/1_000_000,
+			(microsecFromUnixEpochToY2K%1_000_000*1_000)+(microsecSinceY2K%1_000_000*1000),
 		).UTC()
 		if plan.location != nil {
 			tim = time.Date(tim.Year(), tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), plan.location)

@@ -51,35 +51,35 @@ func TestJSONCodec(t *testing.T) {
 
 	var str string
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "json", []pgxtest.ValueRoundTripTest{
-		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
-		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
-		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new(*jsonStruct), Test: isExpectedEq((*jsonStruct)(nil))},
+		{Param: map[string]any(nil), Result: new(*string), Test: isExpectedEq((*string)(nil))},
+		{Param: map[string]any(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: []byte(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
 
 		// Test sql.Scanner. (https://github.com/jackc/pgx/issues/1418)
-		{"42", new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
+		{Param: "42", Result: new(sql.NullInt64), Test: isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
 
 		// Test driver.Valuer. (https://github.com/jackc/pgx/issues/1430)
-		{sql.NullInt64{Int64: 42, Valid: true}, new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
+		{Param: sql.NullInt64{Int64: 42, Valid: true}, Result: new(sql.NullInt64), Test: isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
 
 		// Test driver.Valuer is used before json.Marshaler (https://github.com/jackc/pgx/issues/1805)
-		{Issue1805(7), new(Issue1805), isExpectedEq(Issue1805(7))},
+		{Param: Issue1805(7), Result: new(Issue1805), Test: isExpectedEq(Issue1805(7))},
 		// Test driver.Scanner is used before json.Unmarshaler (https://github.com/jackc/pgx/issues/2146)
-		{Issue2146(7), new(*Issue2146), isPtrExpectedEq(Issue2146(7))},
+		{Param: Issue2146(7), Result: new(*Issue2146), Test: isPtrExpectedEq(Issue2146(7))},
 
 		// Test driver.Scanner without pointer receiver (https://github.com/jackc/pgx/issues/2204)
-		{NonPointerJSONScanner{V: stringPtr("{}")}, NonPointerJSONScanner{V: &str}, func(a any) bool { return str == "{}" }},
+		{Param: NonPointerJSONScanner{V: stringPtr("{}")}, Result: NonPointerJSONScanner{V: &str}, Test: func(a any) bool { return str == "{}" }},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
-		{[]byte("{}"), new([]byte), isExpectedEqBytes([]byte("{}"))},
-		{[]byte("null"), new([]byte), isExpectedEqBytes([]byte("null"))},
-		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},
-		{[]byte(`"hello"`), new([]byte), isExpectedEqBytes([]byte(`"hello"`))},
-		{[]byte(`"hello"`), new(string), isExpectedEq(`"hello"`)},
-		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
-		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
+		{Param: []byte("{}"), Result: new([]byte), Test: isExpectedEqBytes([]byte("{}"))},
+		{Param: []byte("null"), Result: new([]byte), Test: isExpectedEqBytes([]byte("null"))},
+		{Param: []byte("42"), Result: new([]byte), Test: isExpectedEqBytes([]byte("42"))},
+		{Param: []byte(`"hello"`), Result: new([]byte), Test: isExpectedEqBytes([]byte(`"hello"`))},
+		{Param: []byte(`"hello"`), Result: new(string), Test: isExpectedEq(`"hello"`)},
+		{Param: map[string]any{"foo": "bar"}, Result: new(map[string]any), Test: isExpectedEqMap(map[string]any{"foo": "bar"})},
+		{Param: jsonStruct{Name: "Adam", Age: 10}, Result: new(jsonStruct), Test: isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 	})
 }
 
@@ -177,7 +177,7 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, m)
 
-		m = map[string]interface{}{"foo": "bar"}
+		m = map[string]any{"foo": "bar"}
 		err = conn.QueryRow(ctx, "select null::json").Scan(&m)
 		require.NoError(t, err)
 		require.Nil(t, m)
@@ -303,8 +303,8 @@ func TestJSONCodecCustomMarshal(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
 		// There is no space between "custom" and "value" in json type.
-		{map[string]any{"something": "else"}, new(string), isExpectedEq(`{"custom":"value"}`)},
-		{[]byte(`{"something":"else"}`), new(map[string]any), func(v any) bool {
+		{Param: map[string]any{"something": "else"}, Result: new(string), Test: isExpectedEq(`{"custom":"value"}`)},
+		{Param: []byte(`{"something":"else"}`), Result: new(map[string]any), Test: func(v any) bool {
 			return reflect.DeepEqual(v, map[string]any{"custom": "value"})
 		}},
 	})
@@ -358,5 +358,27 @@ func TestJSONCodecScanNullToPointerToSQLScanner(t *testing.T) {
 		err := conn.QueryRow(ctx, "select null::jsonb").Scan(&dest)
 		require.NoError(t, err)
 		require.Nil(t, dest)
+	})
+}
+
+type SQLScannerFunc func(src any) error
+
+func (f SQLScannerFunc) Scan(src any) error {
+	return f(src)
+}
+
+// https://github.com/jackc/pgx/issues/2403#issuecomment-3480454865
+//
+// Previously, when scanning a json/jsonb value into a sql.Scanner via database/sql the source value was a []byte.
+// However, when scanning into a sql.Scanner via pgx the source value was a string. This test ensures that the source
+// value is a []byte.
+func TestJSONCodecSQLScannerReceivesByteSlice(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		f := SQLScannerFunc(func(src any) error {
+			require.IsType(t, []byte{}, src)
+			return nil
+		})
+		err := conn.QueryRow(ctx, "select '{}'::json").Scan(&f)
+		require.NoError(t, err)
 	})
 }

@@ -283,7 +283,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	inputRows := [][]any{}
 
-	for i := 0; i < 10000; i++ {
+	for range 10_000 {
 		inputRows = append(inputRows, []any{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime, []byte{111, 111, 111, 111}})
 	}
 
@@ -467,7 +467,7 @@ func (cfs *clientFailSource) Values() ([]any, error) {
 		cfs.err = fmt.Errorf("client error")
 		return nil, cfs.err
 	}
-	return []any{make([]byte, 100000)}, nil
+	return []any{make([]byte, 100_000)}, nil
 }
 
 func (cfs *clientFailSource) Err() error {
@@ -546,7 +546,7 @@ func (fs *failSource) Values() ([]any, error) {
 	if fs.count == 3 {
 		return []any{nil}, nil
 	}
-	return []any{make([]byte, 100000)}, nil
+	return []any{make([]byte, 100_000)}, nil
 }
 
 func (fs *failSource) Err() error {
@@ -717,7 +717,7 @@ func (cfs *clientFinalErrSource) Next() bool {
 }
 
 func (cfs *clientFinalErrSource) Values() ([]any, error) {
-	return []any{make([]byte, 100000)}, nil
+	return []any{make([]byte, 100_000)}, nil
 }
 
 func (cfs *clientFinalErrSource) Err() error {
@@ -783,7 +783,7 @@ func TestConnCopyFromAutomaticStringConversion(t *testing.T) {
 		a int8
 	)`)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{"42"},
 		{"7"},
 		{8},
@@ -816,7 +816,7 @@ func TestConnCopyFromAutomaticStringConversionArray(t *testing.T) {
 		a numeric[]
 	)`)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{[]string{"42"}},
 		{[]string{"7"}},
 		{[]string{"8", "9"}},
@@ -850,7 +850,7 @@ func TestCopyFromFunc(t *testing.T) {
 
 	const channelItems = 10
 	go func() {
-		for i := 0; i < channelItems; i++ {
+		for i := range channelItems {
 			dataCh <- i
 		}
 		close(dataCh)

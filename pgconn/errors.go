@@ -254,3 +254,20 @@ func (e *NotPreferredError) SafeToRetry() bool {
 func (e *NotPreferredError) Unwrap() error {
 	return e.err
 }
+
+type PrepareError struct {
+	err error
+
+	ParseComplete bool // Indicates whether the error occurred after a ParseComplete message was received.
+}
+
+func (e *PrepareError) Error() string {
+	if e.ParseComplete {
+		return fmt.Sprintf("prepare failed after ParseComplete: %s", e.err.Error())
+	}
+	return e.err.Error()
+}
+
+func (e *PrepareError) Unwrap() error {
+	return e.err
+}

@@ -15,7 +15,7 @@ func getSelectRowsCounts(b *testing.B) []int64 {
 	{
 		s := os.Getenv("PGX_BENCH_SELECT_ROWS_COUNTS")
 		if s != "" {
-			for _, p := range strings.Split(s, " ") {
+			for p := range strings.SplitSeq(s, " ") {
 				n, err := strconv.ParseInt(p, 10, 64)
 				if err != nil {
 					b.Fatalf("Bad PGX_BENCH_SELECT_ROWS_COUNTS value: %v", err)
@@ -52,7 +52,7 @@ func BenchmarkSelectRowsScanSimple(b *testing.B) {
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(1, $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
@@ -90,7 +90,7 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100000, 100000 +  $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)

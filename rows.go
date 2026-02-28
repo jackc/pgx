@@ -29,9 +29,9 @@ type Rows interface {
 	// to call Close after rows is already closed.
 	Close()
 
-	// Err returns any error that occurred while reading. Err must only be called after the Rows is closed (either by
-	// calling Close or by Next returning false). If it is called early it may return nil even if there was an error
-	// executing the query.
+	// Err returns any error that occurred while executing a query or reading its results. Err must be called after the
+	// Rows is closed (either by calling Close or by Next returning false) to check if the query was successful. If it is
+	// called before the Rows is closed it may return nil even if the query failed on the server.
 	Err() error
 
 	// CommandTag returns the command tag from this query. It is only available after Rows is closed.
@@ -529,7 +529,7 @@ func RowTo[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
-// RowTo returns a the address of a T scanned from row.
+// RowToAddrOf returns the address of a T scanned from row.
 func RowToAddrOf[T any](row CollectableRow) (*T, error) {
 	var value T
 	err := row.Scan(&value)
@@ -848,7 +848,7 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 			}
 		}
 	}
-	return
+	return i
 }
 
 // structRowField describes a field of a struct.

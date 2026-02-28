@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -100,8 +100,8 @@ type numberReader struct {
 }
 
 func (nr *numberReader) Read(p []byte) (int, error) {
-	n := nr.rng.Intn(len(p))
-	for i := 0; i < n; i++ {
+	n := nr.rng.IntN(len(p))
+	for i := range n {
 		p[i] = nr.v
 		nr.v++
 	}
@@ -112,16 +112,16 @@ func (nr *numberReader) Read(p []byte) (int, error) {
 // TestBGReaderStress stress tests BGReader by reading a lot of bytes in random sizes while randomly starting and
 // stopping the background worker from other goroutines.
 func TestBGReaderStress(t *testing.T) {
-	nr := &numberReader{rng: rand.New(rand.NewSource(0))}
+	nr := &numberReader{rng: rand.New(rand.NewPCG(0, 0))}
 	bgr := bgreader.New(nr)
 
 	bytesRead := 0
 	var expected uint8
 	buf := make([]byte, 10_000)
-	rng := rand.New(rand.NewSource(0))
+	rng := rand.New(rand.NewPCG(0, 0))
 
 	for bytesRead < 1_000_000 {
-		randomNumber := rng.Intn(100)
+		randomNumber := rng.IntN(100)
 		switch {
 		case randomNumber < 10:
 			go bgr.Start()
@@ -130,7 +130,7 @@ func TestBGReaderStress(t *testing.T) {
 		default:
 			n, err := bgr.Read(buf)
 			require.NoError(t, err)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				require.Equal(t, expected, buf[i])
 				expected++
 			}

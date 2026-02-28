@@ -901,7 +901,7 @@ func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst any) error {
 	return nil
 }
 
-// TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
+// TryWrapStructScanPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
 func TryWrapStructScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Kind() != reflect.Ptr {
@@ -1135,10 +1135,18 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) Scan
 		}
 	}
 
-	if dt != nil {
-		if _, ok := target.(*any); ok {
-			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, m: m, oid: oid, formatCode: formatCode}
+	if _, ok := target.(*any); ok {
+		var codec Codec
+		if dt != nil {
+			codec = dt.Codec
+		} else {
+			if formatCode == TextFormatCode {
+				codec = TextCodec{}
+			} else {
+				codec = ByteaCodec{}
+			}
 		}
+		return &pointerEmptyInterfaceScanPlan{codec: codec, m: m, oid: oid, formatCode: formatCode}
 	}
 
 	return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
@@ -1743,7 +1751,7 @@ func (plan *wrapFmtStringerEncodePlan) Encode(value any, buf []byte) (newBuf []b
 	return plan.next.Encode(fmtStringerWrapper{value.(fmt.Stringer)}, buf)
 }
 
-// TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
+// TryWrapStructEncodePlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
 func TryWrapStructEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	if _, ok := value.(driver.Valuer); ok {
 		return nil, nil, false
@@ -1999,7 +2007,7 @@ func (w *sqlScannerWrapper) Scan(src any) error {
 		case []byte:
 			bufSrc = src
 		default:
-			bufSrc = []byte(fmt.Sprint(bufSrc))
+			bufSrc = fmt.Append(nil, bufSrc)
 		}
 	}
 

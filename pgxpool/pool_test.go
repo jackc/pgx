@@ -167,7 +167,7 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	defer pool.Close()
 
 	var conns []*pgxpool.Conn
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		c, err := pool.Acquire(ctx)
 		require.NoError(t, err)
 		conns = append(conns, c)
@@ -479,7 +479,7 @@ func TestPoolAfterRelease(t *testing.T) {
 
 	connPIDs := map[uint32]struct{}{}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
 		connPIDs[conn.Conn().PgConn().PID()] = struct{}{}
@@ -516,7 +516,7 @@ func TestPoolBeforeClose(t *testing.T) {
 
 	acquiredPIDs := make([]uint32, 0, 5)
 	closedPIDs := make([]uint32, 0, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
 		acquiredPIDs = append(acquiredPIDs, conn.Conn().PgConn().PID())
@@ -634,7 +634,7 @@ func TestConnReleaseClosesBusyConn(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// wait for the connection to actually be destroyed
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
 			break
 		}
@@ -695,7 +695,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	c.Release()
 	time.Sleep(config.HealthCheckPeriod)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
 			break
 		}
@@ -1011,7 +1011,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// wait for the connection to actually be destroyed
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if pool.Stat().TotalConns() == 0 {
 			break
 		}
@@ -1034,7 +1034,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	n := 100
 	done := make(chan bool)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		go func() {
 			defer func() { done <- true }()
 			testQuery(t, ctx, pool)
@@ -1042,7 +1042,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < n; i++ {
+	for range n {
 		<-done
 	}
 }
@@ -1066,7 +1066,7 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
 			break
 		}
@@ -1215,7 +1215,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		time.Sleep(10 * time.Millisecond)
 
 		stat := pool.Stat()
@@ -1240,7 +1240,7 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 	errChan := make(chan error)
 	testCount := 5000
 
-	for i := 0; i < testCount; i++ {
+	for range testCount {
 		go func() {
 			batch := &pgx.Batch{}
 			batch.Queue("select 1")
@@ -1276,8 +1276,59 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < testCount; i++ {
+	for range testCount {
 		err := <-errChan
 		assert.NoError(t, err)
 	}
+}
+
+func TestPoolAcquirePingTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.PingTimeout = 200 * time.Millisecond
+	config.ConnConfig.DialFunc = newDelayProxyDialFunc(500 * time.Millisecond)
+
+	var conID *uint32
+	// Only ping the connection with the original PID to force creation of a new connection
+	config.ShouldPing = func(_ context.Context, params pgxpool.ShouldPingParams) bool {
+		if conID != nil && params.Conn.PgConn().PID() == *conID {
+			return true
+		}
+		return false
+	}
+
+	// Limit to a single connection to ensure the same connection is reused
+	config.MinConns = 1
+	config.MaxConns = 1
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+	originalPID := c.Conn().PgConn().PID()
+	conID = &originalPID
+
+	c.Release()
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+	newPID := c.Conn().PgConn().PID()
+
+	c.Release()
+
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+	assert.Nil(t, ctx.Err())
+	assert.NotEqualValues(t, originalPID, newPID,
+		"Expected new connection due to ping timeout, but got same connection")
 }

@@ -46,8 +46,8 @@ type Backend struct {
 }
 
 const (
-	minStartupPacketLen = 4     // minStartupPacketLen is a single 32-bit int version or code.
-	maxStartupPacketLen = 10000 // maxStartupPacketLen is MAX_STARTUP_PACKET_LENGTH from PG source.
+	minStartupPacketLen = 4      // minStartupPacketLen is a single 32-bit int version or code.
+	maxStartupPacketLen = 10_000 // maxStartupPacketLen is MAX_STARTUP_PACKET_LENGTH from PG source.
 )
 
 // NewBackend creates a new Backend.
@@ -137,7 +137,7 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 	code := binary.BigEndian.Uint32(buf)
 
 	switch code {
-	case ProtocolVersionNumber:
+	case ProtocolVersion30, ProtocolVersion32:
 		err = b.startupMessage.Decode(buf)
 		if err != nil {
 			return nil, err

@@ -3,7 +3,7 @@ package pgxpool
 import (
 	"context"
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 	"runtime"
 	"strconv"
 	"sync"
@@ -97,6 +97,10 @@ type Pool struct {
 	maxConnLifetimeJitter time.Duration
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
+	pingTimeout           time.Duration
+
+	healthCheckMu    sync.Mutex
+	healthCheckTimer *time.Timer
 
 	healthCheckChan chan struct{}
 
@@ -165,6 +169,10 @@ type Config struct {
 
 	// MaxConnIdleTime is the duration after which an idle connection will be automatically closed by the health check.
 	MaxConnIdleTime time.Duration
+
+	// PingTimeout is the maximum amount of time to wait for a connection to pong before considering it as unhealthy and
+	// destroying it. If zero, the default is no timeout.
+	PingTimeout time.Duration
 
 	// MaxConns is the maximum size of the pool. The default is the greater of 4 or runtime.NumCPU().
 	MaxConns int32
@@ -238,6 +246,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		maxConnLifetime:       config.MaxConnLifetime,
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 		maxConnIdleTime:       config.MaxConnIdleTime,
+		pingTimeout:           config.PingTimeout,
 		healthCheckPeriod:     config.HealthCheckPeriod,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
@@ -458,15 +467,25 @@ func (p *Pool) isExpired(res *puddle.Resource[*connResource]) bool {
 }
 
 func (p *Pool) triggerHealthCheck() {
-	go func() {
+	const healthCheckDelay = 500 * time.Millisecond
+
+	p.healthCheckMu.Lock()
+	defer p.healthCheckMu.Unlock()
+
+	if p.healthCheckTimer == nil {
 		// Destroy is asynchronous so we give it time to actually remove itself from
 		// the pool otherwise we might try to check the pool size too soon
-		time.Sleep(500 * time.Millisecond)
-		select {
-		case p.healthCheckChan <- struct{}{}:
-		default:
-		}
-	}()
+		p.healthCheckTimer = time.AfterFunc(healthCheckDelay, func() {
+			select {
+			case <-p.closeChan:
+			case p.healthCheckChan <- struct{}{}:
+			default:
+			}
+		})
+		return
+	}
+
+	p.healthCheckTimer.Reset(healthCheckDelay)
 }
 
 func (p *Pool) backgroundHealthCheck() {
@@ -552,7 +571,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 
 	errs := make(chan error, targetResources)
 
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		go func() {
 			err := p.p.CreateResource(ctx)
 			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
@@ -564,7 +583,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 	}
 
 	var firstError error
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		err := <-errs
 		if err != nil && firstError == nil {
 			cancel()
@@ -601,7 +620,14 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
-			err := cr.conn.Ping(ctx)
+			pingCtx := ctx
+			if p.pingTimeout > 0 {
+				var cancel context.CancelFunc
+				pingCtx, cancel = context.WithTimeout(ctx, p.pingTimeout)
+				defer cancel()
+			}
+
+			err := cr.conn.Ping(pingCtx)
 			if err != nil {
 				res.Destroy()
 				continue
@@ -626,7 +652,7 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		return cr.getConn(p, res), nil
 	}
-	return nil, errors.New("pgxpool: detected infinite loop acquiring connection; likely bug in PrepareConn or BeforeAcquire hook")
+	return nil, errors.New("pgxpool: too many failed attempts acquiring connection; likely bug in PrepareConn, BeforeAcquire, or ShouldPing hook")
 }
 
 // AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the

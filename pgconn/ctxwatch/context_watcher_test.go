@@ -67,12 +67,12 @@ func TestContextWatcherUnwatchedBeforeContextCancelled(t *testing.T) {
 func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{handleCancel: func(context.Context) {}, handleUnwatchAfterCancel: func() {}})
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	cw.Watch(ctx)
 	defer cw.Unwatch()
 
-	ctx2, cancel2 := context.WithCancel(context.Background())
+	ctx2, cancel2 := context.WithCancel(t.Context())
 	defer cancel2()
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
@@ -81,8 +81,7 @@ func TestContextWatcherUnwatchWhenNotWatchingIsSafe(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{handleCancel: func(context.Context) {}, handleUnwatchAfterCancel: func() {}})
 	cw.Unwatch() // unwatch when not / never watching
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cw.Watch(ctx)
 	cw.Unwatch()
 	cw.Unwatch() // double unwatch
@@ -113,10 +112,11 @@ func TestContextWatcherStress(t *testing.T) {
 		},
 	})
 
-	cycleCount := 100000
+	cycleCount := 100_000
 
-	for i := 0; i < cycleCount; i++ {
+	for i := range cycleCount {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel() // satisfy linter; cancel is idempotent
 		cw.Watch(ctx)
 		if i%2 == 0 {
 			cancel()
@@ -155,7 +155,7 @@ func TestContextWatcherStress(t *testing.T) {
 func BenchmarkContextWatcherUncancellable(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{handleCancel: func(context.Context) {}, handleUnwatchAfterCancel: func() {}})
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cw.Watch(context.Background())
 		cw.Unwatch()
 	}
@@ -164,7 +164,7 @@ func BenchmarkContextWatcherUncancellable(b *testing.B) {
 func BenchmarkContextWatcherCancelled(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{handleCancel: func(context.Context) {}, handleUnwatchAfterCancel: func() {}})
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cw.Watch(ctx)
 		cancel()
@@ -175,10 +175,9 @@ func BenchmarkContextWatcherCancelled(b *testing.B) {
 func BenchmarkContextWatcherCancellable(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(&testHandler{handleCancel: func(context.Context) {}, handleUnwatchAfterCancel: func() {}})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := b.Context()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cw.Watch(ctx)
 		cw.Unwatch()
 	}

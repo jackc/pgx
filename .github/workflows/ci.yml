@@ -14,18 +14,8 @@ jobs:
     strategy:
       matrix:
         go-version: ["1.24", "1.25"]
-        pg-version: [13, 14, 15, 16, 17, cockroachdb]
+        pg-version: [14, 15, 16, 17, 18, cockroachdb]
         include:
-          - pg-version: 13
-            pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
-            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
-            pgx-test-tcp-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
-            pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
-            pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
-            pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
-            pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: 14
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
@@ -82,10 +72,10 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -147,10 +137,10 @@ jobs:
           database: pgx_test
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -162,7 +152,10 @@ jobs:
         shell: bash
 
       - name: Test
-        # parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
-        run: go test -parallel=1 -race  ./...
+        # Parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
+        # Disabling CGO because that is not working on the Windows runner. Apparently, we could install MingW and set up
+        # CGO to work, but disabling CGO takes less CI time. Without CGO, we also must not use the race detector.
+        run: go test -parallel=1 ./...
         env:
+          CGO_ENABLED: 0
           PGX_TEST_DATABASE: ${{ steps.postgres.outputs.connection-uri }}

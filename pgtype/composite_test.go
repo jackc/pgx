@@ -159,6 +159,164 @@ create type point3d as (
 	})
 }
 
+type parent struct {
+	Name     string
+	Location *point3d
+}
+
+func (p parent) IsNull() bool {
+	return false
+}
+
+func (p parent) Index(i int) any {
+	switch i {
+	case 0:
+		return p.Name
+	case 1:
+		return p.Location
+	default:
+		panic("invalid index")
+	}
+}
+
+func (p *parent) ScanNull() error {
+	return fmt.Errorf("cannot scan NULL into parent")
+}
+
+func (p *parent) ScanIndex(i int) any {
+	switch i {
+	case 0:
+		return &p.Name
+	case 1:
+		return &p.Location
+	default:
+		panic("invalid index")
+	}
+}
+
+// https://github.com/jackc/pgx/issues/2453
+func TestCompositeCodecTranscodeStructWithNilPointer(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		skipCockroachDB(t, "Server does not support nested composite types")
+
+		_, err := conn.Exec(ctx, `drop type if exists parent;
+drop type if exists point3d;
+
+create type point3d as (
+	x float8,
+	y float8,
+	z float8
+);
+
+create type parent as (
+	name text,
+	location point3d
+);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop type parent")
+		defer conn.Exec(ctx, "drop type point3d")
+
+		dataTypes, err := conn.LoadTypes(ctx, []string{"point3d", "parent"})
+		require.NoError(t, err)
+		conn.TypeMap().RegisterTypes(dataTypes)
+
+		formats := []struct {
+			name string
+			code int16
+		}{
+			{name: "TextFormat", code: pgx.TextFormatCode},
+			{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		}
+
+		for _, format := range formats {
+			input := parent{Name: "test", Location: nil}
+			var output parent
+			err := conn.QueryRow(ctx, "select $1::parent", pgx.QueryResultFormats{format.code}, input).Scan(&output)
+			require.NoErrorf(t, err, "%v", format.name)
+			require.Equalf(t, input, output, "%v", format.name)
+		}
+	})
+}
+
+type parentWithSlice struct {
+	Name      string
+	Locations []*point3d
+}
+
+func (p parentWithSlice) IsNull() bool {
+	return false
+}
+
+func (p parentWithSlice) Index(i int) any {
+	switch i {
+	case 0:
+		return p.Name
+	case 1:
+		return p.Locations
+	default:
+		panic("invalid index")
+	}
+}
+
+func (p *parentWithSlice) ScanNull() error {
+	return fmt.Errorf("cannot scan NULL into parent")
+}
+
+func (p *parentWithSlice) ScanIndex(i int) any {
+	switch i {
+	case 0:
+		return &p.Name
+	case 1:
+		return &p.Locations
+	default:
+		panic("invalid index")
+	}
+}
+
+// https://github.com/jackc/pgx/issues/2453
+func TestCompositeCodecTranscodeStructWithSliceOfNilPointer(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		skipCockroachDB(t, "Server does not support nested composite types")
+
+		_, err := conn.Exec(ctx, `drop type if exists parent;
+drop type if exists point3d;
+
+create type point3d as (
+	x float8,
+	y float8,
+	z float8
+);
+
+create type parent_with_slice as (
+	name text,
+	locations point3d[]
+);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop type parent_with_slice")
+		defer conn.Exec(ctx, "drop type point3d")
+
+		dataTypes, err := conn.LoadTypes(ctx, []string{"point3d", "parent_with_slice"})
+		require.NoError(t, err)
+		conn.TypeMap().RegisterTypes(dataTypes)
+
+		formats := []struct {
+			name string
+			code int16
+		}{
+			{name: "TextFormat", code: pgx.TextFormatCode},
+			{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		}
+
+		for _, format := range formats {
+			input := parentWithSlice{Name: "test", Locations: []*point3d{nil}}
+			var output parentWithSlice
+			err := conn.QueryRow(ctx, "select $1::parent_with_slice", pgx.QueryResultFormats{format.code}, input).Scan(&output)
+			require.NoErrorf(t, err, "%v", format.name)
+			require.Equalf(t, input, output, "%v", format.name)
+		}
+	})
+}
+
 func TestCompositeCodecDecodeValue(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(ctx, `drop type if exists point3d;

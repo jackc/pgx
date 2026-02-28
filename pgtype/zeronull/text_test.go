@@ -11,19 +11,19 @@ import (
 func TestTextTranscode(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "text", []pgxtest.ValueRoundTripTest{
 		{
-			(zeronull.Text)("foo"),
-			new(zeronull.Text),
-			isExpectedEq((zeronull.Text)("foo")),
+			Param:  (zeronull.Text)("foo"),
+			Result: new(zeronull.Text),
+			Test:   isExpectedEq((zeronull.Text)("foo")),
 		},
 		{
-			nil,
-			new(zeronull.Text),
-			isExpectedEq((zeronull.Text)("")),
+			Param:  nil,
+			Result: new(zeronull.Text),
+			Test:   isExpectedEq((zeronull.Text)("")),
 		},
 		{
-			(zeronull.Text)(""),
-			new(any),
-			isExpectedEq(nil),
+			Param:  (zeronull.Text)(""),
+			Result: new(any),
+			Test:   isExpectedEq(nil),
 		},
 	})
 }

@@ -289,7 +289,7 @@ type CompositeBinaryScanner struct {
 	err        error
 }
 
-// NewCompositeBinaryScanner a scanner over a binary encoded composite balue.
+// NewCompositeBinaryScanner a scanner over a binary encoded composite value.
 func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
 	rp := 0
 	if len(src[rp:]) < 4 {
@@ -476,7 +476,7 @@ func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field any) {
 		return
 	}
 
-	if field == nil {
+	if isNil, _ := isNilDriverValuer(field); isNil {
 		b.buf = pgio.AppendUint32(b.buf, oid)
 		b.buf = pgio.AppendInt32(b.buf, -1)
 		b.fieldCount++
@@ -533,7 +533,7 @@ func (b *CompositeTextBuilder) AppendValue(oid uint32, field any) {
 		return
 	}
 
-	if field == nil {
+	if isNil, _ := isNilDriverValuer(field); isNil {
 		b.buf = append(b.buf, ',')
 		return
 	}

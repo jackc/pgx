@@ -19,21 +19,21 @@ func TestJSONBTranscode(t *testing.T) {
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "jsonb", []pgxtest.ValueRoundTripTest{
-		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
-		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
-		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
-		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new(*jsonStruct), Test: isExpectedEq((*jsonStruct)(nil))},
+		{Param: map[string]any(nil), Result: new(*string), Test: isExpectedEq((*string)(nil))},
+		{Param: map[string]any(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: []byte(nil), Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
+		{Param: nil, Result: new([]byte), Test: isExpectedEqBytes([]byte(nil))},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "jsonb", []pgxtest.ValueRoundTripTest{
-		{[]byte("{}"), new([]byte), isExpectedEqBytes([]byte("{}"))},
-		{[]byte("null"), new([]byte), isExpectedEqBytes([]byte("null"))},
-		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},
-		{[]byte(`"hello"`), new([]byte), isExpectedEqBytes([]byte(`"hello"`))},
-		{[]byte(`"hello"`), new(string), isExpectedEq(`"hello"`)},
-		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
-		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
+		{Param: []byte("{}"), Result: new([]byte), Test: isExpectedEqBytes([]byte("{}"))},
+		{Param: []byte("null"), Result: new([]byte), Test: isExpectedEqBytes([]byte("null"))},
+		{Param: []byte("42"), Result: new([]byte), Test: isExpectedEqBytes([]byte("42"))},
+		{Param: []byte(`"hello"`), Result: new([]byte), Test: isExpectedEqBytes([]byte(`"hello"`))},
+		{Param: []byte(`"hello"`), Result: new(string), Test: isExpectedEq(`"hello"`)},
+		{Param: map[string]any{"foo": "bar"}, Result: new(map[string]any), Test: isExpectedEqMap(map[string]any{"foo": "bar"})},
+		{Param: jsonStruct{Name: "Adam", Age: 10}, Result: new(jsonStruct), Test: isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 	})
 }
 
@@ -51,7 +51,7 @@ func TestJSONBCodecUnmarshalSQLNull(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, m)
 
-		m = map[string]interface{}{"foo": "bar"}
+		m = map[string]any{"foo": "bar"}
 		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&m)
 		require.NoError(t, err)
 		require.Nil(t, m)
@@ -101,8 +101,8 @@ func TestJSONBCodecCustomMarshal(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, pgxtest.KnownOIDQueryExecModes, "jsonb", []pgxtest.ValueRoundTripTest{
 		// There is space between "custom" and "value" in jsonb type.
-		{map[string]any{"something": "else"}, new(string), isExpectedEq(`{"custom": "value"}`)},
-		{[]byte(`{"something":"else"}`), new(map[string]any), func(v any) bool {
+		{Param: map[string]any{"something": "else"}, Result: new(string), Test: isExpectedEq(`{"custom": "value"}`)},
+		{Param: []byte(`{"something":"else"}`), Result: new(map[string]any), Test: func(v any) bool {
 			return reflect.DeepEqual(v, map[string]any{"custom": "value"})
 		}},
 	})

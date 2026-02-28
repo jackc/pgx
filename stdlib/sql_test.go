@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -159,8 +160,6 @@ func TestSQLOpen(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.driverName, func(t *testing.T) {
 			db, err := sql.Open(tt.driverName, os.Getenv("PGX_TEST_DATABASE"))
 			require.NoError(t, err)
@@ -485,7 +484,7 @@ func TestConnQueryFailure(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Query("select 'foo")
 		require.Error(t, err)
-		require.IsType(t, new(pgconn.PgError), err)
+		require.ErrorAs(t, err, new(*pgconn.PgError))
 	})
 }
 
@@ -746,6 +745,8 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 
 func TestBeginTxContextCancel(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
+
 		_, err := db.Exec("drop table if exists t")
 		require.NoError(t, err)
 
@@ -766,7 +767,8 @@ func TestBeginTxContextCancel(t *testing.T) {
 
 		var n int
 		err = db.QueryRow("select count(*) from t").Scan(&n)
-		if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "42P01" {
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "42P01" {
 			t.Fatalf(`err => %v, want PgError{Code: "42P01"}`, err)
 		}
 	})
@@ -1264,7 +1266,7 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	// If we don't succeed within this many iterations, something is certainly wrong
-	for i := 0; i < 100000; i++ {
+	for range 100_000 {
 		connCopy := *config
 		stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
 
@@ -1325,7 +1327,7 @@ func TestCheckIdleConn(t *testing.T) {
 	defer closeDB(t, db)
 
 	var conns []*sql.Conn
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		c, err := db.Conn(context.Background())
 		require.NoError(t, err)
 		conns = append(conns, c)
@@ -1401,4 +1403,98 @@ func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, hookCalled, "hook should be called on reuse")
+}
+
+// https://github.com/jackc/pgx/pull/2481
+func TestOpenTransactionsDiscarded(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	skipCockroachDB(t, db, "CockroachDB auto commits DDL by default")
+
+	db.SetMaxOpenConns(1)
+	ctx := context.Background()
+
+	for range 3 {
+		func() {
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			defer conn.Close()
+
+			_, err = conn.ExecContext(ctx, "begin;")
+			require.NoError(t, err)
+
+			// If the open transaction is not discarded, the second time this is run it will fail.
+			_, err = conn.ExecContext(ctx, "create temporary table in_tx_discard_test(id int);")
+			require.NoError(t, err)
+		}()
+	}
+
+	ensureDBValid(t, db)
+}
+
+func TestRowsColumnTypeLength(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support type")
+
+		columnTypeLengthTests := []struct {
+			Len int64
+			OK  bool
+		}{
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				math.MaxInt64,
+				true,
+			},
+			{
+				255,
+				true,
+			},
+			{
+				10,
+				true,
+			},
+			{
+				50,
+				true,
+			},
+			{
+				0,
+				false,
+			},
+		}
+
+		_, err := db.Exec(`CREATE TEMPORARY TABLE temp_column_type_length (
+						   text_column TEXT,
+						   bytea_column BYTEA,
+						   varchar_column VARCHAR(255),
+						   bpcharA_column BPCHAR(10)[],
+						   varbit_column VARBIT(50),
+						   int_column INT
+					);`)
+		require.NoError(t, err)
+
+		rows, err := db.Query("SELECT * FROM temp_column_type_length")
+		require.NoError(t, err)
+
+		columns, err := rows.ColumnTypes()
+		require.NoError(t, err)
+		assert.Len(t, columns, 6)
+
+		for i, tt := range columnTypeLengthTests {
+			c := columns[i]
+
+			l, ok := c.Length()
+			if l != tt.Len {
+				t.Errorf("(%d) got: %d, want: %d", i, l, tt.Len)
+			}
+			if ok != tt.OK {
+				t.Errorf("(%d) got: %t, want: %t", i, ok, tt.OK)
+			}
+
+		}
+	})
 }

@@ -15,7 +15,7 @@ const (
 	pgTimestamptzHourFormat    = "2006-01-02 15:04:05.999999999Z07"
 	pgTimestamptzMinuteFormat  = "2006-01-02 15:04:05.999999999Z07:00"
 	pgTimestamptzSecondFormat  = "2006-01-02 15:04:05.999999999Z07:00:00"
-	microsecFromUnixEpochToY2K = 946684800 * 1000000
+	microsecFromUnixEpochToY2K = 946_684_800 * 1_000_000
 )
 
 const (
@@ -270,8 +270,8 @@ func (plan *scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst 
 		tstz = Timestamptz{Valid: true, InfinityModifier: -Infinity}
 	default:
 		tim := time.Unix(
-			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
-			(microsecFromUnixEpochToY2K%1000000*1000)+(microsecSinceY2K%1000000*1000),
+			microsecFromUnixEpochToY2K/1_000_000+microsecSinceY2K/1_000_000,
+			(microsecFromUnixEpochToY2K%1_000_000*1_000)+(microsecSinceY2K%1_000_000*1_000),
 		)
 		if plan.location != nil {
 			tim = tim.In(plan.location)

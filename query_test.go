@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -92,7 +93,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 
 	columnCount := 1000
 	sql := "select "
-	for i := 0; i < columnCount; i++ {
+	for i := range columnCount {
 		if i > 0 {
 			sql += ","
 		}
@@ -194,6 +195,7 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 
 func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -221,6 +223,7 @@ func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 
 func TestConnQueryArgsAndScanWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -256,7 +259,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 	for rows.Next() {
 		rowCount++
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			values, err := rows.Values()
 			require.NoError(t, err)
 			require.Len(t, values, 5)
@@ -544,7 +547,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		func() {
 			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
 
@@ -1450,8 +1453,7 @@ func TestQueryContextSuccess(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	rows, err := conn.Query(ctx, "select 42::integer")
 	if err != nil {
@@ -1489,8 +1491,7 @@ func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
 
 	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	rows, err := conn.Query(ctx, "select 10/(10-n) from generate_series(1, 100) n")
 	if err != nil {
@@ -1526,8 +1527,7 @@ func TestQueryRowContextSuccess(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	var result int
 	err := conn.QueryRow(ctx, "select 42::integer").Scan(&result)
@@ -1547,8 +1547,7 @@ func TestQueryRowContextErrorWhileReceivingRow(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	var result int
 	err := conn.QueryRow(ctx, "select 10/0").Scan(&result)
@@ -2034,6 +2033,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	defer closeConn(t, conn)
 
 	pgxtest.SkipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
+	pgxtest.SkipPostgreSQLVersionGreaterThan(t, conn, 18) // PG19 stopped supporting standard_conforming_strings = off
 
 	mustExec(t, conn, "set standard_conforming_strings to off")
 
@@ -2165,6 +2165,166 @@ func TestQueryWithQueryRewriter(t *testing.T) {
 
 		require.NoError(t, rows.Err())
 	})
+}
+
+// https://github.com/jackc/pgx/issues/2402
+func TestQueryWithEmptyQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		emptyQueryStrings := []string{"", " ", "/* ping */", "-- ping"}
+		for _, eq := range emptyQueryStrings {
+			rows, err := conn.Query(ctx, eq)
+			require.NoError(t, err)
+			require.Equal(t, []pgconn.FieldDescription(nil), rows.FieldDescriptions())
+			require.False(t, rows.Next())
+			require.NoError(t, rows.Err())
+		}
+	})
+}
+
+// https://github.com/jackc/pgx/issues/2456
+func TestQueryWithFunctionOutParameters(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support plpgsql")
+
+		_, err := conn.Exec(ctx, `drop function if exists out_param_func(out int, out int)`)
+		require.NoError(t, err)
+
+		_, err = conn.Exec(ctx, `
+create function out_param_func(out a int, out b int) language plpgsql as $$
+begin
+	a := 1;
+	b := 2;
+	return;
+end;
+$$;`)
+		require.NoError(t, err)
+		defer func() {
+			_, err := conn.Exec(ctx, `drop function if exists out_param_func(out int, out int)`)
+			require.NoError(t, err)
+		}()
+
+		var a, b int
+		err = conn.QueryRow(ctx, `select * from out_param_func()`).Scan(&a, &b)
+		require.NoError(t, err)
+		require.Equal(t, 1, a)
+		require.Equal(t, 2, b)
+	})
+}
+
+// https://github.com/jackc/pgx/issues/2456
+func TestQueryWithProcedureParametersInAndOut(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support plpgsql")
+
+		_, err := conn.Exec(ctx, `
+	create procedure test_proc(in a int, inout b int, out c int) language plpgsql as $$
+	begin
+		b := b + 1;
+		c := a + b;
+		return;
+	end;
+	$$;`)
+		require.NoError(t, err)
+		defer func() {
+			_, err := conn.Exec(ctx, `drop procedure if exists test_proc(in a int, inout b int, out c int)`)
+			require.NoError(t, err)
+		}()
+
+		var b, c int
+		err = conn.QueryRow(ctx, `call test_proc(1, 2, null)`).Scan(&b, &c)
+		require.NoError(t, err)
+		require.Equal(t, 3, b)
+		require.Equal(t, 4, c)
+	})
+}
+
+type byteCounterConn struct {
+	conn         net.Conn
+	bytesRead    int
+	bytesWritten int
+}
+
+func (cbn *byteCounterConn) Read(b []byte) (n int, err error) {
+	n, err = cbn.conn.Read(b)
+	cbn.bytesRead += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Write(b []byte) (n int, err error) {
+	n, err = cbn.conn.Write(b)
+	cbn.bytesWritten += n
+	return n, err
+}
+
+func (cbn *byteCounterConn) Close() error {
+	return cbn.conn.Close()
+}
+
+func (cbn *byteCounterConn) LocalAddr() net.Addr {
+	return cbn.conn.LocalAddr()
+}
+
+func (cbn *byteCounterConn) RemoteAddr() net.Addr {
+	return cbn.conn.RemoteAddr()
+}
+
+func (cbn *byteCounterConn) SetDeadline(t time.Time) error {
+	return cbn.conn.SetDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetReadDeadline(t time.Time) error {
+	return cbn.conn.SetReadDeadline(t)
+}
+
+func (cbn *byteCounterConn) SetWriteDeadline(t time.Time) error {
+	return cbn.conn.SetWriteDeadline(t)
+}
+
+func TestQueryNetworkUsage(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	var counterConn *byteCounterConn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		counterConn = &byteCounterConn{conn: conn}
+		return counterConn, nil
+	}
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server uses different number of bytes for same operations")
+
+	counterConn.bytesWritten = 0
+	counterConn.bytesRead = 0
+
+	rows, _ := conn.Query(
+		context.Background(),
+		"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n",
+		1,
+	)
+	rows.Close()
+	require.NoError(t, rows.Err())
+
+	assert.Equal(t, 413, counterConn.bytesRead)
+	assert.Equal(t, 427, counterConn.bytesWritten)
+	ensureConnValid(t, conn)
 }
 
 // This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another

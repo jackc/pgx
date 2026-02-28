@@ -168,7 +168,6 @@ func assertConnConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, test
 	assert.Equalf(t, expected.StatementCacheCapacity, actual.StatementCacheCapacity, "%s - StatementCacheCapacity", testName)
 	assert.Equalf(t, expected.DescriptionCacheCapacity, actual.DescriptionCacheCapacity, "%s - DescriptionCacheCapacity", testName)
 	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
-	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
 	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
 	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)

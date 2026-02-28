@@ -73,7 +73,7 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"strconv"
@@ -555,6 +555,12 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 		return driver.ErrBadConn
 	}
 
+	// Discard connection if it has an open transaction. This can happen if the
+	// application did not properly commit or rollback a transaction.
+	if c.conn.PgConn().TxStatus() != 'I' {
+		return driver.ErrBadConn
+	}
+
 	now := time.Now()
 	idle := now.Sub(c.lastResetSessionTime)
 
@@ -664,6 +670,8 @@ func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
 		return math.MaxInt64, true
 	case pgtype.VarcharOID, pgtype.BPCharArrayOID:
 		return int64(fd.TypeModifier - varHeaderSize), true
+	case pgtype.VarbitOID:
+		return int64(fd.TypeModifier), true
 	default:
 		return 0, false
 	}

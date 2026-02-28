@@ -165,6 +165,21 @@ func TestMapScanBinaryFormatInterfacePtr(t *testing.T) {
 	assert.Equal(t, "foo", got)
 }
 
+func TestMapScanUnknownOIDToPtrToAny(t *testing.T) {
+	unknownOID := uint32(999999)
+	srcBuf := []byte("foo")
+	m := pgtype.NewMap()
+
+	var a any
+	err := m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &a)
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", a)
+
+	err = m.Scan(unknownOID, pgx.BinaryFormatCode, srcBuf, &a)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("foo"), a)
+}
+
 func TestMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")
@@ -238,7 +253,7 @@ func TestMapScanUnregisteredOIDIntoRenamedStringSQLScanner(t *testing.T) {
 
 type pgCustomInt int64
 
-func (ci *pgCustomInt) Scan(src interface{}) error {
+func (ci *pgCustomInt) Scan(src any) error {
 	*ci = pgCustomInt(src.(int64))
 	return nil
 }
@@ -281,7 +296,7 @@ func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
 func TestScanPlanInterface(t *testing.T) {
 	m := pgtype.NewMap()
 	src := []byte{0, 42}
-	var v interface{}
+	var v any
 	plan := m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, v)
 	err := plan.Scan(src, v)
 	assert.Error(t, err)
@@ -578,7 +593,7 @@ func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	src := []byte{0, 0, 0, 42}
 	var v pgtype.Int4
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		v = pgtype.Int4{}
 		err := m.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
 		if err != nil {
@@ -595,7 +610,7 @@ func BenchmarkMapScanInt4IntoGoInt32(b *testing.B) {
 	src := []byte{0, 0, 0, 42}
 	var v int32
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		v = 0
 		err := m.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
 		if err != nil {
@@ -614,7 +629,7 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 
 	plan := m.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		v = pgtype.Int4{}
 		err := plan.Scan(src, &v)
 		if err != nil {
@@ -633,7 +648,7 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 
 	plan := m.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		v = 0
 		err := plan.Scan(src, &v)
 		if err != nil {

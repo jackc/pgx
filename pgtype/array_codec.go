@@ -118,7 +118,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 	var encodePlan EncodePlan
 	var lastElemType reflect.Type
 	inElemBuf := make([]byte, 0, 32)
-	for i := 0; i < elementCount; i++ {
+	for i := range elementCount {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
@@ -131,7 +131,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 
 		elem := array.Index(i)
 		var elemBuf []byte
-		if elem != nil {
+		if isNil, _ := isNilDriverValuer(elem); !isNil {
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
@@ -189,13 +189,13 @@ func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byt
 
 	var encodePlan EncodePlan
 	var lastElemType reflect.Type
-	for i := 0; i < elementCount; i++ {
+	for i := range elementCount {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
 		elem := array.Index(i)
 		var elemBuf []byte
-		if elem != nil {
+		if isNil, _ := isNilDriverValuer(elem); !isNil {
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
@@ -270,7 +270,7 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 		elementScanPlan = m.PlanScan(c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0))
 	}
 
-	for i := 0; i < elementCount; i++ {
+	for i := range elementCount {
 		elem := array.ScanIndex(i)
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
@@ -388,7 +388,7 @@ func isRagged(slice reflect.Value) bool {
 
 	sliceLen := slice.Len()
 	innerLen := 0
-	for i := 0; i < sliceLen; i++ {
+	for i := range sliceLen {
 		if i == 0 {
 			innerLen = slice.Index(i).Len()
 		} else {
