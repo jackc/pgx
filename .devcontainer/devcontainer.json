@@ -2,5 +2,7 @@
 	"name": "pgx",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"postStartCommand": "base64 -d testsetup/certs/ca.pem.b64 > /tmp/ca.pem && base64 -d testsetup/certs/pgx_sslcert.crt.b64 > /tmp/pgx_sslcert.crt && base64 -d testsetup/certs/pgx_sslcert.key.b64 > /tmp/pgx_sslcert.key && chmod 600 /tmp/pgx_sslcert.key",
+  "postCreateCommand": ".devcontainer/post-create.bash"
 }

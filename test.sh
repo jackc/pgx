@@ -59,6 +59,19 @@ wait_for_ready() {
     log_ok "$label is ready"
 }
 
+# Directory containing this script (used to locate testsetup/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CERTS_DIR="$SCRIPT_DIR/testsetup/certs"
+
+# Copy client certificates to /tmp for TLS tests
+setup_client_certs() {
+    if [ -d "$CERTS_DIR" ]; then
+        base64 -d "$CERTS_DIR/ca.pem.b64" > /tmp/ca.pem
+        base64 -d "$CERTS_DIR/pgx_sslcert.crt.b64" > /tmp/pgx_sslcert.crt
+        base64 -d "$CERTS_DIR/pgx_sslcert.key.b64" > /tmp/pgx_sslcert.key
+    fi
+}
+
 # Initialize CockroachDB (create database if not exists)
 init_crdb() {
     local connstr="postgresql://root@localhost:26257/?sslmode=disable"
@@ -73,34 +86,26 @@ run_tests() {
     shift
     local extra_args=("$@")
 
-    local conn_string=""
     local label=""
+    local port=""
 
     case "$target" in
-        pg14)
-            label="PostgreSQL 14 (port 5414)"
-            conn_string="host=localhost port=5414 user=postgres password=postgres dbname=pgx_test"
-            ;;
-        pg15)
-            label="PostgreSQL 15 (port 5415)"
-            conn_string="host=localhost port=5415 user=postgres password=postgres dbname=pgx_test"
-            ;;
-        pg16)
-            label="PostgreSQL 16 (port 5416)"
-            conn_string="host=localhost port=5416 user=postgres password=postgres dbname=pgx_test"
-            ;;
-        pg17)
-            label="PostgreSQL 17 (port 5417)"
-            conn_string="host=localhost port=5417 user=postgres password=postgres dbname=pgx_test"
-            ;;
-        pg18)
-            label="PostgreSQL 18 (port 5432)"
-            conn_string="host=localhost user=postgres password=postgres dbname=pgx_test"
-            ;;
+        pg14) label="PostgreSQL 14"; port=5414 ;;
+        pg15) label="PostgreSQL 15"; port=5415 ;;
+        pg16) label="PostgreSQL 16"; port=5416 ;;
+        pg17) label="PostgreSQL 17"; port=5417 ;;
+        pg18) label="PostgreSQL 18"; port=5432 ;;
         crdb)
             label="CockroachDB (port 26257)"
-            conn_string="postgresql://root@localhost:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
             init_crdb
+            log_info "Testing against $label"
+            if ! PGX_TEST_DATABASE="postgresql://root@localhost:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on" \
+                go test -count=1 "${extra_args[@]}" ./...; then
+                log_err "Tests FAILED against $label"
+                return 1
+            fi
+            log_ok "Tests passed against $label"
+            return 0
             ;;
         *)
             log_err "Unknown target: $target"
@@ -109,8 +114,19 @@ run_tests() {
             ;;
     esac
 
-    log_info "Testing against $label"
-    if ! PGX_TEST_DATABASE="$conn_string" go test -count=1 "${extra_args[@]}" ./...; then
+    setup_client_certs
+
+    log_info "Testing against $label (port $port)"
+    if ! PGX_TEST_DATABASE="host=localhost port=$port user=postgres password=postgres dbname=pgx_test" \
+         PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/var/run/postgresql port=$port user=postgres dbname=pgx_test" \
+         PGX_TEST_TCP_CONN_STRING="host=127.0.0.1 port=$port user=pgx_md5 password=secret dbname=pgx_test" \
+         PGX_TEST_MD5_PASSWORD_CONN_STRING="host=127.0.0.1 port=$port user=pgx_md5 password=secret dbname=pgx_test" \
+         PGX_TEST_SCRAM_PASSWORD_CONN_STRING="host=127.0.0.1 port=$port user=pgx_scram password=secret dbname=pgx_test" \
+         PGX_TEST_PLAIN_PASSWORD_CONN_STRING="host=127.0.0.1 port=$port user=pgx_pw password=secret dbname=pgx_test" \
+         PGX_TEST_TLS_CONN_STRING="host=localhost port=$port user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test" \
+         PGX_TEST_TLS_CLIENT_CONN_STRING="host=localhost port=$port user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test" \
+         PGX_SSL_PASSWORD=certpw \
+         go test -count=1 "${extra_args[@]}" ./...; then
         log_err "Tests FAILED against $label"
         return 1
     fi
