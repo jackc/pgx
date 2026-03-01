@@ -30,7 +30,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const pgbouncerConnStringEnvVar = "PGX_TEST_PGBOUNCER_CONN_STRING"
+const (
+	pgbouncerConnStringEnvVar = "PGX_TEST_PGBOUNCER_CONN_STRING"
+	// runOAuthTestEnvVar has to be set to "true" to run OAuth tests
+	runOAuthTestEnvVar = "PGX_TEST_OAUTH"
+)
 
 func TestConnect(t *testing.T) {
 	tests := []struct {
@@ -118,6 +122,54 @@ func TestConnectTLS(t *testing.T) {
 	closeConn(t, conn)
 }
 
+// TestConnectOAuth is separate from other connect tests because it specifically
+// needs a configured OAuthTokenProvider. Further it's only available in Postgres
+// 18+ and requires the dummy OAuth validator module installed.
+func TestConnectOAuth(t *testing.T) {
+	if os.Getenv(runOAuthTestEnvVar) != "true" {
+		t.Skipf("Skipping as '%s=true' is not set", runOAuthTestEnvVar)
+	}
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 user=pgx_oauth dbname=pgx_test")
+	require.NoError(t, err)
+
+	// Configure OAuthTokenProvider for dummy validator.
+	// The dummy validator accepts any token and maps it to the user equal to the
+	// token string.
+	config.OAuthTokenProvider = func(ctx context.Context) (string, error) {
+		return "pgx_oauth", nil
+	}
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+
+	result := conn.ExecParams(context.Background(), "SELECT CURRENT_USER", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Len(t, result.Rows[0], 1)
+	require.Equalf(t, "pgx_oauth", string(result.Rows[0][0]), "not logged in as expected user.")
+}
+
+func TestConnectOAuthError(t *testing.T) {
+	if os.Getenv(runOAuthTestEnvVar) != "true" {
+		t.Skipf("Skipping as '%s=true' is not set", runOAuthTestEnvVar)
+	}
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 user=pgx_oauth dbname=pgx_test")
+	require.NoError(t, err)
+
+	// Configure OAuthTokenProvider for dummy validator.
+	// The dummy validator accepts any token and maps it to the user equal to the
+	// token string. In this case that token will be accepted but as there is no
+	// user 'INVALID_TOKEN' the connection should fail.
+	config.OAuthTokenProvider = func(ctx context.Context) (string, error) {
+		return "INVALID_TOKEN", nil
+	}
+
+	_, err = pgconn.ConnectConfig(context.Background(), config)
+	require.Error(t, err, "connect should return error for invalid token")
+}
 func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
 	t.Parallel()
 

@@ -428,7 +428,20 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				return nil, newPerDialConnectError("failed to write password message", err)
 			}
 		case *pgproto3.AuthenticationSASL:
-			err = pgConn.scramAuth(msg.AuthMechanisms)
+			// Check if OAUTHBEARER is supported
+			serverSupportsOAuthBearer := false
+			for _, mech := range msg.AuthMechanisms {
+				if mech == "OAUTHBEARER" {
+					serverSupportsOAuthBearer = true
+					break
+				}
+			}
+
+			if serverSupportsOAuthBearer && pgConn.config.OAuthTokenProvider != nil {
+				err = pgConn.oauthAuth(ctx)
+			} else {
+				err = pgConn.scramAuth(msg.AuthMechanisms)
+			}
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed SASL auth", err)

@@ -83,6 +83,10 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// OAuthTokenProvider is a function that returns an OAuth token for authentication. If set, it will be used for
+	// OAUTHBEARER SASL authentication when the server requests it.
+	OAuthTokenProvider func(context.Context) (string, error)
+
 	// MinProtocolVersion is the minimum acceptable PostgreSQL protocol version.
 	// If the server does not support at least this version, the connection will fail.
 	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0".
