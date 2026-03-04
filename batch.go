@@ -85,6 +85,70 @@ func (b *Batch) Len() int {
 	return len(b.QueuedQueries)
 }
 
+// maxPostgresParameters is the maximum number of bind parameters allowed in a single
+// PostgreSQL query ($1 through $65535).
+const maxPostgresParameters = 65535
+
+// QueueBulkInsert splits the provided arguments into chunks of batchSize rows and queues each
+// chunk as a single multi-value INSERT. The query must be a single-row INSERT template using
+// positional placeholders ($1, $2, ...):
+//
+//	INSERT INTO t (a, b) VALUES ($1, $2)
+//
+// QueueBulkInsert rewrites this into:
+//
+//	INSERT INTO t (a, b) VALUES ($1, $2), ($3, $4), ($5, $6), ...
+//
+// Any clause after the VALUES tuple (e.g. ON CONFLICT, RETURNING) is preserved on every chunk.
+//
+// batchSize is the maximum number of rows per INSERT statement. Pass 0 to use the default of
+// 100. Returns (nil, nil) if no arguments are provided.
+//
+// Returns an error if batchSize * params-per-row exceeds the PostgreSQL bind parameter limit of
+// 65535, if the argument count is not divisible by params-per-row, or if the query cannot be
+// parsed.
+func (b *Batch) QueueBulkInsert(query string, batchSize int, arguments ...any) ([]*QueuedQuery, error) {
+	if len(arguments) == 0 {
+		return nil, nil
+	}
+
+	effectiveBatchSize := 100
+	if batchSize > 0 {
+		effectiveBatchSize = batchSize
+	}
+
+	prefix, inner, suffix, err := splitInsertTemplate(query)
+	if err != nil {
+		return nil, fmt.Errorf("QueueBulkInsert: %w", err)
+	}
+
+	paramsPerRow := countInsertParams(inner)
+	if paramsPerRow == 0 {
+		return nil, fmt.Errorf("QueueBulkInsert: no bind parameters found in VALUES clause")
+	}
+	if len(arguments)%paramsPerRow != 0 {
+		return nil, fmt.Errorf("QueueBulkInsert: argument count (%d) is not divisible by params per row (%d)",
+			len(arguments), paramsPerRow)
+	}
+
+	rowCount := len(arguments) / paramsPerRow
+
+	if effectiveBatchSize*paramsPerRow > maxPostgresParameters {
+		return nil, fmt.Errorf("QueueBulkInsert: batchSize (%d) * params per row (%d) = %d exceeds PostgreSQL bind parameter limit of %d",
+			effectiveBatchSize, paramsPerRow, effectiveBatchSize*paramsPerRow, maxPostgresParameters)
+	}
+
+	var qqs []*QueuedQuery
+	for i := 0; i < rowCount; i += effectiveBatchSize {
+		end := min(i+effectiveBatchSize, rowCount)
+		chunkSize := end - i
+		sql := buildBulkExpandedSQL(prefix, inner, suffix, chunkSize, paramsPerRow)
+		chunkArgs := arguments[i*paramsPerRow : end*paramsPerRow]
+		qqs = append(qqs, b.Queue(sql, chunkArgs...))
+	}
+	return qqs, nil
+}
+
 type BatchResults interface {
 	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec. Prefer
 	// calling Exec on the QueuedQuery, or just calling Close.
