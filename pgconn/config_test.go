@@ -1314,3 +1314,57 @@ func TestParseConfigProtocolVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestParseConfigChannelBinding(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		connString      string
+		expected        string
+		expectError     bool
+		expectedErrText string
+	}{
+		{
+			name:       "defaults to prefer",
+			connString: "postgres://localhost/test",
+			expected:   "prefer",
+		},
+		{
+			name:       "explicit prefer",
+			connString: "postgres://localhost/test?channel_binding=prefer",
+			expected:   "prefer",
+		},
+		{
+			name:       "disable",
+			connString: "postgres://localhost/test?channel_binding=disable",
+			expected:   "disable",
+		},
+		{
+			name:       "require",
+			connString: "postgres://localhost/test?channel_binding=require",
+			expected:   "require",
+		},
+		{
+			name:            "invalid value",
+			connString:      "postgres://localhost/test?channel_binding=invalid",
+			expectError:     true,
+			expectedErrText: "unknown channel_binding value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			config, err := pgconn.ParseConfig(tt.connString)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.expectedErrText)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, config.ChannelBinding)
+		})
+	}
+}
