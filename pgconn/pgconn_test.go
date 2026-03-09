@@ -170,6 +170,7 @@ func TestConnectOAuthError(t *testing.T) {
 	_, err = pgconn.ConnectConfig(context.Background(), config)
 	require.Error(t, err, "connect should return error for invalid token")
 }
+
 func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
 	t.Parallel()
 
