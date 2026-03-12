@@ -21,6 +21,8 @@ services:
       PGPASSWORD: postgres
       PGDATABASE: pgx_test
       PGHOST: localhost
+      PGCLIENTENCODING: utf8
+
       # PGX test env vars target PG18 (port 5432) by default.
       # test.sh overrides these per-target.
       PGX_TEST_DATABASE: "host=localhost port=5432 user=postgres password=postgres dbname=pgx_test"
@@ -45,6 +47,7 @@ services:
       - ../testsetup/pg_ssl_init.sh:/docker-entrypoint-initdb.d/02-ssl-init.sh:ro
       - ../testsetup/pg_hba_devcontainer.conf:/etc/postgresql/pg_hba.conf:ro
       - ../testsetup/certs:/etc/postgresql/ssl:ro
+      - ../testsetup/postgresql_ssl.conf:/etc/postgresql/postgresql_ssl.conf:ro
       - pg-sockets:/var/run/postgresql
     network_mode: service:app
     environment:
@@ -52,7 +55,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pgx_test
       POSTGRES_HOSTNAME: localhost
-    command: postgres -c port=5414 -c hba_file=/etc/postgresql/pg_hba.conf -c ssl=on -c ssl_cert_file=server.crt -c ssl_key_file=server.key -c ssl_ca_file=root.crt -c unix_socket_directories=/var/run/postgresql
+      PGPORT: 5414
+    command: postgres -c port=5414 -c hba_file=/etc/postgresql/pg_hba.conf -c unix_socket_directories=/var/run/postgresql
 
   postgres-15:
     image: postgres:15
@@ -63,6 +67,7 @@ services:
       - ../testsetup/pg_ssl_init.sh:/docker-entrypoint-initdb.d/02-ssl-init.sh:ro
       - ../testsetup/pg_hba_devcontainer.conf:/etc/postgresql/pg_hba.conf:ro
       - ../testsetup/certs:/etc/postgresql/ssl:ro
+      - ../testsetup/postgresql_ssl.conf:/etc/postgresql/postgresql_ssl.conf:ro
       - pg-sockets:/var/run/postgresql
     network_mode: service:app
     environment:
@@ -70,7 +75,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pgx_test
       POSTGRES_HOSTNAME: localhost
-    command: postgres -c port=5415 -c hba_file=/etc/postgresql/pg_hba.conf -c ssl=on -c ssl_cert_file=server.crt -c ssl_key_file=server.key -c ssl_ca_file=root.crt -c unix_socket_directories=/var/run/postgresql
+      PGPORT: 5415
+    command: postgres -c port=5415 -c hba_file=/etc/postgresql/pg_hba.conf -c unix_socket_directories=/var/run/postgresql
 
   postgres-16:
     image: postgres:16
@@ -81,6 +87,7 @@ services:
       - ../testsetup/pg_ssl_init.sh:/docker-entrypoint-initdb.d/02-ssl-init.sh:ro
       - ../testsetup/pg_hba_devcontainer.conf:/etc/postgresql/pg_hba.conf:ro
       - ../testsetup/certs:/etc/postgresql/ssl:ro
+      - ../testsetup/postgresql_ssl.conf:/etc/postgresql/postgresql_ssl.conf:ro
       - pg-sockets:/var/run/postgresql
     network_mode: service:app
     environment:
@@ -88,7 +95,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pgx_test
       POSTGRES_HOSTNAME: localhost
-    command: postgres -c port=5416 -c hba_file=/etc/postgresql/pg_hba.conf -c ssl=on -c ssl_cert_file=server.crt -c ssl_key_file=server.key -c ssl_ca_file=root.crt -c unix_socket_directories=/var/run/postgresql
+      PGPORT: 5416
+    command: postgres -c port=5416 -c hba_file=/etc/postgresql/pg_hba.conf -c unix_socket_directories=/var/run/postgresql
 
   postgres-17:
     image: postgres:17
@@ -99,6 +107,7 @@ services:
       - ../testsetup/pg_ssl_init.sh:/docker-entrypoint-initdb.d/02-ssl-init.sh:ro
       - ../testsetup/pg_hba_devcontainer.conf:/etc/postgresql/pg_hba.conf:ro
       - ../testsetup/certs:/etc/postgresql/ssl:ro
+      - ../testsetup/postgresql_ssl.conf:/etc/postgresql/postgresql_ssl.conf:ro
       - pg-sockets:/var/run/postgresql
     network_mode: service:app
     environment:
@@ -106,7 +115,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pgx_test
       POSTGRES_HOSTNAME: localhost
-    command: postgres -c port=5417 -c hba_file=/etc/postgresql/pg_hba.conf -c ssl=on -c ssl_cert_file=server.crt -c ssl_key_file=server.key -c ssl_ca_file=root.crt -c unix_socket_directories=/var/run/postgresql
+      PGPORT: 5417
+    command: postgres -c port=5417 -c hba_file=/etc/postgresql/pg_hba.conf -c unix_socket_directories=/var/run/postgresql
 
   postgres-18:
     image: postgres:18
@@ -117,6 +127,7 @@ services:
       - ../testsetup/pg_ssl_init.sh:/docker-entrypoint-initdb.d/02-ssl-init.sh:ro
       - ../testsetup/pg_hba_devcontainer.conf:/etc/postgresql/pg_hba.conf:ro
       - ../testsetup/certs:/etc/postgresql/ssl:ro
+      - ../testsetup/postgresql_ssl.conf:/etc/postgresql/postgresql_ssl.conf:ro
       - pg-sockets:/var/run/postgresql
     network_mode: service:app
     environment:
@@ -124,7 +135,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pgx_test
       POSTGRES_HOSTNAME: localhost
-    command: postgres -c hba_file=/etc/postgresql/pg_hba.conf -c ssl=on -c ssl_cert_file=server.crt -c ssl_key_file=server.key -c ssl_ca_file=root.crt -c unix_socket_directories=/var/run/postgresql
+    command: postgres -c hba_file=/etc/postgresql/pg_hba.conf -c unix_socket_directories=/var/run/postgresql
 
   cockroachdb:
     image: cockroachdb/cockroach:v25.4.4
