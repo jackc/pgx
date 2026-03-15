@@ -2813,7 +2813,6 @@ func (p *Pipeline) receiveMessage() (pgproto3.BackendMessage, error) {
 	for {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
-			p.closed = true
 			p.err = err
 			p.conn.asyncClose()
 			return nil, normalizeTimeoutError(p.ctx, err)
@@ -2829,7 +2828,6 @@ func (p *Pipeline) receiveMessage() (pgproto3.BackendMessage, error) {
 }
 
 func (p *Pipeline) handleUnexpectedMessage(errStr string, msg pgproto3.BackendMessage) error {
-	p.closed = true
 	p.err = fmt.Errorf("pipeline: %s: received unexpected message type %T", errStr, msg)
 	p.conn.asyncClose()
 	return p.err
