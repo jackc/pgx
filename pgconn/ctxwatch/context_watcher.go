@@ -58,6 +58,7 @@ func (cw *ContextWatcher) Unwatch() {
 			cw.handler.HandleUnwatchAfterCancel()
 		}
 		cw.stop = nil
+		cw.done = nil
 	}
 }
 
