@@ -96,6 +96,10 @@ type Config struct {
 	// Valid values: "3.0", "3.2", "latest". Defaults to "3.0" for compatibility.
 	MaxProtocolVersion string
 
+	// ChannelBinding is the channel_binding parameter for SCRAM-SHA-256-PLUS authentication.
+	// Valid values: "disable", "prefer", "require". Defaults to "prefer".
+	ChannelBinding string
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -355,6 +359,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"servicefile":          {},
 		"min_protocol_version": {},
 		"max_protocol_version": {},
+		"channel_binding":      {},
 	}
 
 	// Adding kerberos configuration
@@ -466,6 +471,17 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	}
 	if config.MaxProtocolVersion == "" {
 		config.MaxProtocolVersion = "3.0"
+	}
+
+	switch channelBinding := settings["channel_binding"]; channelBinding {
+	case "", "prefer":
+		config.ChannelBinding = "prefer"
+	case "disable":
+		config.ChannelBinding = "disable"
+	case "require":
+		config.ChannelBinding = "require"
+	default:
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("unknown channel_binding value: %v", channelBinding)}
 	}
 
 	return config, nil
