@@ -102,24 +102,154 @@ func TestConnectWithOptions(t *testing.T) {
 func TestConnectTLS(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+	setup := func(t *testing.T, connString string) (*pgconn.PgConn, context.Context) {
+		t.Helper()
 
-	connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
-	if connString == "" {
-		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		t.Cleanup(cancel)
+
+		conn, err := pgconn.Connect(ctx, connString)
+		require.NoError(t, err)
+		t.Cleanup(func() { closeConn(t, conn) })
+
+		return conn, ctx
 	}
 
-	conn, err := pgconn.Connect(ctx, connString)
-	require.NoError(t, err)
+	t.Run("WithChannelBinding", func(t *testing.T) {
+		t.Parallel()
 
-	result := conn.ExecParams(ctx, `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
-	require.NoError(t, result.Err)
-	require.Len(t, result.Rows, 1)
-	require.Len(t, result.Rows[0], 1)
-	require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
+		connString := os.Getenv("PGX_TEST_SCRAM_PLUS_CONN_STRING")
+		if connString == "" {
+			t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_SCRAM_PLUS_CONN_STRING")
+		}
 
-	closeConn(t, conn)
+		conn, ctx := setup(t, connString)
+
+		result := conn.ExecParams(ctx, `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
+		require.NoError(t, result.Err)
+		require.Len(t, result.Rows, 1)
+		require.Len(t, result.Rows[0], 1)
+		require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
+	})
+
+	t.Run("WithoutChannelBinding", func(t *testing.T) {
+		t.Parallel()
+
+		connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
+		if connString == "" {
+			t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
+		}
+
+		conn, ctx := setup(t, connString)
+
+		result := conn.ExecParams(ctx, `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
+		require.NoError(t, result.Err)
+		require.Len(t, result.Rows, 1)
+		require.Len(t, result.Rows[0], 1)
+		require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
+	})
+}
+
+func TestConnectChannelBinding(t *testing.T) {
+	t.Parallel()
+
+	t.Run("RequireFailsWithoutTLS", func(t *testing.T) {
+		t.Parallel()
+
+		script := &pgmock.Script{
+			Steps: []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
+				pgmock.SendMessage(&pgproto3.AuthenticationSASL{AuthMechanisms: []string{"SCRAM-SHA-256", "SCRAM-SHA-256-PLUS"}}),
+				pgmock.WaitForClose(),
+			},
+		}
+
+		ln, err := net.Listen("tcp", "127.0.0.1:")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		serverErrChan := make(chan error, 1)
+		go func() {
+			defer close(serverErrChan)
+
+			conn, err := ln.Accept()
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+			defer conn.Close()
+
+			err = conn.SetDeadline(time.Now().Add(time.Second * 5))
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+
+			err = script.Run(pgproto3.NewBackend(conn, conn))
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+		}()
+
+		host, port, _ := strings.Cut(ln.Addr().String(), ":")
+		connStr := fmt.Sprintf("sslmode=disable host=%s port=%s channel_binding=require", host, port)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		_, err = pgconn.Connect(ctx, connStr)
+		require.ErrorContains(t, err, "channel binding required but channel binding data is not available")
+	})
+
+	t.Run("RequireFailsWithoutServerPlus", func(t *testing.T) {
+		t.Parallel()
+
+		script := &pgmock.Script{
+			Steps: []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
+				pgmock.SendMessage(&pgproto3.AuthenticationSASL{AuthMechanisms: []string{"SCRAM-SHA-256"}}),
+				pgmock.WaitForClose(),
+			},
+		}
+
+		ln, err := net.Listen("tcp", "127.0.0.1:")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		serverErrChan := make(chan error, 1)
+		go func() {
+			defer close(serverErrChan)
+
+			conn, err := ln.Accept()
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+			defer conn.Close()
+
+			err = conn.SetDeadline(time.Now().Add(time.Second * 5))
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+
+			err = script.Run(pgproto3.NewBackend(conn, conn))
+			if err != nil {
+				serverErrChan <- err
+				return
+			}
+		}()
+
+		host, port, _ := strings.Cut(ln.Addr().String(), ":")
+		connStr := fmt.Sprintf("sslmode=disable host=%s port=%s channel_binding=require", host, port)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		_, err = pgconn.Connect(ctx, connStr)
+		require.ErrorContains(t, err, "channel binding required but server does not support SCRAM-SHA-256-PLUS")
+	})
 }
 
 // TestConnectOAuth is separate from other connect tests because it specifically
