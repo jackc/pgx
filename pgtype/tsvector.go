@@ -267,6 +267,10 @@ func (encodePlanTSVectorCodecText) Encode(value any, buf []byte) ([]byte, error)
 		return nil, nil
 	}
 
+	if buf == nil {
+		buf = []byte{}
+	}
+
 	for i, lex := range tsv.Lexemes {
 		if i > 0 {
 			buf = append(buf, ' ')
