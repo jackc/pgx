@@ -51,11 +51,16 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	for i := range nArguments {
 		// The length of the argument value, in bytes (this count does not include itself). Can be zero.
 		// As a special case, -1 indicates a NULL argument value. No value bytes follow in the NULL case.
-		argumentLength := int(binary.BigEndian.Uint32(src[rp:]))
+		argumentLength := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 		if argumentLength == -1 {
 			arguments[i] = nil
+		} else if argumentLength < 0 {
+			return &invalidMessageFormatErr{messageType: "FunctionCall"}
 		} else {
+			if len(src[rp:]) < argumentLength {
+				return &invalidMessageFormatErr{messageType: "FunctionCall"}
+			}
 			// The value of the argument, in the format indicated by the associated format code. n is the above length.
 			argumentValue := src[rp : rp+argumentLength]
 			rp += argumentLength
