@@ -26,7 +26,14 @@ func (dst *NegotiateProtocolVersion) Decode(src []byte) error {
 	optionCount := int(binary.BigEndian.Uint32(src[4:8]))
 
 	rp := 8
-	dst.UnrecognizedOptions = make([]string, 0, optionCount)
+
+	// Use the remaining message size as an upper bound for capacity to prevent
+	// malicious optionCount values from causing excessive memory allocation.
+	capHint := optionCount
+	if remaining := len(src) - rp; capHint > remaining {
+		capHint = remaining
+	}
+	dst.UnrecognizedOptions = make([]string, 0, capHint)
 	for i := 0; i < optionCount; i++ {
 		if rp >= len(src) {
 			return &invalidMessageFormatErr{messageType: "NegotiateProtocolVersion"}
