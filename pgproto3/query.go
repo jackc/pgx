@@ -15,6 +15,10 @@ func (*Query) Frontend() {}
 // Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
 // type identifier and 4 byte message length.
 func (dst *Query) Decode(src []byte) error {
+	if len(src) == 0 {
+		return &invalidMessageFormatErr{messageType: "Query"}
+	}
+
 	i := bytes.IndexByte(src, 0)
 	if i != len(src)-1 {
 		return &invalidMessageFormatErr{messageType: "Query"}

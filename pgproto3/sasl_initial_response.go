@@ -32,6 +32,9 @@ func (dst *SASLInitialResponse) Decode(src []byte) error {
 	dst.AuthMechanism = string(src[rp:idx])
 	rp = idx + 1
 
+	if len(src[rp:]) < 4 {
+		return errors.New("invalid SASLInitialResponse")
+	}
 	rp += 4 // The rest of the message is data so we can just skip the size
 	dst.Data = src[rp:]
 
