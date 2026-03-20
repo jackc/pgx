@@ -27,7 +27,7 @@ go test -race ./...
 ./test.sh crdb                      # CockroachDB
 ./test.sh all                       # All targets (pg14-18 + crdb)
 
-# Format
+# Format (always run after making changes)
 goimports -w .
 
 # Lint
@@ -68,6 +68,6 @@ Supporting packages:
 - **Minimal dependencies** — adding new dependencies is strongly discouraged (see CONTRIBUTING.md).
 - **Context-based** — all blocking operations take `context.Context`.
 - **Tracer interfaces** — observability via `QueryTracer`, `BatchTracer`, `CopyFromTracer`, `PrepareTracer` on `ConnConfig.Tracer`.
-- **Formatting** — use `goimports -w .` to format code. CI checks formatting via `gofmt -l -s -w . && git diff --exit-code`. `gofumpt` with extra rules is also enforced via `golangci-lint`.
+- **Formatting** — always run `goimports -w .` after making changes to ensure code is properly formatted. CI checks formatting via `gofmt -l -s -w . && git diff --exit-code`. `gofumpt` with extra rules is also enforced via `golangci-lint`.
 - **Linters** — `govet` and `ineffassign` only (configured in `.golangci.yml`).
 - **CI matrix** — tests run against Go 1.24/1.25 × PostgreSQL 14-18 + CockroachDB, on Linux and Windows. Race detector enabled on Linux only.
