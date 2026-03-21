@@ -123,7 +123,7 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	msgSize := int(binary.BigEndian.Uint32(buf) - 4)
+	msgSize := int(int32(binary.BigEndian.Uint32(buf)) - 4)
 
 	if msgSize < minStartupPacketLen || msgSize > maxStartupPacketLen {
 		return nil, fmt.Errorf("invalid length of startup packet: %d", msgSize)
@@ -176,7 +176,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 
 		b.msgType = header[0]
 
-		msgLength := int(binary.BigEndian.Uint32(header[1:]))
+		msgLength := int(int32(binary.BigEndian.Uint32(header[1:])))
 		if msgLength < 4 {
 			return nil, fmt.Errorf("invalid message length: %d", msgLength)
 		}

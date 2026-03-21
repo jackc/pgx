@@ -313,7 +313,7 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 
 		f.msgType = header[0]
 
-		msgLength := int(binary.BigEndian.Uint32(header[1:]))
+		msgLength := int(int32(binary.BigEndian.Uint32(header[1:])))
 		if msgLength < 4 {
 			return nil, fmt.Errorf("invalid message length: %d", msgLength)
 		}
