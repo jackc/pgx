@@ -296,6 +296,7 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 		return pgconn.CommandTag{}, fmt.Errorf("batch already closed")
 	}
 	if br.lastRows != nil && br.lastRows.err != nil {
+		br.err = br.lastRows.err
 		return pgconn.CommandTag{}, br.err
 	}
 
