@@ -1,5 +1,3 @@
-//go:build go1.26
-
 package ctxwatch_test
 
 import (
