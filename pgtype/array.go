@@ -38,6 +38,10 @@ func cardinality(dimensions []ArrayDimension) int {
 		elementCount *= int(d.Length)
 	}
 
+	if elementCount < 0 {
+		return 0
+	}
+
 	return elementCount
 }
 
