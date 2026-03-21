@@ -668,7 +668,7 @@ func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
 	switch fd.DataTypeOID {
 	case pgtype.TextOID, pgtype.ByteaOID:
 		return math.MaxInt64, true
-	case pgtype.VarcharOID, pgtype.BPCharArrayOID:
+	case pgtype.VarcharOID, pgtype.BPCharOID:
 		return int64(fd.TypeModifier - varHeaderSize), true
 	case pgtype.VarbitOID:
 		return int64(fd.TypeModifier), true

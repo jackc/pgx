@@ -1471,7 +1471,7 @@ func TestRowsColumnTypeLength(t *testing.T) {
 						   text_column TEXT,
 						   bytea_column BYTEA,
 						   varchar_column VARCHAR(255),
-						   bpcharA_column BPCHAR(10)[],
+						   bpchar_column BPCHAR(10),
 						   varbit_column VARBIT(50),
 						   int_column INT
 					);`)
