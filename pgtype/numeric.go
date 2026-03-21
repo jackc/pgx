@@ -264,6 +264,10 @@ func (n *Numeric) UnmarshalJSON(src []byte) error {
 
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
 func (n Numeric) numberTextBytes() []byte {
+	if n.Int == nil {
+		return []byte("0")
+	}
+
 	intStr := n.Int.String()
 
 	buf := &bytes.Buffer{}
@@ -405,7 +409,7 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 	}
 
 	var sign int16
-	if n.Int.Sign() < 0 {
+	if n.Int != nil && n.Int.Sign() < 0 {
 		sign = 16384
 	}
 
@@ -413,7 +417,9 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 	wholePart := &big.Int{}
 	fracPart := &big.Int{}
 	remainder := &big.Int{}
-	absInt.Abs(n.Int)
+	if n.Int != nil {
+		absInt.Abs(n.Int)
+	}
 
 	// Normalize absInt and exp to where exp is always a multiple of 4. This makes
 	// converting to 16-bit base 10,000 digits easier.
