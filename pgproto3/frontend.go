@@ -231,7 +231,7 @@ func (f *Frontend) SendExecute(msg *Execute) {
 	f.wbuf = newBuf
 
 	if f.tracer != nil {
-		f.tracer.TraceQueryute('F', int32(len(f.wbuf)-prevLen), msg)
+		f.tracer.traceExecute('F', int32(len(f.wbuf)-prevLen), msg)
 	}
 }
 
