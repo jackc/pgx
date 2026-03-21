@@ -558,7 +558,8 @@ func (p *Pool) checkMinConns() error {
 	// off this check
 
 	// Create the number of connections needed to get to both minConns and minIdleConns
-	toCreate := max(p.minConns-p.Stat().TotalConns(), p.minIdleConns-p.Stat().IdleConns())
+	stat := p.Stat()
+	toCreate := max(p.minConns-stat.TotalConns(), p.minIdleConns-stat.IdleConns())
 	if toCreate > 0 {
 		return p.createIdleResources(context.Background(), int(toCreate))
 	}
