@@ -128,7 +128,7 @@ func (n Numeric) Int64Value() (Int8, error) {
 }
 
 func (n *Numeric) ScanScientific(src string) error {
-	if !strings.ContainsAny("eE", src) {
+	if !strings.ContainsAny(src, "eE") {
 		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
