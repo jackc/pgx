@@ -198,6 +198,10 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	pairCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
 	rp += uint32Len
 
+	if pairCount < 0 {
+		return fmt.Errorf("hstore invalid pair count: %d", pairCount)
+	}
+
 	hstore := make(Hstore, pairCount)
 	// one allocation for all *string, rather than one per string, just like text parsing
 	valueStrings := make([]string, pairCount)
@@ -209,6 +213,9 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 		keyLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += uint32Len
 
+		if keyLen < 0 {
+			return fmt.Errorf("hstore invalid key length: %d", keyLen)
+		}
 		if len(src[rp:]) < keyLen {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}
