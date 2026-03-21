@@ -1396,10 +1396,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	copyErrChan := make(chan error, 1)
 	signalMessageChan := pgConn.signalMessage()
 	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		buf := iobufpool.Get(65536)
 		defer iobufpool.Put(buf)
 		(*buf)[0] = 'd'
@@ -1431,7 +1428,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			default:
 			}
 		}
-	}()
+	})
 
 	var pgErr error
 	var copyErr error

@@ -348,34 +348,30 @@ func TestConnConcurrency(t *testing.T) {
 		errChan := make(chan error, concurrency)
 
 		for i := 1; i <= concurrency; i++ {
-			wg.Add(1)
-
-			go func(idx int) {
-				defer wg.Done()
-
+			wg.Go(func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 				defer cancel()
 
-				str := strconv.Itoa(idx)
-				duration := time.Duration(idx) * time.Second
-				_, err := db.ExecContext(ctx, "insert into t values($1)", idx)
+				str := strconv.Itoa(i)
+				duration := time.Duration(i) * time.Second
+				_, err := db.ExecContext(ctx, "insert into t values($1)", i)
 				if err != nil {
-					errChan <- fmt.Errorf("insert failed: %d %w", idx, err)
+					errChan <- fmt.Errorf("insert failed: %d %w", i, err)
 					return
 				}
-				_, err = db.ExecContext(ctx, "update t set str = $1 where id = $2", str, idx)
+				_, err = db.ExecContext(ctx, "update t set str = $1 where id = $2", str, i)
 				if err != nil {
-					errChan <- fmt.Errorf("update 1 failed: %d %w", idx, err)
+					errChan <- fmt.Errorf("update 1 failed: %d %w", i, err)
 					return
 				}
-				_, err = db.ExecContext(ctx, "update t set dur_str = $1 where id = $2", duration, idx)
+				_, err = db.ExecContext(ctx, "update t set dur_str = $1 where id = $2", duration, i)
 				if err != nil {
-					errChan <- fmt.Errorf("update 2 failed: %d %w", idx, err)
+					errChan <- fmt.Errorf("update 2 failed: %d %w", i, err)
 					return
 				}
 
 				errChan <- nil
-			}(i)
+			})
 		}
 		wg.Wait()
 		for i := 1; i <= concurrency; i++ {
@@ -384,41 +380,37 @@ func TestConnConcurrency(t *testing.T) {
 		}
 
 		for i := 1; i <= concurrency; i++ {
-			wg.Add(1)
-
-			go func(idx int) {
-				defer wg.Done()
-
+			wg.Go(func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 				defer cancel()
 
 				var id int
 				var str string
 				var duration pgtype.Interval
-				err := db.QueryRowContext(ctx, "select id,str,dur_str from t where id = $1", idx).Scan(&id, &str, &duration)
+				err := db.QueryRowContext(ctx, "select id,str,dur_str from t where id = $1", i).Scan(&id, &str, &duration)
 				if err != nil {
-					errChan <- fmt.Errorf("select failed: %d %w", idx, err)
+					errChan <- fmt.Errorf("select failed: %d %w", i, err)
 					return
 				}
-				if id != idx {
-					errChan <- fmt.Errorf("id mismatch: %d %d", idx, id)
+				if id != i {
+					errChan <- fmt.Errorf("id mismatch: %d %d", i, id)
 					return
 				}
-				if str != strconv.Itoa(idx) {
-					errChan <- fmt.Errorf("str mismatch: %d %s", idx, str)
+				if str != strconv.Itoa(i) {
+					errChan <- fmt.Errorf("str mismatch: %d %s", i, str)
 					return
 				}
 				expectedDuration := pgtype.Interval{
-					Microseconds: int64(idx) * time.Second.Microseconds(),
+					Microseconds: int64(i) * time.Second.Microseconds(),
 					Valid:        true,
 				}
 				if duration != expectedDuration {
-					errChan <- fmt.Errorf("duration mismatch: %d %v", idx, duration)
+					errChan <- fmt.Errorf("duration mismatch: %d %v", i, duration)
 					return
 				}
 
 				errChan <- nil
-			}(i)
+			})
 		}
 		wg.Wait()
 		for i := 1; i <= concurrency; i++ {

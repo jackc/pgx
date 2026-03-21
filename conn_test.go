@@ -848,9 +848,7 @@ func TestFatalRxError(t *testing.T) {
 	pgxtest.SkipCockroachDB(t, conn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		var n int32
 		var s string
 		err := conn.QueryRow(context.Background(), "select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
@@ -859,7 +857,7 @@ func TestFatalRxError(t *testing.T) {
 			t.Errorf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
 			return
 		}
-	}()
+	})
 
 	otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer otherConn.Close(context.Background())
