@@ -699,25 +699,25 @@ func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
 
 	switch fd.DataTypeOID {
 	case pgtype.Float8OID:
-		return reflect.TypeOf(float64(0))
+		return reflect.TypeFor[float64]()
 	case pgtype.Float4OID:
-		return reflect.TypeOf(float32(0))
+		return reflect.TypeFor[float32]()
 	case pgtype.Int8OID:
-		return reflect.TypeOf(int64(0))
+		return reflect.TypeFor[int64]()
 	case pgtype.Int4OID:
-		return reflect.TypeOf(int32(0))
+		return reflect.TypeFor[int32]()
 	case pgtype.Int2OID:
-		return reflect.TypeOf(int16(0))
+		return reflect.TypeFor[int16]()
 	case pgtype.BoolOID:
-		return reflect.TypeOf(false)
+		return reflect.TypeFor[bool]()
 	case pgtype.NumericOID:
-		return reflect.TypeOf(float64(0))
+		return reflect.TypeFor[float64]()
 	case pgtype.DateOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
-		return reflect.TypeOf(time.Time{})
+		return reflect.TypeFor[time.Time]()
 	case pgtype.ByteaOID:
-		return reflect.TypeOf([]byte(nil))
+		return reflect.TypeFor[[]byte]()
 	default:
-		return reflect.TypeOf("")
+		return reflect.TypeFor[string]()
 	}
 }
 

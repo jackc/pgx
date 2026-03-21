@@ -90,19 +90,19 @@ func GetAssignToDstType(dst any) (any, bool) {
 
 func init() {
 	kindTypes = map[reflect.Kind]reflect.Type{
-		reflect.Bool:    reflect.TypeOf(false),
-		reflect.Float32: reflect.TypeOf(float32(0)),
-		reflect.Float64: reflect.TypeOf(float64(0)),
-		reflect.Int:     reflect.TypeOf(int(0)),
-		reflect.Int8:    reflect.TypeOf(int8(0)),
-		reflect.Int16:   reflect.TypeOf(int16(0)),
-		reflect.Int32:   reflect.TypeOf(int32(0)),
-		reflect.Int64:   reflect.TypeOf(int64(0)),
-		reflect.Uint:    reflect.TypeOf(uint(0)),
-		reflect.Uint8:   reflect.TypeOf(uint8(0)),
-		reflect.Uint16:  reflect.TypeOf(uint16(0)),
-		reflect.Uint32:  reflect.TypeOf(uint32(0)),
-		reflect.Uint64:  reflect.TypeOf(uint64(0)),
-		reflect.String:  reflect.TypeOf(""),
+		reflect.Bool:    reflect.TypeFor[bool](),
+		reflect.Float32: reflect.TypeFor[float32](),
+		reflect.Float64: reflect.TypeFor[float64](),
+		reflect.Int:     reflect.TypeFor[int](),
+		reflect.Int8:    reflect.TypeFor[int8](),
+		reflect.Int16:   reflect.TypeFor[int16](),
+		reflect.Int32:   reflect.TypeFor[int32](),
+		reflect.Int64:   reflect.TypeFor[int64](),
+		reflect.Uint:    reflect.TypeFor[uint](),
+		reflect.Uint8:   reflect.TypeFor[uint8](),
+		reflect.Uint16:  reflect.TypeFor[uint16](),
+		reflect.Uint32:  reflect.TypeFor[uint32](),
+		reflect.Uint64:  reflect.TypeFor[uint64](),
+		reflect.String:  reflect.TypeFor[string](),
 	}
 }
