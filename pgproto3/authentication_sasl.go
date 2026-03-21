@@ -33,6 +33,7 @@ func (dst *AuthenticationSASL) Decode(src []byte) error {
 		return errors.New("bad auth type")
 	}
 
+	dst.AuthMechanisms = dst.AuthMechanisms[:0]
 	authMechanisms := src[4:]
 	for len(authMechanisms) > 1 {
 		idx := bytes.IndexByte(authMechanisms, 0)
