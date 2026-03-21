@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ["1.24", "1.25"]
+        go-version: ["1.25", "1.26"]
         pg-version: [14, 15, 16, 17, 18, cockroachdb]
         include:
           - pg-version: 14
@@ -133,7 +133,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        go-version: ["1.24", "1.25"]
+        go-version: ["1.25", "1.26"]
 
     steps:
       - name: Setup PostgreSQL
