@@ -1267,3 +1267,35 @@ func ExampleConn_SendBatch() {
 	// 3
 	// 5
 }
+
+// TestSendBatchPreservesResultFormats verifies that each batched query retains
+// its own result format codes. When the first query has a binary-preferred
+// column (int4) and the second has all text columns, scanning the first
+// query's int4 column must still work correctly.
+func TestSendBatchPreservesResultFormats(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("SELECT 1::int4")
+		batch.Queue("SELECT 'hello'::text")
+
+		br := conn.SendBatch(ctx, batch)
+
+		var n int32
+		err := br.QueryRow().Scan(&n)
+		require.NoError(t, err)
+		assert.Equal(t, int32(1), n)
+
+		var s string
+		err = br.QueryRow().Scan(&s)
+		require.NoError(t, err)
+		assert.Equal(t, "hello", s)
+
+		err = br.Close()
+		require.NoError(t, err)
+	})
+}
