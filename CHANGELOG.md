@@ -1,3 +1,7 @@
+# 5.9.1 (March 22, 2026)
+
+* Fix: batch result format corruption when using cached prepared statements (reported by Dirkjan Bussink)
+
 # 5.9.0 (March 21, 2026)
 
 This release includes a number of new features such as SCRAM-SHA-256-PLUS support, OAuth authentication support, and
