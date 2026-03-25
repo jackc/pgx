@@ -454,23 +454,37 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 	minProto, err := parseProtocolVersion(settings["min_protocol_version"])
 	if err != nil {
-		return nil, &ParseConfigError{ConnString: connString, msg: "invalid min_protocol_version", err: err}
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("invalid min_protocol_version: %q", settings["min_protocol_version"]), err: err}
 	}
 	maxProto, err := parseProtocolVersion(settings["max_protocol_version"])
 	if err != nil {
-		return nil, &ParseConfigError{ConnString: connString, msg: "invalid max_protocol_version", err: err}
-	}
-	if minProto > maxProto {
-		return nil, &ParseConfigError{ConnString: connString, msg: "min_protocol_version cannot be greater than max_protocol_version"}
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("invalid max_protocol_version: %q", settings["max_protocol_version"]), err: err}
 	}
 
 	config.MinProtocolVersion = settings["min_protocol_version"]
 	config.MaxProtocolVersion = settings["max_protocol_version"]
+
 	if config.MinProtocolVersion == "" {
 		config.MinProtocolVersion = "3.0"
 	}
+
+	// When max_protocol_version is not explicitly set, default based on
+	// min_protocol_version. This matches libpq behavior: if min > 3.0,
+	// default max to latest; otherwise default to 3.0 for compatibility
+	// with older servers/poolers that don't support NegotiateProtocolVersion.
 	if config.MaxProtocolVersion == "" {
-		config.MaxProtocolVersion = "3.0"
+		if minProto > pgproto3.ProtocolVersion30 {
+			config.MaxProtocolVersion = "latest"
+		} else {
+			config.MaxProtocolVersion = "3.0"
+		}
+	}
+
+	// Only error when max_protocol_version was explicitly set and conflicts
+	// with min_protocol_version. When max_protocol_version is not explicitly
+	// set, the auto-raise logic above already ensures a valid default.
+	if minProto > maxProto && settings["max_protocol_version"] != "" {
+		return nil, &ParseConfigError{ConnString: connString, msg: "min_protocol_version cannot be greater than max_protocol_version"}
 	}
 
 	switch channelBinding := settings["channel_binding"]; channelBinding {
