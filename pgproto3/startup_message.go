@@ -13,6 +13,7 @@ import (
 const (
 	ProtocolVersion30     = 196608            // 3.0
 	ProtocolVersion32     = 196610            // 3.2
+	ProtocolVersionLatest = ProtocolVersion32 // Latest is 3.2
 	ProtocolVersionNumber = ProtocolVersion30 // Default is still 3.0
 )
 
