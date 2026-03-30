@@ -567,6 +567,17 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2508
+func TestConnQueryRowTimeScanIntoTimeTime(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		var actual time.Time
+		err := db.QueryRow("select '22:45:00'::time").Scan(&actual)
+		require.NoError(t, err)
+		expected := time.Date(2000, 1, 1, 22, 45, 0, 0, time.UTC)
+		require.Equal(t, expected, actual)
+	})
+}
+
 func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Exec(`
