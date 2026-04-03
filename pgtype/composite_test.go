@@ -49,6 +49,67 @@ create type ct_test as (
 	})
 }
 
+// stringerInt32 is a custom int32 type that implements fmt.Stringer, similar to protobuf enums.
+type stringerInt32 int32
+
+const (
+	stringerInt32Foo stringerInt32 = 100
+	stringerInt32Bar stringerInt32 = 200
+)
+
+func (s stringerInt32) String() string {
+	switch s {
+	case stringerInt32Foo:
+		return "FOO"
+	case stringerInt32Bar:
+		return "BAR"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// https://github.com/jackc/pgx/discussions/2527
+func TestCompositeCodecTranscodeWithStringerInt(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Exec(ctx, `drop type if exists ct_stringer_test;
+
+create type ct_stringer_test as (
+	a text,
+	b smallint
+);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop type ct_stringer_test")
+
+		dt, err := conn.LoadType(ctx, "ct_stringer_test")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(dt)
+
+		formats := []struct {
+			name string
+			code int16
+		}{
+			{name: "TextFormat", code: pgx.TextFormatCode},
+			{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		}
+
+		// Pass the same stringerInt32 value for both fields. The text field should get the Stringer value
+		// ("BAR") and the smallint field should get the integer value (200).
+		for _, format := range formats {
+			var a string
+			var b int16
+
+			err := conn.QueryRow(ctx, "select $1::ct_stringer_test", pgx.QueryResultFormats{format.code},
+				pgtype.CompositeFields{stringerInt32Bar, stringerInt32Bar},
+			).Scan(
+				pgtype.CompositeFields{&a, &b},
+			)
+			require.NoErrorf(t, err, "%v", format.name)
+			require.EqualValuesf(t, "BAR", a, "%v", format.name)
+			require.EqualValuesf(t, 200, b, "%v", format.name)
+		}
+	})
+}
+
 type point3d struct {
 	X, Y, Z float64
 }
