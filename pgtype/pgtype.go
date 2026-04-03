@@ -243,6 +243,7 @@ func NewMap() *Map {
 			TryWrapDerefPointerEncodePlan,
 			TryWrapBuiltinTypeEncodePlan,
 			TryWrapFindUnderlyingTypeEncodePlan,
+			TryWrapStringerEncodePlan,
 			TryWrapStructEncodePlan,
 			TryWrapSliceEncodePlan,
 			TryWrapMultiDimSliceEncodePlan,
@@ -1446,6 +1447,24 @@ func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextS
 	return nil, nil, false
 }
 
+// TryWrapStringerEncodePlan tries to wrap a fmt.Stringer type with a wrapper that provides TextValuer. This is
+// intentionally a separate function from TryWrapBuiltinTypeEncodePlan so it can be ordered after
+// TryWrapFindUnderlyingTypeEncodePlan. This ensures that named types with an underlying builtin type (e.g. type MyEnum
+// int32 with a String() method) prefer encoding via the underlying type's codec (e.g. as an integer) rather than via
+// Stringer. Stringer is only used as a fallback when no type-specific encoding plan succeeds.
+// (https://github.com/jackc/pgx/discussions/2527)
+func TryWrapStringerEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
+	if s, ok := value.(fmt.Stringer); ok {
+		return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{s}, true
+	}
+
+	return nil, nil, false
+}
+
 type WrappedEncodePlanNextSetter interface {
 	SetNext(EncodePlan)
 	EncodePlan
@@ -1506,8 +1525,6 @@ func TryWrapBuiltinTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, 
 		return &wrapByte16EncodePlan{}, byte16Wrapper(value), true
 	case []byte:
 		return &wrapByteSliceEncodePlan{}, byteSliceWrapper(value), true
-	case fmt.Stringer:
-		return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{value}, true
 	}
 
 	return nil, nil, false
