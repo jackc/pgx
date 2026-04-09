@@ -13,12 +13,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Rows is the result set returned from *Conn.Query. Rows must be closed before
-// the *Conn can be used again. Rows are closed by explicitly calling Close(),
-// calling Next() until it returns false, or when a fatal error occurs.
+// Rows is the result set returned from [Conn.Query]. Rows must be closed before
+// the [Conn] can be used again. Rows are closed by explicitly calling [Rows.Close],
+// calling [Rows.Next] until it returns false, or when a fatal error occurs.
 //
-// Once a Rows is closed the only methods that may be called are Close(), Err(),
-// and CommandTag().
+// Once a Rows is closed the only methods that may be called are [Rows.Close], [Rows.Err],
+// and [Rows.CommandTag].
 //
 // Rows is an interface instead of a struct to allow tests to mock Query. However,
 // adding a method to an interface is technically a breaking change. Because of this
@@ -46,9 +46,9 @@ type Rows interface {
 	// having been read or due to an error).
 	//
 	// Callers should check rows.Err() after rows.Next() returns false to detect whether result-set reading ended
-	// prematurely due to an error. See Conn.Query for details.
+	// prematurely due to an error. See [Conn.Query] for details.
 	//
-	// For simpler error handling, consider using the higher-level pgx v5 CollectRows() and ForEachRow() helpers instead.
+	// For simpler error handling, consider using the higher-level pgx v5 [CollectRows()] and [ForEachRow()] helpers instead.
 	Next() bool
 
 	// Scan reads the values from the current row into dest values positionally. dest can include pointers to core types,
@@ -70,7 +70,7 @@ type Rows interface {
 	Conn() *Conn
 }
 
-// Row is a convenience wrapper over Rows that is returned by QueryRow.
+// Row is a convenience wrapper over [Rows] that is returned by [Conn.QueryRow].
 //
 // Row is an interface instead of a struct to allow tests to mock QueryRow. However,
 // adding a method to an interface is technically a breaking change. Because of this
@@ -358,7 +358,7 @@ func (e ScanArgError) Unwrap() error {
 	return e.Err
 }
 
-// ScanRow decodes raw row data into dest. It can be used to scan rows read from the lower level pgconn interface.
+// ScanRow decodes raw row data into dest. It can be used to scan rows read from the lower level [pgconn] interface.
 //
 // typeMap - OID to Go type mapping.
 // fieldDescriptions - OID and format of values
@@ -386,8 +386,8 @@ func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgconn.FieldDescription, v
 	return nil
 }
 
-// RowsFromResultReader returns a Rows that will read from values resultReader and decode with typeMap. It can be used
-// to read from the lower level pgconn interface.
+// RowsFromResultReader returns a [Rows] that will read from values resultReader and decode with typeMap. It can be used
+// to read from the lower level [pgconn] interface.
 func RowsFromResultReader(typeMap *pgtype.Map, resultReader *pgconn.ResultReader) Rows {
 	return &baseRows{
 		typeMap:      typeMap,
@@ -460,7 +460,7 @@ func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 }
 
 // CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
-// CollectOneRow is to CollectRows as QueryRow is to Query.
+// CollectOneRow is to [CollectRows] as [Conn.QueryRow] is to [Conn.Query].
 //
 // This function closes the rows automatically on return.
 func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {

@@ -156,7 +156,7 @@ const (
 	BinaryFormatCode = 1
 )
 
-// A Codec converts between Go and PostgreSQL values. A Codec must not be mutated after it is registered with a Map.
+// A Codec converts between Go and PostgreSQL values. A Codec must not be mutated after it is registered with a [Map].
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -187,7 +187,7 @@ func (e *nullAssignmentError) Error() string {
 	return fmt.Sprintf("cannot assign NULL to %T", e.dst)
 }
 
-// Type represents a PostgreSQL data type. It must not be mutated after it is registered with a Map.
+// Type represents a PostgreSQL data type. It must not be mutated after it is registered with a [Map].
 type Type struct {
 	Codec Codec
 	Name  string
@@ -269,7 +269,7 @@ func (m *Map) RegisterTypes(types []*Type) {
 	}
 }
 
-// RegisterType registers a data type with the Map. t must not be mutated after it is registered.
+// RegisterType registers a data type with the [Map]. t must not be mutated after it is registered.
 func (m *Map) RegisterType(t *Type) {
 	m.oidToType[t.OID] = t
 	m.nameToType[t.Name] = t
@@ -295,7 +295,7 @@ func (m *Map) RegisterDefaultPgType(value any, name string) {
 	}
 }
 
-// TypeForOID returns the Type registered for the given OID. The returned Type must not be mutated.
+// TypeForOID returns the [Type] registered for the given OID. The returned [Type] must not be mutated.
 func (m *Map) TypeForOID(oid uint32) (*Type, bool) {
 	if dt, ok := m.oidToType[oid]; ok {
 		return dt, true
@@ -305,7 +305,7 @@ func (m *Map) TypeForOID(oid uint32) (*Type, bool) {
 	return dt, ok
 }
 
-// TypeForName returns the Type registered for the given name. The returned Type must not be mutated.
+// TypeForName returns the [Type] registered for the given name. The returned [Type] must not be mutated.
 func (m *Map) TypeForName(name string) (*Type, bool) {
 	if dt, ok := m.nameToType[name]; ok {
 		return dt, true
@@ -324,8 +324,8 @@ func (m *Map) buildReflectTypeToType() {
 	}
 }
 
-// TypeForValue finds a data type suitable for v. Use RegisterType to register types that can encode and decode
-// themselves. Use RegisterDefaultPgType to register that can be handled by a registered data type.  The returned Type
+// TypeForValue finds a data type suitable for v. Use [Map.RegisterType] to register types that can encode and decode
+// themselves. Use [Map.RegisterDefaultPgType] to register that can be handled by a registered data type.  The returned [Type]
 // must not be mutated.
 func (m *Map) TypeForValue(v any) (*Type, bool) {
 	if m.reflectTypeToType == nil {

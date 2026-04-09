@@ -538,7 +538,7 @@ func (pgConn *PgConn) signalMessage() chan struct{} {
 }
 
 // ReceiveMessage receives one wire protocol message from the PostgreSQL server. It must only be used when the
-// connection is not busy. e.g. It is an error to call ReceiveMessage while reading the result of a query. The messages
+// connection is not busy. e.g. It is an error to call [PgConn.ReceiveMessage] while reading the result of a query. The messages
 // are still handled by the core pgconn message handling system so receiving a NotificationResponse will still trigger
 // the OnNotification callback.
 //
@@ -1125,7 +1125,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 // implicitly wrapped in a transaction unless a transaction is already in progress or SQL contains transaction control
 // statements.
 //
-// Prefer ExecParams unless executing arbitrary SQL that may contain multiple queries.
+// Prefer [PgConn.ExecParams] unless executing arbitrary SQL that may contain multiple queries.
 func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	if err := pgConn.lock(); err != nil {
 		return &MultiResultReader{
@@ -1183,7 +1183,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 // resultFormats is a slice of format codes determining for each result column whether it is encoded in text or
 // binary format. If resultFormats is nil all results will be in text format.
 //
-// ResultReader must be closed before PgConn can be used again.
+// [ResultReader] must be closed before [PgConn] can be used again.
 func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
@@ -1209,7 +1209,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 // resultFormats is a slice of format codes determining for each result column whether it is encoded in text or
 // binary format. If resultFormats is nil all results will be in text format.
 //
-// ResultReader must be closed before PgConn can be used again.
+// [ResultReader] must be closed before [PgConn] can be used again.
 func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
@@ -1225,20 +1225,20 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 
 // ExecStatement enqueues the execution of a prepared statement via the PostgreSQL extended query protocol.
 //
-// This differs from ExecPrepared in that it takes a *StatementDescription instead of the prepared statement name.
-// Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
+// This differs from [PgConn.ExecPrepared] in that it takes a [*StatementDescription] instead of the prepared statement name.
+// Because it has the [*StatementDescription] it can avoid the Describe Portal message that [PgConn.ExecPrepared] must send to get
 // the result column descriptions.
 //
 // paramValues are the parameter values. It must be encoded in the format given by paramFormats.
 //
 // paramFormats is a slice of format codes determining for each paramValue column whether it is encoded in text or
-// binary format. If paramFormats is nil all params are text format. ExecPrepared will panic if len(paramFormats) is not
+// binary format. If paramFormats is nil all params are text format. ExecStatement will panic if len(paramFormats) is not
 // 0, 1, or len(paramValues).
 //
 // resultFormats is a slice of format codes determining for each result column whether it is encoded in text or binary
 // format. If resultFormats is nil all results will be in text format.
 //
-// ResultReader must be closed before PgConn can be used again.
+// [ResultReader] must be closed before [PgConn] can be used again.
 func (pgConn *PgConn) ExecStatement(ctx context.Context, statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) *ResultReader {
 	result := pgConn.execExtendedPrefix(ctx, paramValues)
 	if result.closed {
