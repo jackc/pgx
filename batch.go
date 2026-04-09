@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// QueuedQuery is a query that has been queued for execution via a Batch.
+// QueuedQuery is a query that has been queued for execution via a [Batch].
 type QueuedQuery struct {
 	SQL       string
 	Arguments []any
@@ -46,7 +46,7 @@ func (qq *QueuedQuery) QueryRow(fn func(row Row) error) {
 //
 // Note: for simple batch insert uses where it is not required to handle
 // each potential error individually, it's sufficient to not set any callbacks,
-// and just handle the return value of BatchResults.Close.
+// and just handle the return value of [BatchResults.Close].
 func (qq *QueuedQuery) Exec(fn func(ct pgconn.CommandTag) error) {
 	qq.Fn = func(br BatchResults) error {
 		ct, err := br.Exec()
@@ -65,12 +65,13 @@ type Batch struct {
 }
 
 // Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement. The only pgx option
-// argument that is supported is QueryRewriter. Queries are executed using the connection's DefaultQueryExecMode.
+// argument that is supported is [QueryRewriter]. Queries are executed using the connection's DefaultQueryExecMode
+// (see [ConnConfig.DefaultQueryExecMode]).
 //
-// While query can contain multiple statements if the connection's DefaultQueryExecMode is QueryModeSimple, this should
-// be avoided. QueuedQuery.Fn must not be set as it will only be called for the first query. That is, QueuedQuery.Query,
-// QueuedQuery.QueryRow, and QueuedQuery.Exec must not be called. In addition, any error messages or tracing that
-// include the current query may reference the wrong query.
+// While query can contain multiple statements if the connection's DefaultQueryExecMode is [QueryExecModeSimpleProtocol],
+// this should be avoided. QueuedQuery.Fn must not be set as it will only be called for the first query. That is,
+// [QueuedQuery.Query], [QueuedQuery.QueryRow], and [QueuedQuery.Exec] must not be called. In addition, any error
+// messages or tracing that include the current query may reference the wrong query.
 func (b *Batch) Queue(query string, arguments ...any) *QueuedQuery {
 	qq := &QueuedQuery{
 		SQL:       query,
@@ -86,20 +87,20 @@ func (b *Batch) Len() int {
 }
 
 type BatchResults interface {
-	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec. Prefer
+	// Exec reads the results from the next query in the batch as if the query has been sent with [Conn.Exec]. Prefer
 	// calling Exec on the QueuedQuery, or just calling Close.
 	Exec() (pgconn.CommandTag, error)
 
-	// Query reads the results from the next query in the batch as if the query has been sent with Conn.Query. Prefer
-	// calling Query on the QueuedQuery.
+	// Query reads the results from the next query in the batch as if the query has been sent with [Conn.Query]. Prefer
+	// calling [QueuedQuery.Query].
 	Query() (Rows, error)
 
-	// QueryRow reads the results from the next query in the batch as if the query has been sent with Conn.QueryRow.
-	// Prefer calling QueryRow on the QueuedQuery.
+	// QueryRow reads the results from the next query in the batch as if the query has been sent with [Conn.QueryRow].
+	// Prefer calling [QueuedQuery.QueryRow].
 	QueryRow() Row
 
 	// Close closes the batch operation. All unread results are read and any callback functions registered with
-	// QueuedQuery.Query, QueuedQuery.QueryRow, or QueuedQuery.Exec will be called. If a callback function returns an
+	// [QueuedQuery.Query], [QueuedQuery.QueryRow], or [QueuedQuery.Exec] will be called. If a callback function returns an
 	// error or the batch encounters an error subsequent callback functions will not be called.
 	//
 	// For simple batch inserts inside a transaction or similar queries, it's sufficient to not set any callbacks,

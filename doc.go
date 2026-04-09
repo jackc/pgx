@@ -1,8 +1,8 @@
 // Package pgx is a PostgreSQL database driver.
 /*
-pgx provides a native PostgreSQL driver and can act as a database/sql driver. The native PostgreSQL interface is similar
-to the database/sql interface while providing better speed and access to PostgreSQL specific features. Use
-github.com/jackc/pgx/v5/stdlib to use pgx as a database/sql compatible driver. See that package's documentation for
+pgx provides a native PostgreSQL driver and can act as a [database/sql/driver]. The native PostgreSQL interface is similar
+to the [database/sql] interface while providing better speed and access to PostgreSQL specific features. Use
+[github.com/jackc/pgx/v5/stdlib] to use pgx as a database/sql compatible driver. See that package's documentation for
 details.
 
 Establishing a Connection
@@ -19,15 +19,15 @@ string.
 Connection Pool
 
 [*pgx.Conn] represents a single connection to the database and is not concurrency safe. Use package
-github.com/jackc/pgx/v5/pgxpool for a concurrency safe connection pool.
+[github.com/jackc/pgx/v5/pgxpool] for a concurrency safe connection pool.
 
 Query Interface
 
-pgx implements Query in the familiar database/sql style. However, pgx provides generic functions such as CollectRows and
-ForEachRow that are a simpler and safer way of processing rows than manually calling defer rows.Close(), rows.Next(),
-rows.Scan, and rows.Err().
+pgx implements [Conn.Query] in the familiar database/sql style. However, pgx provides generic functions such as [CollectRows] and
+[ForEachRow] that are a simpler and safer way of processing rows than manually calling defer [Rows.Close], [Rows.Next],
+[Rows.Scan], and [Rows.Err].
 
-CollectRows can be used collect all returned rows into a slice.
+[CollectRows] can be used collect all returned rows into a slice.
 
     rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 5)
     numbers, err := pgx.CollectRows(rows, pgx.RowTo[int32])
@@ -36,7 +36,7 @@ CollectRows can be used collect all returned rows into a slice.
     }
     // numbers => [1 2 3 4 5]
 
-ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows
+[ForEachRow] can be used to execute a callback function for every row. This is often easier than iterating over rows
 directly.
 
     var sum, n int32
@@ -49,7 +49,7 @@ directly.
       return err
     }
 
-pgx also implements QueryRow in the same style as database/sql.
+pgx also implements [Conn.QueryRow] in the same style as database/sql.
 
     var name string
     var weight int64
@@ -58,7 +58,7 @@ pgx also implements QueryRow in the same style as database/sql.
         return err
     }
 
-Use Exec to execute a query that does not return a result set.
+Use [Conn.Exec] to execute a query that does not return a result set.
 
     commandTag, err := conn.Exec(context.Background(), "delete from widgets where id=$1", 42)
     if err != nil {
@@ -70,13 +70,13 @@ Use Exec to execute a query that does not return a result set.
 
 PostgreSQL Data Types
 
-pgx uses the pgtype package to converting Go values to and from PostgreSQL values. It supports many PostgreSQL types
+pgx uses the [pgtype] package to converting Go values to and from PostgreSQL values. It supports many PostgreSQL types
 directly and is customizable and extendable. User defined data types such as enums, domains,  and composite types may
 require type registration. See that package's documentation for details.
 
 Transactions
 
-Transactions are started by calling Begin.
+Transactions are started by calling [Conn.Begin].
 
     tx, err := conn.Begin(context.Background())
     if err != nil {
@@ -96,13 +96,13 @@ Transactions are started by calling Begin.
         return err
     }
 
-The Tx returned from Begin also implements the Begin method. This can be used to implement pseudo nested transactions.
+The [Tx] returned from [Conn.Begin] also implements the [Tx.Begin] method. This can be used to implement pseudo nested transactions.
 These are internally implemented with savepoints.
 
-Use BeginTx to control the transaction mode. BeginTx also can be used to ensure a new transaction is created instead of
+Use [Conn.BeginTx] to control the transaction mode. [Conn.BeginTx] also can be used to ensure a new transaction is created instead of
 a pseudo nested transaction.
 
-BeginFunc and BeginTxFunc are functions that begin a transaction, execute a function, and commit or rollback the
+[BeginFunc] and [BeginTxFunc] are functions that begin a transaction, execute a function, and commit or rollback the
 transaction depending on the return value of the function. These can be simpler and less error prone to use.
 
     err = pgx.BeginFunc(context.Background(), conn, func(tx pgx.Tx) error {
@@ -115,16 +115,16 @@ transaction depending on the return value of the function. These can be simpler 
 
 Prepared Statements
 
-Prepared statements can be manually created with the Prepare method. However, this is rarely necessary because pgx
-includes an automatic statement cache by default. Queries run through the normal Query, QueryRow, and Exec functions are
-automatically prepared on first execution and the prepared statement is reused on subsequent executions. See ParseConfig
-for information on how to customize or disable the statement cache.
+Prepared statements can be manually created with the [Conn.Prepare] method. However, this is rarely necessary because pgx
+includes an automatic statement cache by default. Queries run through the normal [Conn.Query], [Conn.QueryRow], and [Conn.Exec]
+functions are automatically prepared on first execution and the prepared statement is reused on subsequent executions.
+See [ParseConfig] for information on how to customize or disable the statement cache.
 
 Copy Protocol
 
-Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL copy protocol. CopyFrom accepts a
-CopyFromSource interface. If the data is already in a [][]any use CopyFromRows to wrap it in a CopyFromSource interface.
-Or implement CopyFromSource to avoid buffering the entire data set in memory.
+Use [Conn.CopyFrom] to efficiently insert multiple rows at a time using the PostgreSQL copy protocol. [Conn.CopyFrom] accepts a
+[CopyFromSource] interface. If the data is already in a [][]any use [CopyFromRows] to wrap it in a [CopyFromSource] interface.
+Or implement [CopyFromSource] to avoid buffering the entire data set in memory.
 
     rows := [][]any{
         {"John", "Smith", int32(36)},
@@ -138,7 +138,7 @@ Or implement CopyFromSource to avoid buffering the entire data set in memory.
         pgx.CopyFromRows(rows),
     )
 
-When you already have a typed array using CopyFromSlice can be more convenient.
+When you already have a typed array using [CopyFromSlice] can be more convenient.
 
     rows := []User{
         {"John", "Smith", 36},
@@ -158,7 +158,7 @@ CopyFrom can be faster than an insert with as few as 5 rows.
 
 Listen and Notify
 
-pgx can listen to the PostgreSQL notification system with the `Conn.WaitForNotification` method. It blocks until a
+pgx can listen to the PostgreSQL notification system with the [Conn.WaitForNotification] method. It blocks until a
 notification is received or the context is canceled.
 
     _, err := conn.Exec(context.Background(), "listen channelname")
@@ -175,20 +175,25 @@ notification is received or the context is canceled.
 
 Tracing and Logging
 
-pgx supports tracing by setting ConnConfig.Tracer. To combine several tracers you can use the multitracer.Tracer.
+pgx supports tracing by setting [ConnConfig.Tracer]. To combine several tracers you can use the [github.com/jackc/pgx/v5/multitracer.Tracer].
 
-In addition, the tracelog package provides the TraceLog type which lets a traditional logger act as a Tracer.
+In addition, the [github.com/jackc/pgx/v5/tracelog] package provides the [github.com/jackc/pgx/v5/tracelog.TraceLog] type which lets a
+traditional logger act as a [QueryTracer].
 
-For debug tracing of the actual PostgreSQL wire protocol messages see github.com/jackc/pgx/v5/pgproto3.
+For debug tracing of the actual PostgreSQL wire protocol messages see [github.com/jackc/pgx/v5/pgproto3].
 
 Lower Level PostgreSQL Functionality
 
-github.com/jackc/pgx/v5/pgconn contains a lower level PostgreSQL driver roughly at the level of libpq. pgx.Conn is
-implemented on top of pgconn. The Conn.PgConn() method can be used to access this lower layer.
+[github.com/jackc/pgx/v5/pgconn] contains a lower level PostgreSQL driver roughly at the level of libpq. [Conn] is
+implemented on top of [pgconn.PgConn]. The [Conn.PgConn] method can be used to access this lower layer.
 
 PgBouncer
 
 By default pgx automatically uses prepared statements. Prepared statements are incompatible with PgBouncer. This can be
-disabled by setting a different QueryExecMode in ConnConfig.DefaultQueryExecMode.
+disabled by setting a different [QueryExecMode] in [ConnConfig.DefaultQueryExecMode].
 */
 package pgx
+
+import (
+	_ "github.com/jackc/pgx/v5/pgconn" // Just for allowing godoc to resolve "pgconn"
+)
