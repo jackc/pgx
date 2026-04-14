@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
@@ -76,7 +77,7 @@ type NotificationHandler func(*PgConn, *Notification)
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn
-	pid               uint32            // backend pid
+	pid               atomic.Uint32     // backend pid; atomic because CancelRequest reads it from a separate goroutine
 	secretKey         []byte            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	txStatus          byte
@@ -410,8 +411,8 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 
 		switch msg := msg.(type) {
 		case *pgproto3.BackendKeyData:
-			pgConn.pid = msg.ProcessID
 			pgConn.secretKey = msg.SecretKey
+			pgConn.pid.Store(msg.ProcessID)
 
 		case *pgproto3.AuthenticationOk:
 		case *pgproto3.AuthenticationCleartextPassword:
@@ -656,7 +657,7 @@ func (pgConn *PgConn) Conn() net.Conn {
 
 // PID returns the backend PID.
 func (pgConn *PgConn) PID() uint32 {
-	return pgConn.pid
+	return pgConn.pid.Load()
 }
 
 // TxStatus returns the current TxStatus as reported by the server in the ReadyForQuery message.
@@ -1037,6 +1038,14 @@ func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
 // is no way to be sure a query was canceled.
 // See https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-CANCELING-REQUESTS
 func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
+	// Nothing to cancel if we haven't completed the handshake yet. The atomic load synchronizes with the
+	// store in connectOne, making the subsequent read of secretKey safe.
+	pid := pgConn.pid.Load()
+	if pid == 0 {
+		return nil
+	}
+	secretKey := pgConn.secretKey
+
 	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.
@@ -1072,11 +1081,11 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 		defer contextWatcher.Unwatch()
 	}
 
-	buf := make([]byte, 12+len(pgConn.secretKey))
+	buf := make([]byte, 12+len(secretKey))
 	binary.BigEndian.PutUint32(buf[0:4], uint32(len(buf)))
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], pgConn.pid)
-	copy(buf[12:], pgConn.secretKey)
+	binary.BigEndian.PutUint32(buf[8:12], pid)
+	copy(buf[12:], secretKey)
 
 	if _, err := cancelConn.Write(buf); err != nil {
 		return fmt.Errorf("write to connection for cancellation: %w", err)
@@ -2128,7 +2137,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 
 	return &HijackedConn{
 		Conn:              pgConn.conn,
-		PID:               pgConn.pid,
+		PID:               pgConn.pid.Load(),
 		SecretKey:         pgConn.secretKey,
 		ParameterStatuses: pgConn.parameterStatuses,
 		TxStatus:          pgConn.txStatus,
@@ -2148,7 +2157,6 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn := &PgConn{
 		conn:              hc.Conn,
-		pid:               hc.PID,
 		secretKey:         hc.SecretKey,
 		parameterStatuses: hc.ParameterStatuses,
 		txStatus:          hc.TxStatus,
@@ -2160,6 +2168,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 
 		cleanupDone: make(chan struct{}),
 	}
+	pgConn.pid.Store(hc.PID)
 
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)
