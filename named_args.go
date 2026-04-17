@@ -118,20 +118,10 @@ func structArgs(sa any) (map[string]any, error) {
 	return out, nil
 }
 
+// dbTagKey derives the named-argument key for a struct field. Tag parsing matches
+// RowToStructByName* in rows.go (structTagKey, Lookup, comma options, db:"-").
+// Anonymous embedded structs are skipped without flattening (unlike row scanning).
 func dbTagKey(sf reflect.StructField) (key string, ok bool, err error) {
-	tag := sf.Tag.Get("db")
-	if tag == "-" {
-		return "", false, nil
-	}
-
-	if tag != "" {
-		tag, _, _ = strings.Cut(tag, ",")
-		if tag == "" {
-			return "", false, fmt.Errorf("field %s has empty `db` tag", sf.Name)
-		}
-		return tag, true, nil
-	}
-
 	if sf.Anonymous {
 		ft := sf.Type
 		if ft.Kind() == reflect.Pointer {
@@ -140,6 +130,20 @@ func dbTagKey(sf reflect.StructField) (key string, ok bool, err error) {
 		if ft.Kind() == reflect.Struct {
 			return "", false, nil
 		}
+	}
+
+	dbTag, dbTagPresent := sf.Tag.Lookup(structTagKey)
+	if dbTagPresent {
+		dbTag, _, _ = strings.Cut(dbTag, ",")
+	}
+	if dbTag == "-" {
+		return "", false, nil
+	}
+	if dbTagPresent {
+		if dbTag == "" {
+			return "", false, fmt.Errorf("field %s has empty `%s` tag", sf.Name, structTagKey)
+		}
+		return dbTag, true, nil
 	}
 
 	return sf.Name, true, nil
