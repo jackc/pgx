@@ -1,3 +1,8 @@
+# Unreleased
+
+* Add CancelAndDrainContextWatcherHandler that replaces the racy 100ms sleep in CancelRequestContextWatcherHandler with a deterministic single-";" drain, preventing a cancel request from producing a 57014 (query_canceled) on the wrong query (Sean Chittenden)
+* Fix data race on pid and secretKey in CancelRequest by grouping both into an atomically-published backendKeyData struct (Sean Chittenden)
+
 # 5.9.1 (March 22, 2026)
 
 * Fix: batch result format corruption when using cached prepared statements (reported by Dirkjan Bussink)

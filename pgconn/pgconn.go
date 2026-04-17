@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
@@ -32,6 +33,24 @@ const (
 	connStatusClosed
 	connStatusIdle
 	connStatusBusy
+)
+
+// PostgreSQL protocol negotiation codes from src/include/libpq/pqcomm.h.
+// Each is PG_PROTOCOL(1234, N) = (1234 << 16) | N.
+const (
+	cancelRequestCode = 80877102 // PG_PROTOCOL(1234, 5678) -- CANCEL_REQUEST_CODE
+	negotiateSSLCode  = 80877103 // PG_PROTOCOL(1234, 5679) -- NEGOTIATE_SSL_CODE
+)
+
+// CancelRequestPacket layout from src/include/libpq/pqcomm.h. All fixed fields are uint32 (4 bytes, network order).
+// The cancel auth key is variable-length in pgx (historically 4 bytes, but stored as []byte for forward compatibility).
+const (
+	cancelPacketFieldSize  = 4                         // sizeof(uint32) -- each fixed field in the cancel packet
+	cancelPacketHeaderLen  = 3 * cancelPacketFieldSize // packet length + request code + backend PID
+	cancelPacketLenOffset  = 0
+	cancelPacketCodeOffset = cancelPacketFieldSize
+	cancelPacketPIDOffset  = 2 * cancelPacketFieldSize
+	cancelPacketKeyOffset  = cancelPacketHeaderLen
 )
 
 // Notice represents a notice response message reported by the PostgreSQL server. Be aware that this is distinct from
@@ -73,11 +92,18 @@ type NoticeHandler func(*PgConn, *Notice)
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
 
+// backendKeyData holds the PID and secret key received during the connection handshake. These are published
+// atomically because CancelRequest reads them from a goroutine spawned by the context watcher, which may race
+// with the handshake if a context is cancelled during connection setup.
+type backendKeyData struct {
+	pid       uint32
+	secretKey []byte
+}
+
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn
-	pid               uint32            // backend pid
-	secretKey         []byte            // key to use to send a cancel query message to the server
+	backendKey        atomic.Pointer[backendKeyData]
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	txStatus          byte
 	frontend          *pgproto3.Frontend
@@ -106,6 +132,16 @@ type PgConn struct {
 	fieldDescriptions [16]FieldDescription
 
 	cleanupDone chan struct{}
+
+	// Cancel coordination. CancelRequest is the only PgConn method designed to be called from another goroutine
+	// (via the context watcher, asyncClose, or direct user calls). The mutex protects the state + done context
+	// pair so that concurrent callers either proceed (idle), block (inFlight), or no-op (sent).
+	cancelMu struct {
+		sync.Mutex
+		state  uint32          // one of cancelState* constants
+		done   context.Context //nolint:containedctx // synchronization primitive, not a request-scoped context
+		doneFn context.CancelFunc
+	}
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or keyword/value
@@ -410,8 +446,10 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 
 		switch msg := msg.(type) {
 		case *pgproto3.BackendKeyData:
-			pgConn.pid = msg.ProcessID
-			pgConn.secretKey = msg.SecretKey
+			pgConn.backendKey.Store(&backendKeyData{
+				pid:       msg.ProcessID,
+				secretKey: msg.SecretKey,
+			})
 
 		case *pgproto3.AuthenticationOk:
 		case *pgproto3.AuthenticationCleartextPassword:
@@ -491,7 +529,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 }
 
 func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
-	err := binary.Write(conn, binary.BigEndian, []int32{8, 80877103})
+	err := binary.Write(conn, binary.BigEndian, []int32{8, negotiateSSLCode})
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +694,10 @@ func (pgConn *PgConn) Conn() net.Conn {
 
 // PID returns the backend PID.
 func (pgConn *PgConn) PID() uint32 {
-	return pgConn.pid
+	if bk := pgConn.backendKey.Load(); bk != nil {
+		return bk.pid
+	}
+	return 0
 }
 
 // TxStatus returns the current TxStatus as reported by the server in the ReadyForQuery message.
@@ -674,7 +715,10 @@ func (pgConn *PgConn) TxStatus() byte {
 
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
 func (pgConn *PgConn) SecretKey() []byte {
-	return pgConn.secretKey
+	if bk := pgConn.backendKey.Load(); bk != nil {
+		return bk.secretKey
+	}
+	return nil
 }
 
 // Frontend returns the underlying *pgproto3.Frontend. This rarely necessary.
@@ -1036,7 +1080,62 @@ func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
 // request, but lack of an error does not ensure that the query was canceled. As specified in the documentation, there
 // is no way to be sure a query was canceled.
 // See https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-CANCELING-REQUESTS
+//
+// CancelRequest is safe to call from multiple goroutines concurrently. If a cancel is already in flight, the caller
+// blocks until it completes and returns nil (the cancel was handled). This prevents multiple cancel requests from
+// producing multiple 57014 responses, which the single-";" drain cannot reconcile.
 func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
+	pgConn.cancelMu.Lock()
+	switch pgConn.cancelMu.state {
+	case cancelStateInFlight:
+		// Another cancel is in progress -- grab the done context and wait for it.
+		done := pgConn.cancelMu.done
+		pgConn.cancelMu.Unlock()
+		if done != nil {
+			select {
+			case <-done.Done():
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return nil
+
+	case cancelStateSent:
+		// A cancel was already sent and is pending drain -- nothing more to do.
+		pgConn.cancelMu.Unlock()
+		return nil
+	}
+
+	// cancelStateIdle -- we own the cancel.
+	pgConn.cancelMu.done, pgConn.cancelMu.doneFn = context.WithCancel(context.Background())
+	pgConn.cancelMu.state = cancelStateInFlight
+	pgConn.cancelMu.Unlock()
+
+	err := pgConn.sendCancelRequest(ctx)
+
+	pgConn.cancelMu.Lock()
+	if err != nil {
+		pgConn.cancelMu.state = cancelStateIdle
+	} else {
+		pgConn.cancelMu.state = cancelStateSent
+	}
+	pgConn.cancelMu.doneFn()
+	pgConn.cancelMu.done = nil
+	pgConn.cancelMu.doneFn = nil
+	pgConn.cancelMu.Unlock()
+
+	return err
+}
+
+// sendCancelRequest performs the actual network I/O for a cancel request: dial a new TCP connection to the server,
+// write the CancelRequestPacket, and wait for acknowledgement.
+func (pgConn *PgConn) sendCancelRequest(ctx context.Context) error {
+	bk := pgConn.backendKey.Load()
+	if bk == nil {
+		return nil
+	}
+
 	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.
@@ -1072,11 +1171,11 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 		defer contextWatcher.Unwatch()
 	}
 
-	buf := make([]byte, 12+len(pgConn.secretKey))
-	binary.BigEndian.PutUint32(buf[0:4], uint32(len(buf)))
-	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], pgConn.pid)
-	copy(buf[12:], pgConn.secretKey)
+	buf := make([]byte, cancelPacketHeaderLen+len(bk.secretKey))
+	binary.BigEndian.PutUint32(buf[cancelPacketLenOffset:], uint32(len(buf)))
+	binary.BigEndian.PutUint32(buf[cancelPacketCodeOffset:], cancelRequestCode)
+	binary.BigEndian.PutUint32(buf[cancelPacketPIDOffset:], bk.pid)
+	copy(buf[cancelPacketKeyOffset:], bk.secretKey)
 
 	if _, err := cancelConn.Write(buf); err != nil {
 		return fmt.Errorf("write to connection for cancellation: %w", err)
@@ -2126,16 +2225,19 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 	}
 	pgConn.status = connStatusClosed
 
-	return &HijackedConn{
+	hc := &HijackedConn{
 		Conn:              pgConn.conn,
-		PID:               pgConn.pid,
-		SecretKey:         pgConn.secretKey,
 		ParameterStatuses: pgConn.parameterStatuses,
 		TxStatus:          pgConn.txStatus,
 		Frontend:          pgConn.frontend,
 		Config:            pgConn.config,
 		CustomData:        pgConn.customData,
-	}, nil
+	}
+	if bk := pgConn.backendKey.Load(); bk != nil {
+		hc.PID = bk.pid
+		hc.SecretKey = bk.secretKey
+	}
+	return hc, nil
 }
 
 // Construct created a PgConn from an already established connection to a PostgreSQL server. This is the inverse of
@@ -2148,8 +2250,6 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn := &PgConn{
 		conn:              hc.Conn,
-		pid:               hc.PID,
-		secretKey:         hc.SecretKey,
 		parameterStatuses: hc.ParameterStatuses,
 		txStatus:          hc.TxStatus,
 		frontend:          hc.Frontend,
@@ -2160,6 +2260,10 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 
 		cleanupDone: make(chan struct{}),
 	}
+	pgConn.backendKey.Store(&backendKeyData{
+		pid:       hc.PID,
+		secretKey: hc.SecretKey,
+	})
 
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)
