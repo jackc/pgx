@@ -1,3 +1,10 @@
+# Unreleased
+
+* Add CancelAndDrainContextWatcherHandler that replaces the racy 100ms sleep in CancelRequestContextWatcherHandler with a single-";" drain, preventing stale 57014 (query_canceled) errors from bleeding into the next query on a connection (Sean Chittenden)
+* Fix data race on pid and secretKey in CancelRequest by grouping both into an atomically-published backendKeyData struct
+* Extract PostgreSQL cancel protocol constants (cancelRequestCode, negotiateSSLCode, packet field offsets) from magic numbers, referencing src/include/libpq/pqcomm.h
+* Add mutex-guarded cancel state machine on CancelRequest to prevent double-send of cancel requests from concurrent callers
+
 # 5.9.1 (March 22, 2026)
 
 * Fix: batch result format corruption when using cached prepared statements (reported by Dirkjan Bussink)
