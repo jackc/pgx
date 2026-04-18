@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -202,12 +203,13 @@ func QuoteBytes(dst, buf []byte) []byte {
 }
 
 type sqlLexer struct {
-	src     string
-	start   int
-	pos     int
-	nested  int // multiline comment nesting level.
-	stateFn stateFn
-	parts   []Part
+	src       string
+	start     int
+	pos       int
+	nested    int    // multiline comment nesting level.
+	dollarTag string // active tag while inside a dollar-quoted string (may be empty for $$).
+	stateFn   stateFn
+	parts     []Part
 }
 
 type stateFn func(*sqlLexer) stateFn
@@ -236,6 +238,15 @@ func rawState(l *sqlLexer) stateFn {
 				}
 				l.start = l.pos
 				return placeholderState
+			}
+			// PostgreSQL dollar-quoted string: $[tag]$...$[tag]$. The $ was
+			// just consumed; try to match the rest of the opening tag.
+			// Without this, placeholders embedded inside dollar-quoted
+			// literals would be incorrectly substituted.
+			if tagLen, ok := scanDollarQuoteTag(l.src[l.pos:]); ok {
+				l.dollarTag = l.src[l.pos : l.pos+tagLen]
+				l.pos += tagLen + 1 // advance past tag and closing '$'
+				return dollarQuoteState
 			}
 		case '-':
 			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
@@ -319,8 +330,16 @@ func placeholderState(l *sqlLexer) stateFn {
 		l.pos += width
 
 		if '0' <= r && r <= '9' {
-			num *= 10
-			num += int(r - '0')
+			// Clamp rather than silently wrap on pathological input like
+			// "$92233720368547758070" which would otherwise overflow int and
+			// could land on a valid args index. Any value above MaxInt32 far
+			// exceeds any plausible args length, so Sanitize will correctly
+			// return "insufficient arguments".
+			if num > (math.MaxInt32-9)/10 {
+				num = math.MaxInt32
+			} else {
+				num = num*10 + int(r-'0')
+			}
 		} else {
 			l.parts = append(l.parts, num)
 			l.pos -= width
@@ -328,6 +347,68 @@ func placeholderState(l *sqlLexer) stateFn {
 			return rawState
 		}
 	}
+}
+
+// dollarQuoteState consumes the body of a PostgreSQL dollar-quoted string
+// ($[tag]$...$[tag]$). The opening tag (including its terminating '$') has
+// already been consumed.
+func dollarQuoteState(l *sqlLexer) stateFn {
+	closer := "$" + l.dollarTag + "$"
+	idx := strings.Index(l.src[l.pos:], closer)
+	if idx < 0 {
+		// Unterminated — mirror the behavior of other quoted-string states by
+		// consuming the remaining input into the current part and stopping.
+		if len(l.src)-l.start > 0 {
+			l.parts = append(l.parts, l.src[l.start:])
+			l.start = len(l.src)
+		}
+		l.pos = len(l.src)
+		return nil
+	}
+	l.pos += idx + len(closer)
+	l.dollarTag = ""
+	return rawState
+}
+
+// scanDollarQuoteTag checks whether src begins with an optional dollar-quoted
+// string tag followed by a closing '$'. src must point just past the opening
+// '$'. Returns the byte length of the tag (zero for an anonymous $$) and
+// whether a valid tag was found.
+//
+// Tag grammar matches the PostgreSQL lexer (scan.l):
+//
+//	dolq_start: [A-Za-z_\x80-\xff]
+//	dolq_cont:  [A-Za-z0-9_\x80-\xff]
+func scanDollarQuoteTag(src string) (int, bool) {
+	first := true
+	for i := 0; i < len(src); {
+		r, w := utf8.DecodeRuneInString(src[i:])
+		if r == '$' {
+			return i, true
+		}
+		if !isDollarTagRune(r, first) {
+			return 0, false
+		}
+		first = false
+		i += w
+	}
+	return 0, false
+}
+
+func isDollarTagRune(r rune, first bool) bool {
+	switch {
+	case r == '_':
+		return true
+	case 'a' <= r && r <= 'z':
+		return true
+	case 'A' <= r && r <= 'Z':
+		return true
+	case !first && '0' <= r && r <= '9':
+		return true
+	case r >= 0x80 && r != utf8.RuneError:
+		return true
+	}
+	return false
 }
 
 func escapeStringState(l *sqlLexer) stateFn {

@@ -73,6 +73,23 @@ func FuzzNewQuery(f *testing.F) {
 	f.Add("E'esc' 'norm' \"ident\" $1 -- comment\n$2 /* block */ $3")
 	f.Add("$1'$2'$3\"$4\"$5--$6\n$7/*$8*/$9")
 
+	// Dollar-quoted strings (PostgreSQL $[tag]$...$[tag]$). Placeholders
+	// inside must NOT be substituted.
+	f.Add("select $$hello $1 world$$, $1")
+	f.Add("select $tag$body $1 body$tag$, $2")
+	f.Add("select $a$ $b$ $a$")              // mismatched inner tag
+	f.Add("select $outer$ $$ $1 $$ $outer$") // nested inner anonymous quote
+	f.Add("$$unterminated $1")               // unterminated $$ run
+	f.Add("$t$unterminated")                 // unterminated tagged run
+	f.Add("$ $1")                            // $ alone is not a dollar-quote open
+	f.Add("$abc no closing quote $1")
+	f.Add("$1abc$")       // $1 is placeholder, abc$ is raw
+	f.Add("$日本$body$日本$") // non-ASCII tag
+
+	// Large placeholder numbers that would overflow naive int accumulation.
+	f.Add("$92233720368547758070")
+	f.Add("$999999999999999999999999999999999999999")
+
 	f.Fuzz(func(t *testing.T, input string) {
 		query, err := sanitize.NewQuery(input)
 		if err != nil {

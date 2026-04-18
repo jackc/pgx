@@ -2,6 +2,7 @@ package sanitize_test
 
 import (
 	"encoding/hex"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -99,6 +100,54 @@ func TestNewQuery(t *testing.T) {
 			// Unterminated quoted string
 			sql:      "select 'hello world",
 			expected: sanitize.Query{Parts: []sanitize.Part{"select 'hello world"}},
+		},
+		{
+			// Dollar-quoted string (anonymous) must not be treated as placeholders.
+			sql:      "select $$hello $1 world$$, $1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $$hello $1 world$$, ", 1}},
+		},
+		{
+			// Dollar-quoted string with tag.
+			sql:      "select $tag$hello $1 world$tag$, $2",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $tag$hello $1 world$tag$, ", 2}},
+		},
+		{
+			// Dollar-quoted string with tag containing digits.
+			sql:      "select $t1$body$2$t1$, $3",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $t1$body$2$t1$, ", 3}},
+		},
+		{
+			// Dollar-quoted string may contain nested $$ sequences that don't match the outer tag.
+			sql:      "select $outer$ $$ still inside $1 $$ $outer$, $1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $outer$ $$ still inside $1 $$ $outer$, ", 1}},
+		},
+		{
+			// Unterminated dollar-quoted string: consume the rest of input.
+			sql:      "select $$hello $1 world",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $$hello $1 world"}},
+		},
+		{
+			// $digit is still a placeholder, not a dollar-quote open.
+			sql:      "select $1 $2",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select ", 1, " ", 2}},
+		},
+		{
+			// Dollar sign not followed by identifier/$/digit is literal.
+			sql:      "select $ + $1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $ + ", 1}},
+		},
+		{
+			// Dollar followed by a non-tag identifier that never meets a closing $ is not a dollar-quoted string.
+			sql:      "select $abc + $1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select $abc + ", 1}},
+		},
+		{
+			// Overflow-sized placeholder number must not wrap: it should be
+			// preserved as some value that Sanitize will reject with
+			// "insufficient arguments" rather than silently wrapping to a
+			// small/negative index that aliases a real argument.
+			sql:      "select $92233720368547758070",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select ", math.MaxInt32}},
 		},
 	}
 
@@ -219,6 +268,13 @@ func TestQuerySanitize(t *testing.T) {
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{42},
 			expected: `invalid arg type: int`,
+		},
+		{
+			// An overflow-clamped placeholder must not silently map onto a
+			// real argument; it must produce an error.
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", math.MaxInt32}},
+			args:     []any{int64(42)},
+			expected: `insufficient arguments`,
 		},
 	}
 

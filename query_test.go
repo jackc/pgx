@@ -2253,6 +2253,29 @@ func TestQueryWithProcedureParametersInAndOut(t *testing.T) {
 	})
 }
 
+func TestConnQuerySanitizeSQLWithDollarQuotesStrings(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx := t.Context()
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `create table canary(id text primary key)`)
+	require.NoError(t, err)
+
+	attackValue := `$tag$; drop table canary; --`
+	_, err = tx.Exec(ctx, `select $tag$ $1 $tag$, $1`, pgx.QueryExecModeSimpleProtocol, attackValue)
+	require.NoError(t, err)
+
+	_, err = tx.Exec(ctx, `select * from canary`)
+	require.NoError(t, err)
+}
+
 type byteCounterConn struct {
 	conn         net.Conn
 	bytesRead    int
