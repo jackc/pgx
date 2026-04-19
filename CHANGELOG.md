@@ -1,3 +1,23 @@
+# 5.9.2 (April 18, 2026)
+
+Fix SQL Injection via placeholder confusion with dollar quoted string literals (GHSA-j88v-2chj-qfwx)
+
+SQL injection can occur when:
+
+1. The non-default simple protocol is used.
+2. A dollar quoted string literal is used in the SQL query.
+3. That query contains text that would be would be interpreted outside as a placeholder outside of a string literal.
+4. The value of that placeholder is controllable by the attacker.
+
+e.g.
+
+```go
+attackValue := `$tag$; drop table canary; --`
+_, err = tx.Exec(ctx, `select $tag$ $1 $tag$, $1`, pgx.QueryExecModeSimpleProtocol, attackValue)
+```
+
+This is unlikely to occur outside of a contrived scenario.
+
 # 5.9.1 (March 22, 2026)
 
 * Fix: batch result format corruption when using cached prepared statements (reported by Dirkjan Bussink)
