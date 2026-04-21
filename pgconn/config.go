@@ -30,6 +30,10 @@ type (
 	GetSSLPasswordFunc  func(ctx context.Context) string
 )
 
+// LookupSRVFunc is a function that resolves DNS SRV records. It has the same
+// signature as [net.Resolver.LookupSRV].
+type LookupSRVFunc func(ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error)
+
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by [ParseConfig]. A
 // manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
@@ -40,9 +44,25 @@ type Config struct {
 	Password       string
 	TLSConfig      *tls.Config // nil disables TLS
 	ConnectTimeout time.Duration
-	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
-	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
+	DialFunc       DialFunc      // e.g. net.Dialer.DialContext
+	LookupFunc     LookupFunc    // e.g. net.Resolver.LookupHost
+	LookupSRVFunc  LookupSRVFunc // e.g. net.Resolver.LookupSRV; used when SRVHost is set
 	BuildFrontend  BuildFrontendFunc
+
+	// SRVHost, when non-empty, causes the connection to be established via DNS
+	// SRV discovery. ParseConfig looks up _postgresql._tcp.{SRVHost} and uses
+	// the returned targets in priority/weight order (RFC 2782) as the list of
+	// hosts to try. It is set automatically when the connection string uses the
+	// postgres+srv:// or postgresql+srv:// URI scheme, or the srvhost= keyword.
+	// SRVHost is mutually exclusive with specifying hosts directly in the
+	// connection string.
+	SRVHost string
+
+	// srvMakeTLS generates per-target TLS configurations for SRV-resolved
+	// hostnames. It is a closure that captures the TLS settings from ParseConfig
+	// so that each SRV target gets the correct SNI ServerName. Nil when SRV
+	// mode is inactive.
+	srvMakeTLS func(target string) ([]*tls.Config, error)
 
 	// BuildContextWatcherHandler is called to create a ContextWatcherHandler for a connection. The handler is called
 	// when a context passed to a PgConn method is canceled.
@@ -278,11 +298,26 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	connStringSettings := make(map[string]string)
 	if connString != "" {
 		var err error
-		// connString may be a database URL or in PostgreSQL keyword/value format
-		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, err = parseURLSettings(connString)
+		// connString may be a database URL or in PostgreSQL keyword/value format.
+		// postgres+srv:// and postgresql+srv:// are SRV-discovery variants: the
+		// host in the URL names the cluster, not an individual server.
+		isSRVScheme := strings.HasPrefix(connString, "postgres+srv://") || strings.HasPrefix(connString, "postgresql+srv://")
+		normalizedConnString := connString
+		if isSRVScheme {
+			normalizedConnString = strings.Replace(connString, "+srv", "", 1)
+		}
+		if strings.HasPrefix(normalizedConnString, "postgres://") || strings.HasPrefix(normalizedConnString, "postgresql://") {
+			connStringSettings, err = parseURLSettings(normalizedConnString)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
+			}
+			if isSRVScheme {
+				// Move the parsed host to srvhost; port comes from SRV records.
+				if host, ok := connStringSettings["host"]; ok && host != "" {
+					connStringSettings["srvhost"] = host
+					delete(connStringSettings, "host")
+				}
+				delete(connStringSettings, "port")
 			}
 		} else {
 			connStringSettings, err = parseKeywordValueSettings(connString)
@@ -360,6 +395,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"min_protocol_version": {},
 		"max_protocol_version": {},
 		"channel_binding":      {},
+		"srvhost":              {},
 	}
 
 	// Adding kerberos configuration
@@ -375,6 +411,29 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 			continue
 		}
 		config.RuntimeParams[k] = v
+	}
+
+	// SRV discovery mode: srvhost names the cluster, individual servers come
+	// from DNS at connection time.
+	if srvhost := settings["srvhost"]; srvhost != "" {
+		// Error only when host was supplied explicitly in the connection string
+		// itself (not when it came from PGHOST or the built-in default).
+		if _, hostInConnString := connStringSettings["host"]; hostInConnString {
+			return nil, &ParseConfigError{ConnString: connString, msg: "srvhost and host are mutually exclusive"}
+		}
+		config.SRVHost = srvhost
+		config.LookupSRVFunc = net.DefaultResolver.LookupSRV
+		// Capture TLS settings in a closure so buildConnectOneConfigs can build
+		// per-target TLS configs with the correct SNI ServerName for each
+		// SRV-resolved hostname.
+		capturedSettings := settings
+		capturedOptions := options
+		config.srvMakeTLS = func(target string) ([]*tls.Config, error) {
+			return configTLS(capturedSettings, target, capturedOptions)
+		}
+		// Provide a dummy host so passfile lookup and other host-dependent
+		// defaults have something to work with.
+		settings["host"] = srvhost
 	}
 
 	fallbacks := []*FallbackConfig{}

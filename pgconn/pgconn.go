@@ -177,6 +177,10 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 // slice of successfully resolved connectOneConfigs and a slice of errors. It is possible for both slices to contain
 // values if some hosts were successfully resolved and others were not.
 func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneConfig, []error) {
+	if config.SRVHost != "" {
+		return buildConnectOneConfigsFromSRV(ctx, config)
+	}
+
 	// Simplify usage by treating primary config and fallbacks the same.
 	fallbackConfigs := []*FallbackConfig{
 		{
@@ -238,6 +242,53 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	}
 
 	return configs, allErrors
+}
+
+// buildConnectOneConfigsFromSRV resolves _postgresql._tcp.{SRVHost} and builds
+// connectOneConfigs for each returned target, in priority/weight order per
+// RFC 2782. net.DefaultResolver.LookupSRV already handles the sorting and
+// weight-based randomisation within a priority group.
+func buildConnectOneConfigsFromSRV(ctx context.Context, config *Config) ([]*connectOneConfig, []error) {
+	_, srvs, err := config.LookupSRVFunc(ctx, "postgresql", "tcp", config.SRVHost)
+	if err != nil {
+		return nil, []error{fmt.Errorf("SRV lookup for %s: %w", config.SRVHost, err)}
+	}
+	if len(srvs) == 0 {
+		return nil, []error{fmt.Errorf("SRV lookup for %s returned no records", config.SRVHost)}
+	}
+
+	var configs []*connectOneConfig
+
+	for _, srv := range srvs {
+		// LookupSRV returns FQDNs with a trailing dot; trim it so TLS SNI and
+		// error messages look like normal hostnames.
+		target := strings.TrimSuffix(srv.Target, ".")
+		port := srv.Port
+
+		var tlsConfigs []*tls.Config
+		if config.srvMakeTLS != nil {
+			tlsConfigs, err = config.srvMakeTLS(target)
+			if err != nil {
+				return nil, []error{fmt.Errorf("TLS config for SRV target %s: %w", target, err)}
+			}
+		} else {
+			// Fallback when Config was constructed without ParseConfig (e.g. tests
+			// that set LookupSRVFunc directly without going through ParseConfig).
+			tlsConfigs = []*tls.Config{config.TLSConfig}
+		}
+
+		for _, tlsConfig := range tlsConfigs {
+			network, address := NetworkAddress(target, port)
+			configs = append(configs, &connectOneConfig{
+				network:          network,
+				address:          address,
+				originalHostname: target,
+				tlsConfig:        tlsConfig,
+			})
+		}
+	}
+
+	return configs, nil
 }
 
 // connectPreferred attempts to connect to the preferred host from connectOneConfigs. The connections are attempted in
