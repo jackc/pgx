@@ -1,0 +1,15 @@
+@@ -104,6 +105,14 @@
+ 		sql.Register("pgx/v5", pgxDriver)
+ 
+ 		databaseSQLResultFormats = pgx.QueryResultFormatsByOID{
++			pgtype.BoolOID:        1,
++			pgtype.ByteaOID:       1,
++			pgtype.CIDOID:         1,
++			pgtype.DateOID:        1,
++			pgtype.Float4OID:      1,
++			pgtype.Float8OID:      1,
++			pgtype.Int2OID:        1,
++			pgtype.Int4OID:        1,
+ 			pgtype.Int8OID:        1,
+ 			pgtype.OIDOID:         1,
+ 			pgtype.TimestampOID:   1,
