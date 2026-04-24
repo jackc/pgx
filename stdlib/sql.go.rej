@@ -1,0 +1,9 @@
+@@ -1039,7 +1039,7 @@
+ 	if connConfig == nil {
+ 		var err error
+ 		connConfig, err = pgx.ParseConfig(dc.name)
+ 		if err != nil {
+-			return nil, fmt.Errorf("failed to parse connection string: %w", err)
++			return nil, fmt.Errorf("failed to parse connection string: %w", err)
+ 		}
+ 	}
