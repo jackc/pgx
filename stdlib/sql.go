@@ -32,6 +32,12 @@
 //	connStr := stdlib.RegisterConnConfig(connConfig)
 //	db, _ := sql.Open("pgx", connStr)
 //
+// Consider using stdlib.OpenDB + sqlx.NewDb instead of RegisterConnConfig
+// if your client code perform many short-lived connections to multiple DBs (to avoid memory leaks).
+//
+// db := stdlib.OpenDB(*pgxConfig)
+// dbconn := sqlx.NewDb(db, "pgx")
+//
 // pgx uses standard PostgreSQL positional parameters in queries. e.g. $1, $2. It does not support named parameters.
 //
 //	db.QueryRow("select * from users where id=$1", userID)
@@ -393,6 +399,12 @@ func (dc *driverConnector) Driver() driver.Driver {
 }
 
 // RegisterConnConfig registers a ConnConfig and returns the connection string to use with Open.
+// It uses a package-level Driver struct that holds a map that tracks all the connections,
+// using as key the connection string and as a value the *pgx.ConnConfig.
+// Consider using stdlib.OpenDB + sqlx.NewDb instead of RegisterConnConfig
+// if your clients perform many short-lived connections to multiple DBs (to avoid memory leaks):
+// db := stdlib.OpenDB(*pgxConfig)
+// dbconn := sqlx.NewDb(db, "pgx")
 func RegisterConnConfig(c *pgx.ConnConfig) string {
 	return pgxDriver.registerConnConfig(c)
 }
