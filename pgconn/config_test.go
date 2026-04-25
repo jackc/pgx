@@ -799,6 +799,44 @@ func TestParseConfigKVTrailingBackslash(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid backslash")
 }
 
+// https://github.com/jackc/pgx/issues/2284
+// Multiple trailing spaces and trailing spaces after quoted values must be
+// accepted as valid keyword/value connection strings.
+func TestParseConfigKVTrailingWhitespace(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+	}{
+		{
+			name:       "single trailing space",
+			connString: "dbname=foo ",
+		},
+		{
+			name:       "multiple trailing spaces",
+			connString: "dbname=foo  ",
+		},
+		{
+			name:       "trailing tab",
+			connString: "dbname=foo\t",
+		},
+		{
+			name:       "quoted value with trailing spaces",
+			connString: "dbname='foo'  ",
+		},
+		{
+			name:       "two key-value pairs with trailing spaces",
+			connString: "port=5432 dbname=foo  ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := pgconn.ParseConfig(tt.connString)
+			require.NoErrorf(t, err, "conn string %q should not produce an error", tt.connString)
+		})
+	}
+}
+
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
