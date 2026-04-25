@@ -74,6 +74,27 @@ pgx uses the [pgtype] package to converting Go values to and from PostgreSQL val
 directly and is customizable and extendable. User defined data types such as enums, domains,  and composite types may
 require type registration. See that package's documentation for details.
 
+PostgreSQL arrays (including results from set-returning aggregates such as array_agg)
+can be scanned directly into a matching Go slice. For scalar columns, pass the slice
+as the scan destination:
+
+    var ids []int64
+    err := conn.QueryRow(ctx, "select array_agg(id) from things").Scan(&ids)
+
+For a column that is part of a row, combine the slice with the usual row-to-struct
+helpers. A struct field of slice type will pick up the array_agg column when
+collected via [CollectRows] and [RowToStructByName] (or
+[RowToAddrOfStructByPos]):
+
+    type ThingEntry struct {
+        GroupID  int64
+        ThingIDs []int64 `db:"thing_ids"`
+    }
+
+    rows, _ := conn.Query(ctx,
+        "select group_id, array_agg(thing_id) as thing_ids from things group by group_id")
+    entries, err := pgx.CollectRows(rows, pgx.RowToStructByName[ThingEntry])
+
 Transactions
 
 Transactions are started by calling [Conn.Begin].
