@@ -631,6 +631,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 		"dbname": "database",
 	}
 
+	// Trim any leading whitespace so that the loop exits cleanly when only
+	// spaces remain (e.g. trailing spaces after the last value).
+	s = strings.TrimLeft(s, " \t\n\r\v\f")
 	for len(s) > 0 {
 		var key, val string
 		eqIdx := strings.IndexRune(s, '=')
@@ -655,11 +658,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				}
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
-			if end == len(s) {
-				s = ""
-			} else {
-				s = s[end+1:]
-			}
+			// Consume the value and trim any subsequent whitespace so that
+			// multiple trailing spaces don't cause a spurious parse failure.
+			s = strings.TrimLeft(s[end:], " \t\n\r\v\f")
 		} else { // quoted string
 			s = s[1:]
 			end := 0
@@ -675,11 +676,8 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				return nil, errors.New("unterminated quoted string in connection info string")
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
-			if end == len(s) {
-				s = ""
-			} else {
-				s = s[end+1:]
-			}
+			// Consume the closing quote and any subsequent whitespace.
+			s = strings.TrimLeft(s[end+1:], " \t\n\r\v\f")
 		}
 
 		if k, ok := nameMap[key]; ok {
