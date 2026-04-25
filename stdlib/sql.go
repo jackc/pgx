@@ -9,7 +9,7 @@
 //
 // Or from a keyword/value string.
 //
-//	db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
+//	db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 dbname=pgx_test sslmode=disable")
 //	if err != nil {
 //	  return err
 //	}
