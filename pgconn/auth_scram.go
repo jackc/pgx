@@ -93,6 +93,14 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		return err
 	}
 
+	if cache := c.config.ScramDeriveCache; cache != nil && sc.password != "" {
+		if sp, ok := cache.Get(sc.deriveFingerprint()); ok {
+			sc.saltedPassword = sp
+			sc.hasSaltedPassword = true
+			sc.saltedPasswordFromCache = true
+		}
+	}
+
 	// Send client-final-message in a SASLResponse
 	saslResponse := &pgproto3.SASLResponse{
 		Data: []byte(sc.clientFinalMessage()),
@@ -106,9 +114,25 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	// Receive server-final-message payload in an AuthenticationSASLFinal.
 	saslFinal, err := c.rxSASLFinal()
 	if err != nil {
+		scramInvalidateDeriveCache(c, sc)
 		return err
 	}
-	return sc.recvServerFinalMessage(saslFinal.Data)
+	err = sc.recvServerFinalMessage(saslFinal.Data)
+	if err != nil {
+		scramInvalidateDeriveCache(c, sc)
+		return err
+	}
+	if cache := c.config.ScramDeriveCache; cache != nil && !sc.saltedPasswordFromCache && sc.hasSaltedPassword {
+		cache.Put(sc.deriveFingerprint(), sc.saltedPassword)
+	}
+	return nil
+}
+
+func scramInvalidateDeriveCache(c *PgConn, sc *scramClient) {
+	if c.config.ScramDeriveCache == nil || !sc.saltedPasswordFromCache {
+		return
+	}
+	c.config.ScramDeriveCache.Delete(sc.deriveFingerprint())
 }
 
 func (c *PgConn) rxSASLContinue() (*pgproto3.AuthenticationSASLContinue, error) {
@@ -172,10 +196,12 @@ type scramClient struct {
 	serverFirstMessage   []byte
 	clientAndServerNonce []byte
 	salt                 []byte
-	iterations           int
+	iterations           uint64
 
-	saltedPassword []byte
-	authMessage    []byte
+	saltedPassword          ScramSaltedPassword
+	hasSaltedPassword       bool
+	saltedPasswordFromCache bool
+	authMessage             []byte
 }
 
 func newScramClient(serverAuthMechanisms []string, password string) (*scramClient, error) {
@@ -279,8 +305,8 @@ func (sc *scramClient) recvServerFirstMessage(serverFirstMessage []byte) error {
 		return fmt.Errorf("invalid SCRAM salt received from server: %w", err)
 	}
 
-	sc.iterations, err = strconv.Atoi(string(iterationsStr))
-	if err != nil || sc.iterations <= 0 {
+	sc.iterations, err = strconv.ParseUint(string(iterationsStr), 10, 64)
+	if err != nil || sc.iterations == 0 {
 		return fmt.Errorf("invalid SCRAM iteration count received from server: %w", err)
 	}
 
@@ -310,14 +336,20 @@ func (sc *scramClient) clientFinalMessage() string {
 	channelBindingEncoded := base64.StdEncoding.EncodeToString(channelBindInput)
 	clientFinalMessageWithoutProof := fmt.Appendf(nil, "c=%s,r=%s", channelBindingEncoded, sc.clientAndServerNonce)
 
-	var err error
-	sc.saltedPassword, err = pbkdf2.Key(sha256.New, sc.password, sc.salt, sc.iterations, 32)
-	if err != nil {
-		panic(err) // This should never happen.
+	if !sc.hasSaltedPassword {
+		sp, err := pbkdf2.Key(sha256.New, sc.password, sc.salt, int(sc.iterations), 32)
+		if err != nil {
+			panic(err) // This should never happen.
+		}
+		if len(sp) != 32 {
+			panic("unexpected PBKDF2 output length")
+		}
+		copy(sc.saltedPassword[:], sp)
+		sc.hasSaltedPassword = true
 	}
 	sc.authMessage = bytes.Join([][]byte{sc.clientFirstMessageBare, sc.serverFirstMessage, clientFinalMessageWithoutProof}, []byte(","))
 
-	clientProof := computeClientProof(sc.saltedPassword, sc.authMessage)
+	clientProof := computeClientProof(sc.saltedPassword[:], sc.authMessage)
 
 	return fmt.Sprintf("%s,p=%s", clientFinalMessageWithoutProof, clientProof)
 }
@@ -329,7 +361,7 @@ func (sc *scramClient) recvServerFinalMessage(serverFinalMessage []byte) error {
 
 	serverSignature := serverFinalMessage[2:]
 
-	if !hmac.Equal(serverSignature, computeServerSignature(sc.saltedPassword, sc.authMessage)) {
+	if !hmac.Equal(serverSignature, computeServerSignature(sc.saltedPassword[:], sc.authMessage)) {
 		return errors.New("invalid SCRAM ServerSignature received from server")
 	}
 

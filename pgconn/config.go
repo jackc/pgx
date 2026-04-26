@@ -100,6 +100,13 @@ type Config struct {
 	// Valid values: "disable", "prefer", "require". Defaults to "prefer".
 	ChannelBinding string
 
+	// ScramDeriveCache, if non-nil, caches SCRAM-SHA-256 PBKDF2 output (the 32-byte salted password)
+	// under opaque [ScramCacheFingerprint] values computed by pgx during SCRAM. This can reduce per-connection CPU when many
+	// connections share the same verifier. Entries are invalidated on authentication failure when
+	// the cached material was used. The same cache instance is shared when [Config.Copy] copies
+	// the interface value (typical for connection pools).
+	ScramDeriveCache ScramDeriveCache
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
