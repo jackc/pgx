@@ -6,6 +6,7 @@ linters:
   enable:
     - govet
     - ineffassign
+    - unconvert
 
 # See: https://golangci-lint.run/usage/formatters/
 formatters:
