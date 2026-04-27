@@ -69,5 +69,5 @@ Supporting packages:
 - **Context-based** — all blocking operations take `context.Context`.
 - **Tracer interfaces** — observability via `QueryTracer`, `BatchTracer`, `CopyFromTracer`, `PrepareTracer` on `ConnConfig.Tracer`.
 - **Formatting** — always run `goimports -w .` after making changes to ensure code is properly formatted. CI checks formatting via `gofmt -l -s -w . && git diff --exit-code`. `gofumpt` with extra rules is also enforced via `golangci-lint`.
-- **Linters** — `govet` and `ineffassign` only (configured in `.golangci.yml`).
+- **Linters** — `govet`, `ineffassign`, and `unconvert` only (configured in `.golangci.yml`).
 - **CI matrix** — tests run against Go 1.25/1.26 × PostgreSQL 14-18 + CockroachDB, on Linux and Windows. Race detector enabled on Linux only.

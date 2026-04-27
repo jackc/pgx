@@ -50,7 +50,7 @@ func (f *Float4) Scan(src any) error {
 		*f = Float4{Float32: float32(src), Valid: true}
 		return nil
 	case string:
-		n, err := strconv.ParseFloat(string(src), 32)
+		n, err := strconv.ParseFloat(src, 32)
 		if err != nil {
 			return err
 		}

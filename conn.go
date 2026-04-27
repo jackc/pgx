@@ -833,7 +833,7 @@ optionLoop:
 		if resultFormatsByOID != nil {
 			resultFormats = make([]int16, len(sd.Fields))
 			for i := range resultFormats {
-				resultFormats[i] = resultFormatsByOID[uint32(sd.Fields[i].DataTypeOID)]
+				resultFormats[i] = resultFormatsByOID[sd.Fields[i].DataTypeOID]
 			}
 		}
 

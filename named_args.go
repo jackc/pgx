@@ -163,7 +163,7 @@ func namedArgState(l *sqlLexer) stateFn {
 			if _, found := l.nameToOrdinal[na]; !found {
 				l.nameToOrdinal[na] = len(l.nameToOrdinal) + 1
 			}
-			l.parts = append(l.parts, namedArg(na))
+			l.parts = append(l.parts, na)
 			l.start = l.pos
 			return rawState
 		}

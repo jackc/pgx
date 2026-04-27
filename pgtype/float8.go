@@ -58,7 +58,7 @@ func (f *Float8) Scan(src any) error {
 		*f = Float8{Float64: src, Valid: true}
 		return nil
 	case string:
-		n, err := strconv.ParseFloat(string(src), 64)
+		n, err := strconv.ParseFloat(src, 64)
 		if err != nil {
 			return err
 		}
