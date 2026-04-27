@@ -160,3 +160,191 @@ func TestStrictNamedArgsRewriteQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestStructArgs(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name         string
+		input        any
+		sql          string
+		expectedSQL  string
+		expectedArgs []any
+		expectError  bool
+	}{
+		{
+			name: "basic",
+			input: struct {
+				ID   int    `db:"id"`
+				Name string `db:"name,omitempty"`
+				Skip string `db:"-"`
+			}{ID: 42, Name: "x", Skip: "ignored"},
+			sql:          "select * from t where id=@id and name=@name",
+			expectedSQL:  "select * from t where id=$1 and name=$2",
+			expectedArgs: []any{42, "x"},
+		},
+		{
+			name: "pointer",
+			input: func() any {
+				type S struct {
+					ID int `db:"id"`
+				}
+				return &S{ID: 7}
+			}(),
+			sql:          "select * from t where id=@id",
+			expectedSQL:  "select * from t where id=$1",
+			expectedArgs: []any{7},
+		},
+		{
+			name: "unexported fields omitted (missing placeholders become nil)",
+			input: struct {
+				id int `db:"id"`
+				ID int `db:"ID"`
+			}{id: 1, ID: 2},
+			sql:          "select * from t where ID=@ID and id=@id",
+			expectedSQL:  "select * from t where ID=$1 and id=$2",
+			expectedArgs: []any{2, nil},
+		},
+		{
+			name: "missing db tag falls back to field name",
+			input: struct {
+				ID int
+			}{ID: 9},
+			sql:          "select * from t where ID=@ID",
+			expectedSQL:  "select * from t where ID=$1",
+			expectedArgs: []any{9},
+		},
+		{
+			name: "duplicate keys error",
+			input: struct {
+				A int `db:"x"`
+				B int `db:"x"`
+			}{A: 1, B: 2},
+			sql:         "select * from t where x=@x",
+			expectError: true,
+		},
+		{
+			name: "nil pointer returns error",
+			input: func() any {
+				type S struct {
+					ID int `db:"id"`
+				}
+				var s *S
+				return s
+			}(),
+			sql:         "select * from t where id=@id",
+			expectError: true,
+		},
+		{
+			name:        "non struct returns error",
+			input:       42,
+			sql:         "select * from t where id=@id",
+			expectError: true,
+		},
+		{
+			name:        "nil input returns error",
+			input:       nil,
+			sql:         "select * from t where id=@id",
+			expectError: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			qr := pgx.StructArgs(tt.input)
+			sql, args, err := qr.RewriteQuery(context.Background(), nil, tt.sql, nil)
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedSQL, sql)
+			assert.EqualValues(t, tt.expectedArgs, args)
+		})
+	}
+}
+
+func TestStrictStructArgs(t *testing.T) {
+	t.Parallel()
+
+	type MyInt int
+
+	for _, tt := range []struct {
+		name         string
+		input        any
+		sql          string
+		expectedSQL  string
+		expectedArgs []any
+		expectError  bool
+	}{
+		{
+			name: "fallback to field name without db tag",
+			input: struct {
+				ID int
+			}{ID: 1},
+			sql:          "select * from t where ID=@ID",
+			expectedSQL:  "select * from t where ID=$1",
+			expectedArgs: []any{1},
+		},
+		{
+			name: "empty db tag errors",
+			input: struct {
+				ID int `db:","`
+			}{ID: 1},
+			sql:         "select * from t where ID=@ID",
+			expectError: true,
+		},
+		{
+			name: "duplicate keys error",
+			input: struct {
+				A int `db:"x"`
+				B int `db:"x"`
+			}{A: 1, B: 2},
+			sql:         "select * from t where x=@x",
+			expectError: true,
+		},
+		{
+			name: "skips anonymous embedded structs without flattening",
+			input: func() any {
+				type Embedded struct {
+					ID int `db:"id"`
+				}
+				type S struct {
+					Embedded
+					Name string `db:"name"`
+				}
+				return S{Embedded: Embedded{ID: 1}, Name: "x"}
+			}(),
+			sql:         "select * from t where name=@name and id=@id",
+			expectError: true,
+		},
+		{
+			name: "anonymous embedded non-struct still requires tag in strict mode",
+			input: func() any {
+				type S struct {
+					MyInt
+				}
+				return S{MyInt: 1}
+			}(),
+			sql:          "select * from t where MyInt=@MyInt",
+			expectedSQL:  "select * from t where MyInt=$1",
+			expectedArgs: []any{MyInt(1)},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			qr := pgx.StrictStructArgs(tt.input)
+			sql, args, err := qr.RewriteQuery(context.Background(), nil, tt.sql, nil)
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedSQL, sql)
+			assert.EqualValues(t, tt.expectedArgs, args)
+		})
+	}
+}

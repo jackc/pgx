@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -18,6 +19,7 @@ import (
 //
 // Named placeholders are case sensitive and must start with a letter or underscore. Subsequent characters can be
 // letters, numbers, or underscores.
+
 type NamedArgs map[string]any
 
 // RewriteQuery implements the QueryRewriter interface.
@@ -32,6 +34,119 @@ type StrictNamedArgs map[string]any
 // RewriteQuery implements the QueryRewriter interface.
 func (sna StrictNamedArgs) RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any, err error) {
 	return rewriteQuery(sna, sql, true)
+}
+
+type errorQueryRewriter struct {
+	err error
+}
+
+func (r errorQueryRewriter) RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any, err error) {
+	return "", nil, r.err
+}
+
+// StructArgs converts exported fields of a struct into a QueryRewriter so it can
+// be used as the first argument to a query method (e.g. "where id=@id").
+//
+// Field names are taken from the `db` struct tag if present. Tag values may
+// include comma-separated options (e.g. `db:"id,omitempty"`). A `db:"-"` field is
+// ignored. If no `db` tag is present, the Go field name is used.
+//
+// sa may be a struct or a pointer to a struct.
+func StructArgs(sa any) QueryRewriter {
+	args, err := structArgs(sa)
+	if err != nil {
+		return errorQueryRewriter{err: err}
+	}
+	return NamedArgs(args)
+}
+
+// StrictStructArgs is like StructArgs but uses StrictNamedArgs rewriting
+// semantics (i.e. errors if the SQL query references missing arguments or if
+// extra arguments are provided).
+func StrictStructArgs(sa any) QueryRewriter {
+	args, err := structArgs(sa)
+	if err != nil {
+		return errorQueryRewriter{err: err}
+	}
+	return StrictNamedArgs(args)
+}
+
+func structArgs(sa any) (map[string]any, error) {
+	if sa == nil {
+		return nil, fmt.Errorf("StructArgs requires a struct or pointer to struct, got nil")
+	}
+
+	v := reflect.ValueOf(sa)
+	t := v.Type()
+
+	if t.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return nil, fmt.Errorf("StructArgs requires a non-nil pointer to struct")
+		}
+		v = v.Elem()
+		t = v.Type()
+	}
+
+	if t.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("StructArgs requires a struct or pointer to struct, got %s", t)
+	}
+
+	out := make(map[string]any, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+
+		// Ignore unexported fields.
+		if sf.PkgPath != "" {
+			continue
+		}
+
+		key, ok, err := dbTagKey(sf)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
+
+		if _, exists := out[key]; exists {
+			return nil, fmt.Errorf("duplicate StructArgs key %q", key)
+		}
+
+		out[key] = v.Field(i).Interface()
+	}
+
+	return out, nil
+}
+
+// dbTagKey derives the named-argument key for a struct field. Tag parsing matches
+// RowToStructByName* in rows.go (structTagKey, Lookup, comma options, db:"-").
+// Anonymous embedded structs are skipped without flattening (unlike row scanning).
+func dbTagKey(sf reflect.StructField) (key string, ok bool, err error) {
+	if sf.Anonymous {
+		ft := sf.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		if ft.Kind() == reflect.Struct {
+			return "", false, nil
+		}
+	}
+
+	dbTag, dbTagPresent := sf.Tag.Lookup(structTagKey)
+	if dbTagPresent {
+		dbTag, _, _ = strings.Cut(dbTag, ",")
+	}
+	if dbTag == "-" {
+		return "", false, nil
+	}
+	if dbTagPresent {
+		if dbTag == "" {
+			return "", false, fmt.Errorf("field %s has empty `%s` tag", sf.Name, structTagKey)
+		}
+		return dbTag, true, nil
+	}
+
+	return sf.Name, true, nil
 }
 
 type namedArg string
