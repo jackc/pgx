@@ -74,7 +74,7 @@ func (dst *Describe) UnmarshalJSON(data []byte) error {
 		return errors.New("invalid length for Describe.ObjectType")
 	}
 
-	dst.ObjectType = byte(msg.ObjectType[0])
+	dst.ObjectType = msg.ObjectType[0]
 	dst.Name = msg.Name
 	return nil
 }

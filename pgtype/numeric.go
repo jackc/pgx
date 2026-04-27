@@ -132,7 +132,7 @@ func (n *Numeric) ScanScientific(src string) error {
 		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
-	if bigF, ok := new(big.Float).SetString(string(src)); ok {
+	if bigF, ok := new(big.Float).SetString(src); ok {
 		smallF, _ := bigF.Float64()
 		src = strconv.FormatFloat(smallF, 'f', -1, 64)
 	}

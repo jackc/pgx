@@ -158,7 +158,7 @@ type encodePlanUint64CodecTextUint64 struct{}
 
 func (encodePlanUint64CodecTextUint64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(uint64)
-	return append(buf, strconv.FormatUint(uint64(v), 10)...), nil
+	return append(buf, strconv.FormatUint(v, 10)...), nil
 }
 
 type encodePlanUint64CodecTextUint64Valuer struct{}
@@ -298,7 +298,7 @@ func (scanPlanBinaryUint64ToTextScanner) Scan(src []byte, dst any) error {
 		return fmt.Errorf("invalid length for uint64: %v", len(src))
 	}
 
-	n := uint64(binary.BigEndian.Uint64(src))
+	n := binary.BigEndian.Uint64(src)
 	return s.ScanText(Text{String: strconv.FormatUint(n, 10), Valid: true})
 }
 
