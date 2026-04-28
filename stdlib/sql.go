@@ -712,7 +712,7 @@ func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
 		return reflect.TypeFor[bool]()
 	case pgtype.NumericOID:
 		return reflect.TypeFor[float64]()
-	case pgtype.DateOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
+	case pgtype.DateOID, pgtype.TimeOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
 		return reflect.TypeFor[time.Time]()
 	case pgtype.ByteaOID:
 		return reflect.TypeFor[[]byte]()
@@ -816,6 +816,38 @@ func (r *Rows) Next(dest []driver.Value) error {
 						return nil, err
 					}
 					return d, nil
+				}
+			case pgtype.TimeOID:
+				var d pgtype.Time
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(src, &d)
+					if err != nil {
+						return nil, err
+					}
+					if !d.Valid {
+						return nil, nil
+					}
+
+					// The microseconds-to-time.Time conversion here is duplicated from
+					// timeWrapper.ScanTime in pgtype/builtin_wrappers.go. timeWrapper is
+					// unexported, so we inline the conversion.
+
+					var maxRepresentableByTime int64 = 24*60*60*1000000 - 1
+					if d.Microseconds > maxRepresentableByTime {
+						return nil, fmt.Errorf("%d microseconds cannot be represented as time.Time", d.Microseconds)
+					}
+
+					usec := d.Microseconds
+					hours := usec / (60 * 60 * 1000000)
+					usec -= hours * (60 * 60 * 1000000)
+					minutes := usec / (60 * 1000000)
+					usec -= minutes * (60 * 1000000)
+					seconds := usec / 1000000
+					usec -= seconds * 1000000
+					ns := usec * 1000
+
+					return time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), time.UTC), nil
 				}
 			case pgtype.TimestampOID:
 				var d pgtype.Timestamp
