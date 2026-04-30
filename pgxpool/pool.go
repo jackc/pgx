@@ -103,6 +103,7 @@ type Pool struct {
 	healthCheckTimer *time.Timer
 
 	healthCheckChan chan struct{}
+	baseCtx         context.Context
 
 	acquireTracer AcquireTracer
 	releaseTracer ReleaseTracer
@@ -250,6 +251,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		healthCheckPeriod:     config.HealthCheckPeriod,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
+		baseCtx:               ctx,
 	}
 
 	if t, ok := config.ConnConfig.Tracer.(AcquireTracer); ok {
@@ -561,7 +563,7 @@ func (p *Pool) checkMinConns() error {
 	stat := p.Stat()
 	toCreate := max(p.minConns-stat.TotalConns(), p.minIdleConns-stat.IdleConns())
 	if toCreate > 0 {
-		return p.createIdleResources(context.Background(), int(toCreate))
+		return p.createIdleResources(p.baseCtx, int(toCreate))
 	}
 	return nil
 }
