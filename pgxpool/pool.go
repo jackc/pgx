@@ -251,7 +251,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		healthCheckPeriod:     config.HealthCheckPeriod,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
-		baseCtx:               ctx,
+		baseCtx:               context.WithoutCancel(ctx),
 	}
 
 	if t, ok := config.ConnConfig.Tracer.(AcquireTracer); ok {
