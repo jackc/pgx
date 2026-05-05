@@ -169,24 +169,17 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	// the SQL not support recent structures such as multirange
 	serverVersion, _ := serverVersion(c)
 	sql := buildLoadDerivedTypesSQL(serverVersion, typeNames)
-	rows, err := c.Query(ctx, sql, QueryResultFormats{TextFormatCode}, typeNames)
-	if err != nil {
-		return nil, fmt.Errorf("While generating load types query: %w", err)
-	}
-	defer rows.Close()
+	rows, _ := c.Query(ctx, sql, QueryResultFormats{TextFormatCode}, typeNames)
+
 	result := make([]*pgtype.Type, 0, 100)
-	for rows.Next() {
-		ti := derivedTypeInfo{}
-		err = rows.Scan(&ti.TypeName, &ti.NspName, &ti.Typtype, &ti.Typbasetype, &ti.Typelem, &ti.Oid, &ti.Rngtypid, &ti.Rngsubtype, &ti.Attnames, &ti.Atttypids)
-		if err != nil {
-			return nil, fmt.Errorf("While scanning type information: %w", err)
-		}
+	ti := derivedTypeInfo{}
+	_, err := ForEachRow(rows, []any{&ti.TypeName, &ti.NspName, &ti.Typtype, &ti.Typbasetype, &ti.Typelem, &ti.Oid, &ti.Rngtypid, &ti.Rngsubtype, &ti.Attnames, &ti.Atttypids}, func() error {
 		var type_ *pgtype.Type
 		switch ti.Typtype {
 		case "b": // array
 			dt, ok := m.TypeForOID(ti.Typelem)
 			if !ok {
-				return nil, fmt.Errorf("Array element OID %v not registered while loading pgtype %q", ti.Typelem, ti.TypeName)
+				return fmt.Errorf("Array element OID %v not registered while loading pgtype %q", ti.Typelem, ti.TypeName)
 			}
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.ArrayCodec{ElementType: dt}}
 		case "c": // composite
@@ -194,7 +187,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 			for i, fieldName := range ti.Attnames {
 				dt, ok := m.TypeForOID(ti.Atttypids[i])
 				if !ok {
-					return nil, fmt.Errorf("Unknown field for composite type %q:  field %q (OID %v) is not already registered.", ti.TypeName, fieldName, ti.Atttypids[i])
+					return fmt.Errorf("Unknown field for composite type %q:  field %q (OID %v) is not already registered.", ti.TypeName, fieldName, ti.Atttypids[i])
 				}
 				fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, Type: dt})
 			}
@@ -203,7 +196,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		case "d": // domain
 			dt, ok := m.TypeForOID(ti.Typbasetype)
 			if !ok {
-				return nil, fmt.Errorf("Domain base type OID %v was not already registered, needed for %q", ti.Typbasetype, ti.TypeName)
+				return fmt.Errorf("Domain base type OID %v was not already registered, needed for %q", ti.Typbasetype, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: dt.Codec}
@@ -212,19 +205,19 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		case "r": // range
 			dt, ok := m.TypeForOID(ti.Rngsubtype)
 			if !ok {
-				return nil, fmt.Errorf("Range element OID %v was not already registered, needed for %q", ti.Rngsubtype, ti.TypeName)
+				return fmt.Errorf("Range element OID %v was not already registered, needed for %q", ti.Rngsubtype, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.RangeCodec{ElementType: dt}}
 		case "m": // multirange
 			dt, ok := m.TypeForOID(ti.Rngtypid)
 			if !ok {
-				return nil, fmt.Errorf("Multirange element OID %v was not already registered, needed for %q", ti.Rngtypid, ti.TypeName)
+				return fmt.Errorf("Multirange element OID %v was not already registered, needed for %q", ti.Rngtypid, ti.TypeName)
 			}
 
 			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.MultirangeCodec{ElementType: dt}}
 		default:
-			return nil, fmt.Errorf("Unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
+			return fmt.Errorf("Unknown typtype %q was found while registering %q", ti.Typtype, ti.TypeName)
 		}
 
 		// the type_ is impossible to be null
@@ -235,8 +228,10 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 			result = append(result, nspType)
 		}
 		result = append(result, type_)
-	}
-	return result, nil
+		return nil
+	})
+
+	return result, err
 }
 
 // serverVersion returns the postgresql server version.
