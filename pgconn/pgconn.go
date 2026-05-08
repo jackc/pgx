@@ -362,7 +362,13 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		}
 	}
 
-	pgConn.contextWatcher = ctxwatch.NewContextWatcher(config.BuildContextWatcherHandler(pgConn))
+	// Use a deadline-only watcher during connect. The application-supplied
+	// BuildContextWatcherHandler may read *PgConn fields (e.g.
+	// CancelRequestContextWatcherHandler reads pgConn.pid and
+	// pgConn.secretKey), which would race with this function's writes to
+	// those fields when handling BackendKeyData. The application handler is
+	// installed below, after the connection reaches connStatusIdle.
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
 
@@ -454,14 +460,13 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
-			if config.ValidateConnect != nil {
-				// ValidateConnect may execute commands that cause the context to be watched again. Unwatch first to avoid
-				// the watch already in progress panic. This is that last thing done by this method so there is no need to
-				// restart the watch after ValidateConnect returns.
-				//
-				// See https://github.com/jackc/pgconn/issues/40.
-				pgConn.contextWatcher.Unwatch()
+			// The connect-phase deadline-only watcher is no longer needed; replace
+			// it with the application-supplied watcher so subsequent operations
+			// (including any queries run by ValidateConnect) use it.
+			pgConn.contextWatcher.Unwatch()
+			pgConn.contextWatcher = ctxwatch.NewContextWatcher(config.BuildContextWatcherHandler(pgConn))
 
+			if config.ValidateConnect != nil {
 				err := config.ValidateConnect(ctx, pgConn)
 				if err != nil {
 					if _, ok := err.(*NotPreferredError); ignoreNotPreferredErr && ok {

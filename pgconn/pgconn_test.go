@@ -4841,6 +4841,91 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 	}
 }
 
+// raceProbeHandler implements ctxwatch.Handler. On HandleCancel it synchronously reads pgConn.PID() and
+// pgConn.SecretKey() — the same fields that CancelRequestContextWatcherHandler's spawned goroutine reads via
+// CancelRequest. Reading synchronously inside HandleCancel guarantees the read happens before HandleUnwatchAfterCancel
+// can cancel anything, eliminating the timing-window flakiness of the real handler and making this a reliable
+// race-detector reproducer for the underlying issue: during connect, *PgConn-reading handlers race with the auth loop's
+// writes to pgConn.pid and pgConn.secretKey when BackendKeyData arrives.
+type raceProbeHandler struct {
+	conn *pgconn.PgConn
+	pid  uint32
+	key  []byte
+}
+
+func (h *raceProbeHandler) HandleCancel(context.Context) {
+	h.pid = h.conn.PID()
+	h.key = h.conn.SecretKey()
+}
+
+func (h *raceProbeHandler) HandleUnwatchAfterCancel() {}
+
+// TestConnectContextCancelHandlerRace reproduces the data race that occurred when the application-supplied
+// BuildContextWatcherHandler was armed during the connect handshake. If the context was cancelled while connectOne was
+// still running, a handler that reads *PgConn fields (such as CancelRequestContextWatcherHandler, which calls
+// CancelRequest reading pgConn.pid and pgConn.secretKey) would race with the auth loop's writes to those fields when
+// handling BackendKeyData.
+//
+// The fix is to use the deadline-only handler during connect and only swap in the application-supplied handler after
+// the connection is established.
+//
+// Run with -race to detect the race.
+//
+// Race originally reported in https://github.com/jackc/pgx/pull/2534.
+func TestConnectContextCancelHandlerRace(t *testing.T) {
+	t.Parallel()
+
+	for i := range 10 {
+		t.Run(fmt.Sprintf("Stress %d", i), func(t *testing.T) {
+			t.Parallel()
+
+			script := &pgmock.Script{
+				Steps: []pgmock.Step{
+					pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
+					pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+					pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 12345, SecretKey: []byte{1, 2, 3, 4}}),
+					pgmockWaitStep(200 * time.Millisecond),
+					pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+				},
+			}
+
+			ln, err := net.Listen("tcp", "127.0.0.1:")
+			require.NoError(t, err)
+			defer ln.Close()
+
+			go func() {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+				_ = script.Run(pgproto3.NewBackend(conn, conn))
+			}()
+
+			host, port, _ := strings.Cut(ln.Addr().String(), ":")
+			connStr := fmt.Sprintf("sslmode=disable host=%s port=%s user=test database=test", host, port)
+			config, err := pgconn.ParseConfig(connStr)
+			require.NoError(t, err)
+			config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+				return &raceProbeHandler{conn: conn}
+			}
+			config.ConnectTimeout = 5 * time.Second
+
+			ctx, cancel := context.WithCancel(context.Background())
+			// Cancel during the 200ms wait between BackendKeyData and ReadyForQuery,
+			// after the auth loop has written pid/secretKey.
+			time.AfterFunc(50*time.Millisecond, cancel)
+			defer cancel()
+
+			pgConn, err := pgconn.ConnectConfig(ctx, config)
+			if err == nil {
+				closeConn(t, pgConn)
+			}
+		})
+	}
+}
+
 func TestConnectProtocolVersion32(t *testing.T) {
 	t.Parallel()
 
