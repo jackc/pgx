@@ -174,7 +174,7 @@ func (encodePlanTSVectorCodecBinary) Encode(value any, buf []byte) ([]byte, erro
 
 		// Each position is a uint16: weight (2 bits) | position (14 bits)
 		for _, pos := range entry.Positions {
-			packed := tsvectorWeightToBinary(pos.Weight)<<14 | uint16(pos.Position)&0x3FFF
+			packed := tsvectorWeightToBinary(pos.Weight)<<14 | pos.Position&0x3FFF
 			buf = pgio.AppendUint16(buf, packed)
 		}
 	}

@@ -475,7 +475,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		case *pgproto3.ParameterStatus, *pgproto3.NoticeResponse:
 			// handled by ReceiveMessage
 		case *pgproto3.NegotiateProtocolVersion:
-			serverVersion := pgproto3.ProtocolVersion30&0xFFFF0000 | uint32(msg.NewestMinorProtocol)
+			serverVersion := pgproto3.ProtocolVersion30&0xFFFF0000 | msg.NewestMinorProtocol
 			if serverVersion < minProtocolVersion {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("server protocol version too low", nil)
@@ -1008,22 +1008,22 @@ func ErrorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 	return &PgError{
 		Severity:            msg.Severity,
 		SeverityUnlocalized: msg.SeverityUnlocalized,
-		Code:                string(msg.Code),
-		Message:             string(msg.Message),
-		Detail:              string(msg.Detail),
+		Code:                msg.Code,
+		Message:             msg.Message,
+		Detail:              msg.Detail,
 		Hint:                msg.Hint,
 		Position:            msg.Position,
 		InternalPosition:    msg.InternalPosition,
-		InternalQuery:       string(msg.InternalQuery),
-		Where:               string(msg.Where),
-		SchemaName:          string(msg.SchemaName),
-		TableName:           string(msg.TableName),
-		ColumnName:          string(msg.ColumnName),
-		DataTypeName:        string(msg.DataTypeName),
+		InternalQuery:       msg.InternalQuery,
+		Where:               msg.Where,
+		SchemaName:          msg.SchemaName,
+		TableName:           msg.TableName,
+		ColumnName:          msg.ColumnName,
+		DataTypeName:        msg.DataTypeName,
 		ConstraintName:      msg.ConstraintName,
-		File:                string(msg.File),
+		File:                msg.File,
 		Line:                msg.Line,
-		Routine:             string(msg.Routine),
+		Routine:             msg.Routine,
 	}
 }
 

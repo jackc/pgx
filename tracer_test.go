@@ -119,13 +119,13 @@ func TestTraceExec(t *testing.T) {
 			require.Equal(t, `select $1::text`, data.SQL)
 			require.Len(t, data.Args, 1)
 			require.Equal(t, `testing`, data.Args[0])
-			return context.WithValue(ctx, ctxKey(ctxKey("fromTraceQueryStart")), "foo")
+			return context.WithValue(ctx, ctxKey("fromTraceQueryStart"), "foo")
 		}
 
 		traceQueryEndCalled := false
 		tracer.traceQueryEnd = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 			traceQueryEndCalled = true
-			require.Equal(t, "foo", ctx.Value(ctxKey(ctxKey("fromTraceQueryStart"))))
+			require.Equal(t, "foo", ctx.Value(ctxKey("fromTraceQueryStart")))
 			require.Equal(t, `SELECT 1`, data.CommandTag.String())
 			require.NoError(t, data.Err)
 		}
