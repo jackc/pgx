@@ -179,7 +179,7 @@ func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
 
 // Commit commits the transaction.
 func (tx *dbTx) Commit(ctx context.Context) error {
-	if tx.closed.CompareAndSwap(false, true) {
+	if !tx.closed.CompareAndSwap(false, true) {
 		return ErrTxClosed
 	}
 
@@ -207,7 +207,7 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 // defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 // non-error condition.
 func (tx *dbTx) Rollback(ctx context.Context) error {
-	if tx.closed.CompareAndSwap(false, true) {
+	if !tx.closed.CompareAndSwap(false, true) {
 		return ErrTxClosed
 	}
 
