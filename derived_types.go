@@ -236,6 +236,11 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 		}
 		result = append(result, type_)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("While processing rows: %w", err)
+	}
+
 	return result, nil
 }
 
