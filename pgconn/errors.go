@@ -93,6 +93,12 @@ func (e *perDialConnectError) Unwrap() error {
 	return e.err
 }
 
+// ErrConnClosed is returned (possibly wrapped) when an operation is attempted
+// on a connection that the driver has already closed, e.g. because a prior
+// query was cancelled mid-flight or the underlying socket went away. Use
+// errors.Is to test for it, since it shows up wrapped inside connLockError.
+var ErrConnClosed = errors.New("conn closed")
+
 type connLockError struct {
 	status string
 }
@@ -103,6 +109,13 @@ func (e *connLockError) SafeToRetry() bool {
 
 func (e *connLockError) Error() string {
 	return e.status
+}
+
+func (e *connLockError) Unwrap() error {
+	if e.status == "conn closed" {
+		return ErrConnClosed
+	}
+	return nil
 }
 
 // ParseConfigError is the error returned when a connection string cannot be parsed.
