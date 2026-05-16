@@ -144,7 +144,7 @@ func normalizeTimeoutError(ctx context.Context, err error) error {
 		} else if ctx.Err() == context.DeadlineExceeded {
 			return &errTimeout{err: ctx.Err()}
 		} else {
-			return &errTimeout{err: netErr}
+			return &errTimeout{err: err}
 		}
 	}
 	return err
