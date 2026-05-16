@@ -2981,6 +2981,26 @@ func TestHijackAndConstruct(t *testing.T) {
 	ensureConnValid(t, newConn)
 }
 
+// Operations on a closed connection should surface an error that
+// satisfies errors.Is(err, pgconn.ErrConnClosed) so callers can tell a
+// dead-transport failure apart from things like a *PgError.
+// See https://github.com/jackc/pgx/issues/2557.
+func TestExecOnClosedConnErrConnClosed(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	require.NoError(t, pgConn.Close(ctx))
+
+	_, err = pgConn.Exec(ctx, "select 1").ReadAll()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, pgconn.ErrConnClosed)
+}
+
 func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 	t.Parallel()
 
