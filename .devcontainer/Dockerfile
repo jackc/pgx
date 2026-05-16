@@ -1,9 +1,10 @@
-FROM mcr.microsoft.com/devcontainers/go:2-1.26-trixie
+FROM mcr.microsoft.com/devcontainers/base:ubuntu24.04
 
 RUN apt-get update && apt-get install -y postgresql-common \
     && yes | /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh \
     && apt-get install -y postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/*
 
-USER vscode
-RUN go install golang.org/x/tools/cmd/goimports@latest
+RUN apt-get update \
+    && apt-get install -y build-essential libssl-dev libreadline-dev zlib1g-dev libffi-dev ncurses-dev libyaml-dev libxml2 libxml2-dev libxslt1-dev -y postgresql-client-18 \
+    && rm -rf /var/lib/apt/lists/*
