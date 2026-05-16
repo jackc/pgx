@@ -6,6 +6,18 @@ volumes:
   postgres-18-data:
   pg-sockets:
 
+  # Per-container persistence. Compose prefixes this with COMPOSE_PROJECT_NAME,
+  # which the VS Code dev-containers extension derives per-instance, so each
+  # devcontainer gets its own.
+  devstate-local:
+
+  # Shared across every devcontainer instance of this project. Pre-created in
+  # devcontainer.json's initializeCommand so the exact name is used as-is
+  # (Compose would otherwise prefix it per-instance, defeating the purpose).
+  devstate-shared:
+    name: devstate-shared-pgx
+    external: true
+
 services:
   app:
     build:
@@ -13,8 +25,10 @@ services:
       dockerfile: Dockerfile
 
     volumes:
-      - ../..:/workspaces:cached
+      - ..:/workspaces/pgx:cached
       - pg-sockets:/var/run/postgresql
+      - devstate-local:/persist/local
+      - devstate-shared:/persist/shared
 
     environment:
       PGUSER: postgres
