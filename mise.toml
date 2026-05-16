@@ -1,0 +1,7 @@
+[tools]
+go = '1.26.3'
+"go:github.com/gordonklaus/ineffassign" = "latest"
+"go:github.com/mdempsky/unconvert" = "latest"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
+"go:mvdan.cc/gofumpt" = "latest"
+ruby = '4.0.4'
