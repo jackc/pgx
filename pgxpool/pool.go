@@ -636,6 +636,11 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			}
 		}
 
+		if isExpired := p.isExpired(res); isExpired {
+			res.Destroy()
+			continue
+		}
+
 		if p.prepareConn != nil {
 			ok, err := p.prepareConn(ctx, cr.conn)
 			if !ok {

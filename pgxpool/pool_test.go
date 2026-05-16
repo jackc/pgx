@@ -1282,6 +1282,48 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 	}
 }
 
+func TestPoolAcquireDestroysExpiredIdleConn(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConnLifetime = 250 * time.Millisecond
+	config.HealthCheckPeriod = 10 * time.Second
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Acquire and release before expiry so the connection goes idle while still valid.
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	c.Release()
+	waitForReleaseToComplete()
+
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+	require.EqualValues(t, 0, pool.Stat().MaxLifetimeDestroyCount())
+
+	// Wait for the idle connection to expire.
+	time.Sleep(config.MaxConnLifetime + 100*time.Millisecond)
+
+	// Acquire should pick up the expired idle conn, the new isExpired check in Acquire
+	// destroys it, and a fresh connection is created.
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	c.Release()
+
+	// Give destroy time to settle.
+	time.Sleep(500 * time.Millisecond)
+
+	stats := pool.Stat()
+	require.EqualValues(t, 1, stats.MaxLifetimeDestroyCount())
+	require.EqualValues(t, 1, stats.TotalConns())
+}
+
 func TestPoolAcquirePingTimeout(t *testing.T) {
 	t.Parallel()
 
