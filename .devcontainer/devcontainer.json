@@ -20,6 +20,7 @@
 	"onCreateCommand": ".devcontainer/on-create.bash",
 	"postStartCommand": "base64 -d testsetup/certs/ca.pem.b64 > /tmp/ca.pem && base64 -d testsetup/certs/pgx_sslcert.crt.b64 > /tmp/pgx_sslcert.crt && base64 -d testsetup/certs/pgx_sslcert.key.b64 > /tmp/pgx_sslcert.key && chmod 600 /tmp/pgx_sslcert.key",
 	"postCreateCommand": ".devcontainer/post-create.bash",
+  "waitFor": "postCreateCommand",
 
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
@@ -28,5 +29,15 @@
     },
     "ghcr.io/devcontainers-extra/features/mise:1": {},
     "ghcr.io/devcontainers/features/github-cli:1.1.0": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "hverlin.mise-vscode",
+        "tamasfe.even-better-toml"
+      ]
+    }
   }
 }
