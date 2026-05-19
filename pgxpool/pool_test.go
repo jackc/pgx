@@ -614,6 +614,40 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 	assert.EqualValues(t, 0, stats.TotalConns())
 }
 
+func TestPoolAcquireChecksMaxConnLifetime(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConnLifetime = 250 * time.Millisecond
+	// Push the background health check far out so this test isolates the
+	// Acquire-time expiry check.
+	config.HealthCheckPeriod = time.Hour
+
+	db, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	c, err := db.Acquire(ctx)
+	require.NoError(t, err)
+	c.Release()
+	waitForReleaseToComplete()
+
+	time.Sleep(config.MaxConnLifetime + 50*time.Millisecond)
+
+	c, err = db.Acquire(ctx)
+	require.NoError(t, err)
+	defer c.Release()
+
+	stats := db.Stat()
+	assert.EqualValues(t, 1, stats.MaxLifetimeDestroyCount())
+	assert.EqualValues(t, 2, stats.NewConnsCount())
+}
+
 func TestConnReleaseClosesBusyConn(t *testing.T) {
 	t.Parallel()
 

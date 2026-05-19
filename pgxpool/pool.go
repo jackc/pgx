@@ -619,6 +619,14 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		cr := res.Value()
 
+		// Enforce MaxConnLifetime on acquire so it holds on hot pools where
+		// connections are rarely idle when the background health check runs.
+		if p.isExpired(res) {
+			atomic.AddInt64(&p.lifetimeDestroyCount, 1)
+			res.Destroy()
+			continue
+		}
+
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
 			err := func() error {
