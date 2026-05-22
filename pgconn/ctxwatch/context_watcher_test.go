@@ -101,14 +101,14 @@ func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
 }
 
 func TestContextWatcherStress(t *testing.T) {
-	var cancelFuncCalls int64
-	var cleanupFuncCalls int64
+	var cancelFuncCalls atomic.Int64
+	var cleanupFuncCalls atomic.Int64
 
 	cw := ctxwatch.NewContextWatcher(&testHandler{
 		handleCancel: func(context.Context) {
-			atomic.AddInt64(&cancelFuncCalls, 1)
+			cancelFuncCalls.Add(1)
 		}, handleUnwatchAfterCancel: func() {
-			atomic.AddInt64(&cleanupFuncCalls, 1)
+			cleanupFuncCalls.Add(1)
 		},
 	})
 
@@ -135,8 +135,8 @@ func TestContextWatcherStress(t *testing.T) {
 		}
 	}
 
-	actualCancelFuncCalls := atomic.LoadInt64(&cancelFuncCalls)
-	actualCleanupFuncCalls := atomic.LoadInt64(&cleanupFuncCalls)
+	actualCancelFuncCalls := cancelFuncCalls.Load()
+	actualCleanupFuncCalls := cleanupFuncCalls.Load()
 
 	if actualCancelFuncCalls == 0 {
 		t.Fatal("actualCancelFuncCalls == 0")

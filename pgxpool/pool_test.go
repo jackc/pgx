@@ -1199,15 +1199,15 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	config.MinConns = int32(12)
 	config.MaxConns = int32(15)
 
-	acquireAttempts := int64(0)
-	connectAttempts := int64(0)
+	var acquireAttempts atomic.Int64
+	var connectAttempts atomic.Int64
 
 	config.PrepareConn = func(ctx context.Context, conn *pgx.Conn) (bool, error) {
-		atomic.AddInt64(&acquireAttempts, 1)
+		acquireAttempts.Add(1)
 		return true, nil
 	}
 	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
-		atomic.AddInt64(&connectAttempts, 1)
+		connectAttempts.Add(1)
 		return nil
 	}
 
@@ -1219,7 +1219,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		stat := pool.Stat()
-		if stat.IdleConns() == 12 && stat.AcquireCount() == 0 && stat.TotalConns() == 12 && atomic.LoadInt64(&acquireAttempts) == 0 && atomic.LoadInt64(&connectAttempts) == 12 {
+		if stat.IdleConns() == 12 && stat.AcquireCount() == 0 && stat.TotalConns() == 12 && acquireAttempts.Load() == 0 && connectAttempts.Load() == 12 {
 			return
 		}
 	}
