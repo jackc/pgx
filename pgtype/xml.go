@@ -159,10 +159,10 @@ type scanPlanXMLToXMLUnmarshal struct {
 func (s *scanPlanXMLToXMLUnmarshal) Scan(src []byte, dst any) error {
 	if src == nil {
 		dstValue := reflect.ValueOf(dst)
-		if dstValue.Kind() == reflect.Ptr {
+		if dstValue.Kind() == reflect.Pointer {
 			el := dstValue.Elem()
 			switch el.Kind() {
-			case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface, reflect.Struct:
+			case reflect.Pointer, reflect.Slice, reflect.Map, reflect.Interface, reflect.Struct:
 				el.Set(reflect.Zero(el.Type()))
 				return nil
 			}

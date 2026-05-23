@@ -393,13 +393,14 @@ type scanPlanSQLScanner struct {
 func (plan *scanPlanSQLScanner) Scan(src []byte, dst any) error {
 	scanner := dst.(sql.Scanner)
 
-	if src == nil {
+	switch {
+	case src == nil:
 		// This is necessary because interface value []byte:nil does not equal nil:nil for the binary format path and the
 		// text format path would be converted to empty string.
 		return scanner.Scan(nil)
-	} else if plan.formatCode == BinaryFormatCode {
+	case plan.formatCode == BinaryFormatCode:
 		return scanner.Scan(src)
-	} else {
+	default:
 		return scanner.Scan(string(src))
 	}
 }
@@ -509,9 +510,9 @@ func (plan *pointerPointerScanPlan) Scan(src []byte, dst any) error {
 // TryPointerPointerScanPlan handles a pointer to a pointer by setting the target to nil for SQL NULL and allocating and
 // scanning for non-NULL.
 func TryPointerPointerScanPlan(target any) (plan WrappedScanPlanNextSetter, nextTarget any, ok bool) {
-	if dstValue := reflect.ValueOf(target); dstValue.Kind() == reflect.Ptr {
+	if dstValue := reflect.ValueOf(target); dstValue.Kind() == reflect.Pointer {
 		elemValue := dstValue.Elem()
-		if elemValue.Kind() == reflect.Ptr {
+		if elemValue.Kind() == reflect.Pointer {
 			plan = &pointerPointerScanPlan{dstType: dstValue.Type()}
 			return plan, reflect.Zero(elemValue.Type()).Interface(), true
 		}
@@ -563,7 +564,7 @@ func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nex
 
 	dstValue := reflect.ValueOf(dst)
 
-	if dstValue.Kind() == reflect.Ptr {
+	if dstValue.Kind() == reflect.Pointer {
 		var elemValue reflect.Value
 		if dstValue.IsNil() {
 			elemValue = reflect.New(dstValue.Type().Elem()).Elem()
@@ -907,7 +908,7 @@ func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst any) error {
 // TryWrapStructScanPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
 func TryWrapStructScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return nil, nil, false
 	}
 
@@ -971,7 +972,7 @@ func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextVa
 	}
 
 	targetType := reflect.TypeOf(target)
-	if targetType.Kind() != reflect.Ptr {
+	if targetType.Kind() != reflect.Pointer {
 		return nil, nil, false
 	}
 
@@ -1007,7 +1008,7 @@ func (plan *wrapPtrSliceReflectScanPlan) Scan(src []byte, target any) error {
 // TryWrapPtrMultiDimSliceScanPlan tries to wrap a pointer to a multi-dimension slice.
 func TryWrapPtrMultiDimSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return nil, nil, false
 	}
 
@@ -1038,7 +1039,7 @@ func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target any) error {
 // TryWrapPtrArrayScanPlan tries to wrap a pointer to a single dimension array.
 func TryWrapPtrArrayScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return nil, nil, false
 	}
 
@@ -1080,8 +1081,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any, depth int) Scan
 
 	switch formatCode {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case *string:
+		if _, ok := target.(*string); ok {
 			switch oid {
 			case TextOID, VarcharOID:
 				return scanPlanString{}
@@ -1367,7 +1367,7 @@ func TryWrapDerefPointerEncodePlan(value any) (plan WrappedEncodePlanNextSetter,
 		return nil, nil, false
 	}
 
-	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Ptr {
+	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Pointer {
 		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
 	}
 
@@ -2045,13 +2045,13 @@ func isNilDriverValuer(value any) (isNil, callNilDriverValuer bool) {
 	refVal := reflect.ValueOf(value)
 	kind := refVal.Kind()
 	switch kind {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		if !refVal.IsNil() {
 			return false, false
 		}
 
 		if _, ok := value.(driver.Valuer); ok {
-			if kind == reflect.Ptr {
+			if kind == reflect.Pointer {
 				// The type assertion will succeed if driver.Valuer is implemented on T or *T. Check if it is implemented on *T
 				// by checking if it is not implemented on *T.
 				return true, !refVal.Type().Elem().Implements(valuerReflectType)

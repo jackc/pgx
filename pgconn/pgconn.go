@@ -1125,8 +1125,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 			return normalizeTimeoutError(ctx, err)
 		}
 
-		switch msg.(type) {
-		case *pgproto3.NotificationResponse:
+		if _, ok := msg.(*pgproto3.NotificationResponse); ok {
 			return nil
 		}
 	}
@@ -1711,8 +1710,7 @@ func (rr *ResultReader) NextRow() bool {
 			return false
 		}
 
-		switch msg := msg.(type) {
-		case *pgproto3.DataRow:
+		if msg, ok := msg.(*pgproto3.DataRow); ok {
 			rr.rowValues = msg.Values
 			return true
 		}
@@ -2009,7 +2007,7 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 		return "", errors.New("EscapeString must be run with client_encoding=UTF8")
 	}
 
-	return strings.Replace(s, "'", "''", -1), nil
+	return strings.ReplaceAll(s, "'", "''"), nil
 }
 
 // CheckConn checks the underlying connection without writing any bytes. This is currently implemented by doing a read

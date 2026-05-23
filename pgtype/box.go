@@ -42,8 +42,7 @@ func (dst *Box) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToBoxScanner{}.Scan([]byte(src), dst)
 	}
 
@@ -131,13 +130,11 @@ func (encodePlanBoxCodecText) Encode(value any, buf []byte) (newBuf []byte, err 
 func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case BoxScanner:
+		if _, ok := target.(BoxScanner); ok {
 			return scanPlanBinaryBoxToBoxScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case BoxScanner:
+		if _, ok := target.(BoxScanner); ok {
 			return scanPlanTextAnyToBoxScanner{}
 		}
 	}

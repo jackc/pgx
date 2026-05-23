@@ -70,13 +70,14 @@ func (n Numeric) NumericValue() (Numeric, error) {
 
 // Float64Value implements the [Float64Valuer] interface.
 func (n Numeric) Float64Value() (Float8, error) {
-	if !n.Valid {
+	switch {
+	case !n.Valid:
 		return Float8{}, nil
-	} else if n.NaN {
+	case n.NaN:
 		return Float8{Float64: math.NaN(), Valid: true}, nil
-	} else if n.InfinityModifier == Infinity {
+	case n.InfinityModifier == Infinity:
 		return Float8{Float64: math.Inf(1), Valid: true}, nil
-	} else if n.InfinityModifier == NegativeInfinity {
+	case n.InfinityModifier == NegativeInfinity:
 		return Float8{Float64: math.Inf(-1), Valid: true}, nil
 	}
 
@@ -215,8 +216,7 @@ func (n *Numeric) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
@@ -278,12 +278,13 @@ func (n Numeric) numberTextBytes() []byte {
 	}
 
 	exp := int(n.Exp)
-	if exp > 0 {
+	switch {
+	case exp > 0:
 		buf.WriteString(intStr)
 		for range exp {
 			buf.WriteByte('0')
 		}
-	} else if exp < 0 {
+	case exp < 0:
 		if len(intStr) <= -exp {
 			buf.WriteString("0.")
 			leadingZeros := -exp - len(intStr)
@@ -297,7 +298,7 @@ func (n Numeric) numberTextBytes() []byte {
 			buf.WriteByte('.')
 			buf.WriteString(intStr[dpPos:])
 		}
-	} else {
+	default:
 		buf.WriteString(intStr)
 	}
 
@@ -362,11 +363,12 @@ func (encodePlanNumericCodecBinaryFloat64Valuer) Encode(value any, buf []byte) (
 		return nil, nil
 	}
 
-	if math.IsNaN(n.Float64) {
+	switch {
+	case math.IsNaN(n.Float64):
 		return encodeNumericBinary(Numeric{NaN: true, Valid: true}, buf)
-	} else if math.IsInf(n.Float64, 1) {
+	case math.IsInf(n.Float64, 1):
 		return encodeNumericBinary(Numeric{InfinityModifier: Infinity, Valid: true}, buf)
-	} else if math.IsInf(n.Float64, -1) {
+	case math.IsInf(n.Float64, -1):
 		return encodeNumericBinary(Numeric{InfinityModifier: NegativeInfinity, Valid: true}, buf)
 	}
 	num, exp, err := parseNumericString(strconv.FormatFloat(n.Float64, 'f', -1, 64))
@@ -397,13 +399,14 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 		return nil, nil
 	}
 
-	if n.NaN {
+	switch {
+	case n.NaN:
 		buf = pgio.AppendUint64(buf, pgNumericNaN)
 		return buf, nil
-	} else if n.InfinityModifier == Infinity {
+	case n.InfinityModifier == Infinity:
 		buf = pgio.AppendUint64(buf, pgNumericPosInf)
 		return buf, nil
-	} else if n.InfinityModifier == NegativeInfinity {
+	case n.InfinityModifier == NegativeInfinity:
 		buf = pgio.AppendUint64(buf, pgNumericNegInf)
 		return buf, nil
 	}
@@ -516,13 +519,14 @@ func (encodePlanNumericCodecTextFloat64Valuer) Encode(value any, buf []byte) (ne
 		return nil, nil
 	}
 
-	if math.IsNaN(n.Float64) {
+	switch {
+	case math.IsNaN(n.Float64):
 		buf = append(buf, "NaN"...)
-	} else if math.IsInf(n.Float64, 1) {
+	case math.IsInf(n.Float64, 1):
 		buf = append(buf, "Infinity"...)
-	} else if math.IsInf(n.Float64, -1) {
+	case math.IsInf(n.Float64, -1):
 		buf = append(buf, "-Infinity"...)
-	} else {
+	default:
 		buf = append(buf, strconv.FormatFloat(n.Float64, 'f', -1, 64)...)
 	}
 	return buf, nil
@@ -549,13 +553,14 @@ func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
 		return nil, nil
 	}
 
-	if n.NaN {
+	switch {
+	case n.NaN:
 		buf = append(buf, "NaN"...)
 		return buf, nil
-	} else if n.InfinityModifier == Infinity {
+	case n.InfinityModifier == Infinity:
 		buf = append(buf, "Infinity"...)
 		return buf, nil
-	} else if n.InfinityModifier == NegativeInfinity {
+	case n.InfinityModifier == NegativeInfinity:
 		buf = append(buf, "-Infinity"...)
 		return buf, nil
 	}
@@ -615,11 +620,12 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 
-	if sign == pgNumericNaNSign {
+	switch sign {
+	case pgNumericNaNSign:
 		return scanner.ScanNumeric(Numeric{NaN: true, Valid: true})
-	} else if sign == pgNumericPosInfSign {
+	case pgNumericPosInfSign:
 		return scanner.ScanNumeric(Numeric{InfinityModifier: Infinity, Valid: true})
-	} else if sign == pgNumericNegInfSign {
+	case pgNumericNegInfSign:
 		return scanner.ScanNumeric(Numeric{InfinityModifier: NegativeInfinity, Valid: true})
 	}
 
@@ -784,11 +790,12 @@ func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{})
 	}
 
-	if string(src) == "NaN" {
+	switch string(src) {
+	case "NaN":
 		return scanner.ScanNumeric(Numeric{NaN: true, Valid: true})
-	} else if string(src) == "Infinity" {
+	case "Infinity":
 		return scanner.ScanNumeric(Numeric{InfinityModifier: Infinity, Valid: true})
-	} else if string(src) == "-Infinity" {
+	case "-Infinity":
 		return scanner.ScanNumeric(Numeric{InfinityModifier: NegativeInfinity, Valid: true})
 	}
 

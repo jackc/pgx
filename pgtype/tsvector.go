@@ -54,8 +54,7 @@ func (t *TSVector) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToTSVectorScanner{}.scanString(src, t)
 	}
 
@@ -294,13 +293,11 @@ func (encodePlanTSVectorCodecText) Encode(value any, buf []byte) ([]byte, error)
 func (TSVectorCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case TSVectorScanner:
+		if _, ok := target.(TSVectorScanner); ok {
 			return scanPlanBinaryTSVectorToTSVectorScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case TSVectorScanner:
+		if _, ok := target.(TSVectorScanner); ok {
 			return scanPlanTextAnyToTSVectorScanner{}
 		}
 	}

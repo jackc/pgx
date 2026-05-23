@@ -42,8 +42,7 @@ func (p *Polygon) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToPolygonScanner{}.Scan([]byte(src), p)
 	}
 
@@ -143,13 +142,11 @@ func (encodePlanPolygonCodecText) Encode(value any, buf []byte) (newBuf []byte, 
 func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case PolygonScanner:
+		if _, ok := target.(PolygonScanner); ok {
 			return scanPlanBinaryPolygonToPolygonScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case PolygonScanner:
+		if _, ok := target.(PolygonScanner); ok {
 			return scanPlanTextAnyToPolygonScanner{}
 		}
 	}

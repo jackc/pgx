@@ -43,8 +43,7 @@ func (dst *Circle) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToCircleScanner{}.Scan([]byte(src), dst)
 	}
 
@@ -130,13 +129,11 @@ func (encodePlanCircleCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case CircleScanner:
+		if _, ok := target.(CircleScanner); ok {
 			return scanPlanBinaryCircleToCircleScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case CircleScanner:
+		if _, ok := target.(CircleScanner); ok {
 			return scanPlanTextAnyToCircleScanner{}
 		}
 	}

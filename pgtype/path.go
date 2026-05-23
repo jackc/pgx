@@ -43,8 +43,7 @@ func (path *Path) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToPathScanner{}.Scan([]byte(src), path)
 	}
 
@@ -158,13 +157,11 @@ func (encodePlanPathCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case PathScanner:
+		if _, ok := target.(PathScanner); ok {
 			return scanPlanBinaryPathToPathScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case PathScanner:
+		if _, ok := target.(PathScanner); ok {
 			return scanPlanTextAnyToPathScanner{}
 		}
 	}
