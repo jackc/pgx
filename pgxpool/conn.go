@@ -11,20 +11,22 @@ import (
 
 // Conn is an acquired *pgx.Conn from a Pool.
 type Conn struct {
-	res *puddle.Resource[*connResource]
+	// res is accessed atomically so that concurrent Release/Hijack calls on the
+	// same Conn cannot both take ownership of the underlying puddle resource.
+	res atomic.Pointer[puddle.Resource[*connResource]]
 	p   *Pool
 }
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
 func (c *Conn) Release() {
-	if c.res == nil {
+	// Swap to nil so all other calls will be a no-op.
+	res := c.res.Swap(nil)
+	if res == nil {
 		return
 	}
 
-	conn := c.Conn()
-	res := c.res
-	c.res = nil
+	conn := res.Value().conn
 
 	if c.p.releaseTracer != nil {
 		c.p.releaseTracer.TraceRelease(c.p, TraceReleaseData{Conn: conn})
@@ -70,14 +72,13 @@ func (c *Conn) Release() {
 // Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
 // will panic if called on an already released or hijacked connection.
 func (c *Conn) Hijack() *pgx.Conn {
-	if c.res == nil {
+	// Swap to nil so all other calls will be a no-op.
+	res := c.res.Swap(nil)
+	if res == nil {
 		panic("cannot hijack already released or hijacked connection")
 	}
 
-	conn := c.Conn()
-	res := c.res
-	c.res = nil
-
+	conn := res.Value().conn
 	res.Hijack()
 
 	return conn
@@ -122,7 +123,7 @@ func (c *Conn) Conn() *pgx.Conn {
 }
 
 func (c *Conn) connResource() *connResource {
-	return c.res.Value()
+	return c.res.Load().Value()
 }
 
 func (c *Conn) getPoolRow(r pgx.Row) *poolRow {

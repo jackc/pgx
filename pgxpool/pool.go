@@ -40,7 +40,7 @@ func (cr *connResource) getConn(p *Pool, res *puddle.Resource[*connResource]) *C
 	c := &cr.conns[len(cr.conns)-1]
 	cr.conns = cr.conns[0 : len(cr.conns)-1]
 
-	c.res = res
+	c.res.Store(res)
 	c.p = p
 
 	return c
