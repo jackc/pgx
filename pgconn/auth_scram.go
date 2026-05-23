@@ -229,11 +229,12 @@ func (sc *scramClient) clientFirstMessage() []byte {
 
 	sc.clientFirstMessageBare = fmt.Appendf(nil, "n=,r=%s", sc.clientNonce)
 
-	if sc.authMechanism == scramSHA256PlusName {
+	switch {
+	case sc.authMechanism == scramSHA256PlusName:
 		sc.clientGS2Header = []byte("p=tls-server-end-point,,")
-	} else if sc.hasTLS {
+	case sc.hasTLS:
 		sc.clientGS2Header = []byte("y,,")
-	} else {
+	default:
 		sc.clientGS2Header = []byte("n,,")
 	}
 

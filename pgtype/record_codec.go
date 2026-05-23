@@ -27,8 +27,7 @@ func (RecordCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 
 func (RecordCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	if format == BinaryFormatCode {
-		switch target.(type) {
-		case CompositeIndexScanner:
+		if _, ok := target.(CompositeIndexScanner); ok {
 			return &scanPlanBinaryRecordToCompositeIndexScanner{m: m}
 		}
 	}

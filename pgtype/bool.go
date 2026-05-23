@@ -336,9 +336,9 @@ func planTextToBool(src []byte) (bool, error) {
 	s := string(bytes.ToLower(bytes.TrimSpace(src)))
 
 	switch {
-	case strings.HasPrefix("true", s), strings.HasPrefix("yes", s), s == "on", s == "1":
+	case strings.HasPrefix("true", s), strings.HasPrefix("yes", s), s == "on", s == "1": //nolint:gocritic // s is intentionally the prefix argument so partial inputs (t, tr, tru) also match.
 		return true, nil
-	case strings.HasPrefix("false", s), strings.HasPrefix("no", s), strings.HasPrefix("off", s), s == "0":
+	case strings.HasPrefix("false", s), strings.HasPrefix("no", s), strings.HasPrefix("off", s), s == "0": //nolint:gocritic // s is intentionally the prefix argument so partial inputs (f, fa, fal) also match.
 		return false, nil
 	default:
 		return false, fmt.Errorf("unknown boolean string representation %q", src)

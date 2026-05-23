@@ -218,19 +218,21 @@ func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
 		return ubr, nil
 	}
 
-	if rangeType&lowerInclusiveMask > 0 {
+	switch {
+	case rangeType&lowerInclusiveMask > 0:
 		ubr.LowerType = Inclusive
-	} else if rangeType&lowerUnboundedMask > 0 {
+	case rangeType&lowerUnboundedMask > 0:
 		ubr.LowerType = Unbounded
-	} else {
+	default:
 		ubr.LowerType = Exclusive
 	}
 
-	if rangeType&upperInclusiveMask > 0 {
+	switch {
+	case rangeType&upperInclusiveMask > 0:
 		ubr.UpperType = Inclusive
-	} else if rangeType&upperUnboundedMask > 0 {
+	case rangeType&upperUnboundedMask > 0:
 		ubr.UpperType = Unbounded
-	} else {
+	default:
 		ubr.UpperType = Exclusive
 	}
 

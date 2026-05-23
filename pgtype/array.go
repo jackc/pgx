@@ -242,10 +242,11 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 		return nil, fmt.Errorf("unexpected trailing data: %v", buf.String())
 	}
 
-	if len(dst.Elements) == 0 {
-	} else if len(explicitDimensions) > 0 {
+	switch {
+	case len(dst.Elements) == 0:
+	case len(explicitDimensions) > 0:
 		dst.Dimensions = explicitDimensions
-	} else {
+	default:
 		dst.Dimensions = implicitDimensions
 	}
 

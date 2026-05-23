@@ -87,11 +87,11 @@ type Issue1805 int
 
 func (i *Issue1805) Scan(src any) error {
 	var source []byte
-	switch src.(type) {
+	switch src := src.(type) {
 	case string:
-		source = []byte(src.(string))
+		source = []byte(src)
 	case []byte:
-		source = src.([]byte)
+		source = src
 	default:
 		return errors.New("unknown source type")
 	}
@@ -120,11 +120,11 @@ type Issue2146 int
 
 func (i *Issue2146) Scan(src any) error {
 	var source []byte
-	switch src.(type) {
+	switch src := src.(type) {
 	case string:
-		source = []byte(src.(string))
+		source = []byte(src)
 	case []byte:
-		source = src.([]byte)
+		source = src
 	default:
 		return errors.New("unknown source type")
 	}

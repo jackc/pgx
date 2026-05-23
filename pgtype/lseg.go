@@ -42,8 +42,7 @@ func (lseg *Lseg) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToLsegScanner{}.Scan([]byte(src), lseg)
 	}
 
@@ -131,13 +130,11 @@ func (encodePlanLsegCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case LsegScanner:
+		if _, ok := target.(LsegScanner); ok {
 			return scanPlanBinaryLsegToLsegScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case LsegScanner:
+		if _, ok := target.(LsegScanner); ok {
 			return scanPlanTextAnyToLsegScanner{}
 		}
 	}
