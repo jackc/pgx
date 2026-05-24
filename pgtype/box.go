@@ -189,6 +189,9 @@ func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst any) error {
 
 	var end int
 	end = strings.IndexByte(str, ',')
+	if end == -1 {
+		return fmt.Errorf("invalid format for Box")
+	}
 
 	x1, err := strconv.ParseFloat(str[:end], 64)
 	if err != nil {
@@ -197,6 +200,9 @@ func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst any) error {
 
 	str = str[end+1:]
 	end = strings.IndexByte(str, ')')
+	if end == -1 {
+		return fmt.Errorf("invalid format for Box")
+	}
 
 	y1, err := strconv.ParseFloat(str[:end], 64)
 	if err != nil {
@@ -205,6 +211,9 @@ func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst any) error {
 
 	str = str[end+3:]
 	end = strings.IndexByte(str, ',')
+	if end == -1 {
+		return fmt.Errorf("invalid format for Box")
+	}
 
 	x2, err := strconv.ParseFloat(str[:end], 64)
 	if err != nil {
