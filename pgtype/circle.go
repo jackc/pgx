@@ -200,6 +200,9 @@ func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst any) error {
 
 	str := string(src[2:])
 	end := strings.IndexByte(str, ',')
+	if end == -1 {
+		return fmt.Errorf("invalid format for Circle")
+	}
 	x, err := strconv.ParseFloat(str[:end], 64)
 	if err != nil {
 		return err
@@ -207,6 +210,9 @@ func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst any) error {
 
 	str = str[end+1:]
 	end = strings.IndexByte(str, ')')
+	if end == -1 {
+		return fmt.Errorf("invalid format for Circle")
+	}
 
 	y, err := strconv.ParseFloat(str[:end], 64)
 	if err != nil {

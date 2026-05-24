@@ -211,6 +211,9 @@ func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst any) error {
 
 	for {
 		end := strings.IndexByte(str, ',')
+		if end == -1 {
+			return fmt.Errorf("invalid format for Polygon")
+		}
 		x, err := strconv.ParseFloat(str[:end], 64)
 		if err != nil {
 			return err
@@ -218,6 +221,9 @@ func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst any) error {
 
 		str = str[end+1:]
 		end = strings.IndexByte(str, ')')
+		if end == -1 {
+			return fmt.Errorf("invalid format for Polygon")
+		}
 
 		y, err := strconv.ParseFloat(str[:end], 64)
 		if err != nil {

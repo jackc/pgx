@@ -230,6 +230,9 @@ func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst any) error {
 
 	for {
 		end := strings.IndexByte(str, ',')
+		if end == -1 {
+			return fmt.Errorf("invalid format for Path")
+		}
 		x, err := strconv.ParseFloat(str[:end], 64)
 		if err != nil {
 			return err
@@ -237,6 +240,9 @@ func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst any) error {
 
 		str = str[end+1:]
 		end = strings.IndexByte(str, ')')
+		if end == -1 {
+			return fmt.Errorf("invalid format for Path")
+		}
 
 		y, err := strconv.ParseFloat(str[:end], 64)
 		if err != nil {
