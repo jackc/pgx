@@ -476,17 +476,23 @@ func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field any) {
 		return
 	}
 
-	if isNil, _ := isNilDriverValuer(field); isNil {
+	isNil, callNilDriverValuer := isNilDriverValuer(field)
+	if isNil && !callNilDriverValuer {
 		b.buf = pgio.AppendUint32(b.buf, oid)
 		b.buf = pgio.AppendInt32(b.buf, -1)
 		b.fieldCount++
 		return
 	}
 
-	plan := b.m.PlanEncode(oid, BinaryFormatCode, field)
-	if plan == nil {
-		b.err = fmt.Errorf("unable to encode %v into OID %d in binary format", field, oid)
-		return
+	var plan EncodePlan
+	if isNil {
+		plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: BinaryFormatCode}
+	} else {
+		plan = b.m.PlanEncode(oid, BinaryFormatCode, field)
+		if plan == nil {
+			b.err = fmt.Errorf("unable to encode %v into OID %d in binary format", field, oid)
+			return
+		}
 	}
 
 	b.buf = pgio.AppendUint32(b.buf, oid)
@@ -533,15 +539,21 @@ func (b *CompositeTextBuilder) AppendValue(oid uint32, field any) {
 		return
 	}
 
-	if isNil, _ := isNilDriverValuer(field); isNil {
+	isNil, callNilDriverValuer := isNilDriverValuer(field)
+	if isNil && !callNilDriverValuer {
 		b.buf = append(b.buf, ',')
 		return
 	}
 
-	plan := b.m.PlanEncode(oid, TextFormatCode, field)
-	if plan == nil {
-		b.err = fmt.Errorf("unable to encode %v into OID %d in text format", field, oid)
-		return
+	var plan EncodePlan
+	if isNil {
+		plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: TextFormatCode}
+	} else {
+		plan = b.m.PlanEncode(oid, TextFormatCode, field)
+		if plan == nil {
+			b.err = fmt.Errorf("unable to encode %v into OID %d in text format", field, oid)
+			return
+		}
 	}
 
 	fieldBuf, err := plan.Encode(field, b.fieldBuf[0:0])

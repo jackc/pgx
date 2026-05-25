@@ -2,12 +2,13 @@ package pgtype_test
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/hex"
 	"reflect"
 	"strings"
 	"testing"
 
-	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
@@ -128,6 +129,29 @@ func TestArrayCodecPointerToNil(t *testing.T) {
 		).Scan(&actual)
 		require.NoError(t, err)
 		require.Equal(t, input, actual)
+	})
+}
+
+type jsonbValuerSlice []int
+
+func (v jsonbValuerSlice) Value() (driver.Value, error) {
+	if v == nil {
+		return []byte("[]"), nil
+	}
+	return []byte("[1]"), nil
+}
+
+func TestArrayCodecTypedNilElementWithValuer(t *testing.T) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		input := []jsonbValuerSlice{nil, nil}
+		var actual []string
+		err := conn.QueryRow(
+			ctx,
+			"select $1::jsonb[]::text[]",
+			input,
+		).Scan(&actual)
+		require.NoError(t, err)
+		require.Equal(t, []string{"[]", "[]"}, actual)
 	})
 }
 
