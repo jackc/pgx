@@ -172,6 +172,25 @@ func TestJSONUnmarshalCopyData(t *testing.T) {
 	}
 }
 
+func TestJSONRoundTripCopyData(t *testing.T) {
+	want := CopyData{
+		Data: []byte{0x00, 0x01, 0x02, 0xff, 'h', 'i'},
+	}
+
+	b, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var got CopyData
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("round-trip mismatch:\n want: %v\n got:  %v", want.Data, got.Data)
+	}
+}
+
 func TestJSONUnmarshalCopyInResponse(t *testing.T) {
 	data := []byte(`{"Type":"CopyBothResponse", "OverallFormat": "W"}`)
 	want := CopyBothResponse{
