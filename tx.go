@@ -211,6 +211,16 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 		return ErrTxClosed
 	}
 
+	// The underlying connection may have already been closed out from under the
+	// transaction (e.g. a query's context was canceled, triggering an i/o
+	// timeout that tore down the pgconn). In that case the transaction is
+	// effectively closed, so honor the documented contract and return
+	// ErrTxClosed rather than leaking the low-level "conn closed" error.
+	if tx.conn.IsClosed() {
+		tx.closed = true
+		return ErrTxClosed
+	}
+
 	_, err := tx.conn.Exec(ctx, "rollback")
 	tx.closed = true
 	if err != nil {
