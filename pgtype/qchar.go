@@ -64,6 +64,8 @@ func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPla
 			return scanPlanQcharCodecByte{}
 		case *rune:
 			return scanPlanQcharCodecRune{}
+		case *string:
+			return scanPlanQcharCodecString{}
 		}
 	}
 
@@ -110,6 +112,26 @@ func (scanPlanQcharCodecRune) Scan(src []byte, dst any) error {
 	} else {
 		*r = rune(src[0])
 	}
+
+	return nil
+}
+
+type scanPlanQcharCodecString struct{}
+
+func (scanPlanQcharCodecString) Scan(src []byte, dst any) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan NULL into %T", dst)
+	}
+
+	if len(src) > 1 {
+		return fmt.Errorf(`invalid length for "char": %v`, len(src))
+	}
+
+	p := dst.(*string)
+	// Copy the raw byte so the result matches the text-format *string scan path
+	// (string(src)) byte-for-byte. string(src[0]) would instead UTF-8-encode the
+	// byte as a code point, diverging for byte values >= 128.
+	*p = string(src)
 
 	return nil
 }
