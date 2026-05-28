@@ -125,5 +125,17 @@ func (c *JSONBCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 
 	var dst any
 	err := c.Unmarshal(src, &dst)
-	return dst, err
+	if err != nil {
+		return nil, err
+	}
+	if dst == nil {
+		// See JSONCodec.DecodeValue: literal JSON `null` unmarshals to Go nil,
+		// which is indistinguishable from SQL NULL. Return the raw bytes so
+		// rows.Values() callers can tell the two apart, matching
+		// DecodeDatabaseSQLValue. See #2430.
+		dstBuf := make([]byte, len(src))
+		copy(dstBuf, src)
+		return dstBuf, nil
+	}
+	return dst, nil
 }

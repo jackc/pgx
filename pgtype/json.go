@@ -239,5 +239,20 @@ func (c *JSONCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (a
 
 	var dst any
 	err := c.Unmarshal(src, &dst)
-	return dst, err
+	if err != nil {
+		return nil, err
+	}
+	if dst == nil {
+		// The source was non-NULL (src != nil) but unmarshaled to a Go nil — this
+		// happens for the literal JSON document `null` (and equivalent whitespace
+		// padding). Returning nil here would be indistinguishable from SQL NULL,
+		// which is what DecodeValue returns when src is nil above. Hand back a
+		// copy of the raw bytes so callers (rows.Values(), Map.Scan(&any), …) can
+		// tell the two apart — matching what DecodeDatabaseSQLValue returns to
+		// the database/sql interface for the same input. See #2430.
+		dstBuf := make([]byte, len(src))
+		copy(dstBuf, src)
+		return dstBuf, nil
+	}
+	return dst, nil
 }
