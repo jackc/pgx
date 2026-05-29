@@ -267,12 +267,19 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 		return err
 	}
 
+	elementCount := cardinality(arrayHeader.Dimensions)
+	// Each element carries at minimum a 4-byte length header, so elementCount cannot exceed the
+	// remaining bytes / 4. This bounds the allocation in SetDimensions and the loop below against a
+	// malicious server claiming huge dimensions in a small message.
+	if maxElements := len(src[rp:]) / 4; elementCount > maxElements {
+		return fmt.Errorf("array claims %d elements but only %d bytes remain", elementCount, len(src[rp:]))
+	}
+
 	err = array.SetDimensions(arrayHeader.Dimensions)
 	if err != nil {
 		return err
 	}
 
-	elementCount := cardinality(arrayHeader.Dimensions)
 	if elementCount == 0 {
 		return nil
 	}
