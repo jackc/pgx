@@ -283,11 +283,17 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 	}
 
 	for i := range elementCount {
+		if len(src[rp:]) < 4 {
+			return fmt.Errorf("array body truncated at element %d", i)
+		}
 		elem := array.ScanIndex(i)
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 		var elemSrc []byte
 		if elemLen >= 0 {
+			if len(src[rp:]) < elemLen {
+				return fmt.Errorf("array element %d length %d exceeds remaining %d bytes", i, elemLen, len(src[rp:]))
+			}
 			elemSrc = src[rp : rp+elemLen]
 			rp += elemLen
 		}
