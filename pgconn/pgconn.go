@@ -76,6 +76,7 @@ type NotificationHandler func(*PgConn, *Notification)
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn
+	tlsConfig         *tls.Config       // tls.Config that conn was negotiated with; nil if conn is not TLS
 	pid               uint32            // backend pid
 	secretKey         []byte            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
@@ -358,6 +359,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		}
 
 		pgConn.conn = tlsConn
+		pgConn.tlsConfig = connectConfig.tlsConfig
 	}
 
 	if config.AfterNetConnect != nil {
@@ -1081,6 +1083,25 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 		contextWatcher := ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: cancelConn})
 		contextWatcher.Watch(ctx)
 		defer contextWatcher.Unwatch()
+	}
+
+	// If the primary connection is encrypted, encrypt the cancel connection the same way so the
+	// backend pid and secret key are not exposed to a passive network observer. This mirrors libpq's
+	// PQcancelCreate (PG17+), which reuses the original connection's sslmode/gssencmode for the
+	// cancel connection. The legacy unencrypted path is still used when the primary connection is
+	// plaintext (e.g. unix sockets or sslmode=disable).
+	if pgConn.tlsConfig != nil {
+		var tlsCancelConn net.Conn
+		if pgConn.config.SSLNegotiation == "direct" {
+			tlsCancelConn = tls.Client(cancelConn, pgConn.tlsConfig)
+		} else {
+			tlsCancelConn, err = startTLS(cancelConn, pgConn.tlsConfig)
+			if err != nil {
+				return fmt.Errorf("tls error on cancel connection: %w", err)
+			}
+		}
+		cancelConn = tlsCancelConn
+		defer cancelConn.Close()
 	}
 
 	buf := make([]byte, 12+len(pgConn.secretKey))
@@ -2114,6 +2135,7 @@ func (pgConn *PgConn) CustomData() map[string]any {
 // compatibility.
 type HijackedConn struct {
 	Conn              net.Conn
+	TLSConfig         *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
 	PID               uint32            // backend pid
 	SecretKey         []byte            // key to use to send a cancel query message to the server
 	ParameterStatuses map[string]string // parameters that have been reported by the server
@@ -2137,6 +2159,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 
 	return &HijackedConn{
 		Conn:              pgConn.conn,
+		TLSConfig:         pgConn.tlsConfig,
 		PID:               pgConn.pid,
 		SecretKey:         pgConn.secretKey,
 		ParameterStatuses: pgConn.parameterStatuses,
@@ -2157,6 +2180,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn := &PgConn{
 		conn:              hc.Conn,
+		tlsConfig:         hc.TLSConfig,
 		pid:               hc.PID,
 		secretKey:         hc.SecretKey,
 		parameterStatuses: hc.ParameterStatuses,
