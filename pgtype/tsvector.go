@@ -203,6 +203,16 @@ func (scanPlanBinaryTSVectorToTSVectorScanner) Scan(src []byte, dst any) error {
 	entryCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
 	rp += uint32Len
 
+	if entryCount < 0 {
+		return fmt.Errorf("tsvector invalid lexeme count: %d", entryCount)
+	}
+	// Each lexeme carries at minimum a 1-byte NUL terminator and a 2-byte position count, so
+	// entryCount cannot exceed remaining/3. This bounds the up-front make() against a malicious
+	// server claiming a huge lexeme count in a small message.
+	if maxEntries := len(src[rp:]) / 3; entryCount > maxEntries {
+		return fmt.Errorf("tsvector invalid lexeme count %d for %d remaining bytes", entryCount, len(src[rp:]))
+	}
+
 	var tsv TSVector
 	if entryCount > 0 {
 		tsv.Lexemes = make([]TSVectorLexeme, entryCount)
