@@ -99,6 +99,13 @@ type Config struct {
 	// Valid values: "disable", "prefer", "require". Defaults to "prefer".
 	ChannelBinding string
 
+	// RequireAuth restricts which authentication methods the client will accept from the server,
+	// matching libpq's require_auth parameter. It is a comma-separated list of method names
+	// (password, md5, gss, sspi, scram-sha-256, oauth, none). A leading "!" on every entry negates
+	// the list (forbid these methods, allow all others). Empty (the default) means all methods are
+	// accepted.
+	RequireAuth string
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -357,6 +364,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"min_protocol_version": {},
 		"max_protocol_version": {},
 		"channel_binding":      {},
+		"require_auth":         {},
 	}
 
 	// Adding kerberos configuration
@@ -495,6 +503,11 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("unknown channel_binding value: %v", channelBinding)}
 	}
 
+	config.RequireAuth = settings["require_auth"]
+	if _, err := parseRequireAuth(config.RequireAuth); err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid require_auth", err: err}
+	}
+
 	return config, nil
 }
 
@@ -534,6 +547,8 @@ func parseEnvSettings() map[string]string {
 		"PGOPTIONS":            "options",
 		"PGMINPROTOCOLVERSION": "min_protocol_version",
 		"PGMAXPROTOCOLVERSION": "max_protocol_version",
+		"PGCHANNELBINDING":     "channel_binding",
+		"PGREQUIREAUTH":        "require_auth",
 	}
 
 	for envname, realname := range nameMap {

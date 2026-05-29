@@ -412,6 +412,21 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return nil, newPerDialConnectError("failed to write startup message", err)
 	}
 
+	// Parse require_auth on each connect so that callers who mutate
+	// Config.RequireAuth after ParseConfig see their change take effect.
+	// The parser is pure and cheap; ParseConfigWithOptions validates the
+	// value up front so any parse error here indicates post-parse mutation.
+	requireAuthPolicy, err := parseRequireAuth(config.RequireAuth)
+	if err != nil {
+		pgConn.conn.Close()
+		return nil, newPerDialConnectError("invalid require_auth", err)
+	}
+	requireAuthFail := func(err error) (*PgConn, error) {
+		pgConn.conn.Close()
+		return nil, newPerDialConnectError("require_auth check failed", err)
+	}
+	clientFinishedAuth := false
+
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
@@ -428,19 +443,30 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			pgConn.secretKey = msg.SecretKey
 
 		case *pgproto3.AuthenticationOk:
+			if requireAuthPolicy.authRequired && !clientFinishedAuth {
+				return requireAuthFail(requireAuthPolicy.check(authMethodNone))
+			}
 		case *pgproto3.AuthenticationCleartextPassword:
+			if err := requireAuthPolicy.check(authMethodPassword); err != nil {
+				return requireAuthFail(err)
+			}
 			err = pgConn.txPasswordMessage(pgConn.config.Password)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed to write password message", err)
 			}
+			clientFinishedAuth = true
 		case *pgproto3.AuthenticationMD5Password:
+			if err := requireAuthPolicy.check(authMethodMD5); err != nil {
+				return requireAuthFail(err)
+			}
 			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
 			err = pgConn.txPasswordMessage(digestedPassword)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed to write password message", err)
 			}
+			clientFinishedAuth = true
 		case *pgproto3.AuthenticationSASL:
 			// Check if OAUTHBEARER is supported
 			serverSupportsOAuthBearer := false
@@ -452,20 +478,31 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 
 			if serverSupportsOAuthBearer && pgConn.config.OAuthTokenProvider != nil {
+				if err := requireAuthPolicy.check(authMethodOAuth); err != nil {
+					return requireAuthFail(err)
+				}
 				err = pgConn.oauthAuth(ctx)
 			} else {
+				if err := requireAuthPolicy.check(authMethodSCRAMSHA256); err != nil {
+					return requireAuthFail(err)
+				}
 				err = pgConn.scramAuth(msg.AuthMechanisms)
 			}
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed SASL auth", err)
 			}
+			clientFinishedAuth = true
 		case *pgproto3.AuthenticationGSS:
+			if err := requireAuthPolicy.check(authMethodGSS); err != nil {
+				return requireAuthFail(err)
+			}
 			err = pgConn.gssAuth()
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed GSS auth", err)
 			}
+			clientFinishedAuth = true
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
 			// The connect-phase deadline-only watcher is no longer needed; replace
