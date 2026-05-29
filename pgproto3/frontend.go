@@ -62,9 +62,13 @@ type Frontend struct {
 }
 
 // NewFrontend creates a new Frontend.
+//
+// The maximum accepted message body length defaults to the same ~1 GiB limit the PostgreSQL
+// server enforces on inbound messages (PQ_LARGE_MESSAGE_LIMIT in src/include/libpq/libpq.h).
+// Use [Frontend.SetMaxBodyLen] to change or remove the limit.
 func NewFrontend(r io.Reader, w io.Writer) *Frontend {
 	cr := newChunkReader(r, 0)
-	return &Frontend{cr: cr, w: w}
+	return &Frontend{cr: cr, w: w, maxBodyLen: maxMessageBodyLen}
 }
 
 // Send sends a message to the backend (i.e. the server). The message is buffered until Flush is called. Any error
