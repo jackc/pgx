@@ -284,6 +284,13 @@ func (sc *scramClient) recvServerFirstMessage(serverFirstMessage []byte) error {
 	if err != nil || sc.iterations <= 0 {
 		return fmt.Errorf("invalid SCRAM iteration count received from server: %w", err)
 	}
+	// Bound server-supplied iteration count to prevent a malicious server from forcing the client
+	// to spend unbounded CPU in PBKDF2. PostgreSQL's scram_iterations defaults to 4096; this ceiling
+	// is ~2500x that.
+	const maxScramIterations = 10_000_000
+	if sc.iterations > maxScramIterations {
+		return fmt.Errorf("SCRAM iteration count from server too high: %d (max %d)", sc.iterations, maxScramIterations)
+	}
 
 	if !bytes.HasPrefix(sc.clientAndServerNonce, sc.clientNonce) {
 		return errors.New("invalid SCRAM nonce: did not start with client nonce")
