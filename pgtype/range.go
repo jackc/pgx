@@ -249,6 +249,9 @@ func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
 	valueLen := int(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
 
+	if valueLen < 0 || len(src[rp:]) < valueLen {
+		return nil, fmt.Errorf("range lower bound length %d exceeds remaining %d bytes", valueLen, len(src[rp:]))
+	}
 	val := src[rp : rp+valueLen]
 	rp += valueLen
 
@@ -268,6 +271,9 @@ func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
 		}
 		valueLen := int(binary.BigEndian.Uint32(src[rp:]))
 		rp += 4
+		if valueLen < 0 || len(src[rp:]) < valueLen {
+			return nil, fmt.Errorf("range upper bound length %d exceeds remaining %d bytes", valueLen, len(src[rp:]))
+		}
 		ubr.Upper = src[rp : rp+valueLen]
 		rp += valueLen
 	}
