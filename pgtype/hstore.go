@@ -198,6 +198,12 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	if pairCount < 0 {
 		return fmt.Errorf("hstore invalid pair count: %d", pairCount)
 	}
+	// Each pair carries at minimum two int32 length headers (key, value), so pairCount cannot
+	// exceed the remaining bytes / 8. This bounds the up-front make() against a malicious server
+	// claiming a huge pair count in a small message.
+	if maxPairs := len(src[rp:]) / (2 * uint32Len); pairCount > maxPairs {
+		return fmt.Errorf("hstore invalid pair count %d for %d remaining bytes", pairCount, len(src[rp:]))
+	}
 
 	hstore := make(Hstore, pairCount)
 	// one allocation for all *string, rather than one per string, just like text parsing
@@ -226,6 +232,9 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 		rp += 4
 
 		if valueLen >= 0 {
+			if len(src[rp:]) < valueLen {
+				return fmt.Errorf("hstore incomplete %v", src)
+			}
 			valueStrings[i] = string(src[rp : rp+valueLen])
 			rp += valueLen
 
