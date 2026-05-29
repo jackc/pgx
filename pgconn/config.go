@@ -109,11 +109,45 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// connStringKeyAliases maps libpq parameter keywords to the canonical key names this package
+// uses internally in the parsed-settings map. Most keywords are already canonical; this map
+// holds only those whose pgx-internal name differs from the libpq spelling.
+var connStringKeyAliases = map[string]string{
+	"dbname": "database",
+}
+
+// canonicalConnStringKey returns the canonical settings-map key for a libpq parameter keyword.
+func canonicalConnStringKey(k string) string {
+	if c, ok := connStringKeyAliases[k]; ok {
+		return c
+	}
+	return k
+}
+
 // ParseConfigOptions contains options that control how a config is built such as GetSSLPassword.
 type ParseConfigOptions struct {
 	// GetSSLPassword gets the password to decrypt a SSL client certificate. This is analogous to the libpq function
 	// PQsetSSLKeyPassHook_OpenSSL.
 	GetSSLPassword GetSSLPasswordFunc
+
+	// ConnStringAllowedKeys, if non-nil, restricts which parameter keys may appear in connString
+	// itself. Any other key (whether connString is in keyword/value or URL form) causes
+	// ParseConfigWithOptions to return an error before any filesystem access or network
+	// resolution is attempted. Environment variables (PGHOST, PGSERVICEFILE, ...) and built-in
+	// defaults are not checked: only keys that originate from the connString argument.
+	//
+	// Keys may be given in either their libpq spelling ("dbname") or pgx-internal spelling
+	// ("database"); both are accepted.
+	//
+	// A nil slice (the default) applies no restriction and matches libpq behaviour. An empty
+	// non-nil slice rejects every key, i.e. connString must be empty.
+	//
+	// Use this when any part of connString is built from input the application does not fully
+	// control (tenant configuration, RPC parameters, admin UI fields). List only the keys that
+	// input is expected to supply. This fails closed: a future libpq parameter that pgconn learns
+	// to parse will be rejected unless the application has explicitly allowed it, rather than
+	// silently passing through.
+	ConnStringAllowedKeys []string
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -294,6 +328,18 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 			connStringSettings, err = parseKeywordValueSettings(connString)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as keyword/value", err: err}
+			}
+		}
+	}
+
+	if options.ConnStringAllowedKeys != nil {
+		allowed := make(map[string]struct{}, len(options.ConnStringAllowedKeys))
+		for _, k := range options.ConnStringAllowedKeys {
+			allowed[canonicalConnStringKey(k)] = struct{}{}
+		}
+		for k := range connStringSettings {
+			if _, ok := allowed[k]; !ok {
+				return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
 			}
 		}
 	}
@@ -615,16 +661,8 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		settings["database"] = database
 	}
 
-	nameMap := map[string]string{
-		"dbname": "database",
-	}
-
 	for k, v := range parsedURL.Query() {
-		if k2, present := nameMap[k]; present {
-			k = k2
-		}
-
-		settings[k] = v[0]
+		settings[canonicalConnStringKey(k)] = v[0]
 	}
 
 	return settings, nil
@@ -638,10 +676,6 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 func parseKeywordValueSettings(s string) (map[string]string, error) {
 	settings := make(map[string]string)
-
-	nameMap := map[string]string{
-		"dbname": "database",
-	}
 
 	// Trim any leading whitespace so that the loop exits cleanly when only
 	// spaces remain (e.g. trailing spaces after the last value).
@@ -693,9 +727,7 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			s = strings.TrimLeft(s[end+1:], " \t\n\r\v\f")
 		}
 
-		if k, ok := nameMap[key]; ok {
-			key = k
-		}
+		key = canonicalConnStringKey(key)
 
 		if key == "" {
 			return nil, errors.New("invalid keyword/value")
@@ -721,16 +753,9 @@ func parseServiceSettings(servicefilePath, serviceName string) (map[string]strin
 		return nil, fmt.Errorf("unable to find service: %v", serviceName)
 	}
 
-	nameMap := map[string]string{
-		"dbname": "database",
-	}
-
 	settings := make(map[string]string, len(service.Settings))
 	for k, v := range service.Settings {
-		if k2, present := nameMap[k]; present {
-			k = k2
-		}
-		settings[k] = v
+		settings[canonicalConnStringKey(k)] = v
 	}
 
 	return settings, nil
