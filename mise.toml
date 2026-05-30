@@ -1,5 +1,6 @@
 [tools]
 go = '1.26.3'
+"go:github.com/go-critic/go-critic/cmd/gocritic" = "latest"
 "go:github.com/gordonklaus/ineffassign" = "latest"
 "go:github.com/mdempsky/unconvert" = "latest"
 "go:golang.org/x/tools/cmd/goimports" = "latest"
