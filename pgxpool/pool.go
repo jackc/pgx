@@ -617,6 +617,15 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		cr := res.Value()
 
+		// Destroy expired connections before doing any further work (such as
+		// pinging) on them. This enforces MaxConnLifetime at acquire time so that
+		// a connection that expired while idle on a busy pool is not handed out.
+		if p.isExpired(res) {
+			atomic.AddInt64(&p.lifetimeDestroyCount, 1)
+			res.Destroy()
+			continue
+		}
+
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
 			err := func() error {
