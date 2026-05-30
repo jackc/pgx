@@ -391,10 +391,8 @@ func isRagged(slice reflect.Value) bool {
 	for i := range sliceLen {
 		if i == 0 {
 			innerLen = slice.Index(i).Len()
-		} else {
-			if slice.Index(i).Len() != innerLen {
-				return true
-			}
+		} else if slice.Index(i).Len() != innerLen {
+			return true
 		}
 		if isRagged(slice.Index(i)) {
 			return true
