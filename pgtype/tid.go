@@ -53,8 +53,7 @@ func (dst *TID) Scan(src any) error {
 		return nil
 	}
 
-	switch src := src.(type) {
-	case string:
+	if src, ok := src.(string); ok {
 		return scanPlanTextAnyToTIDScanner{}.Scan([]byte(src), dst)
 	}
 
@@ -142,8 +141,7 @@ func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan 
 			return scanPlanBinaryTIDToTextScanner{}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case TIDScanner:
+		if _, ok := target.(TIDScanner); ok {
 			return scanPlanTextAnyToTIDScanner{}
 		}
 	}

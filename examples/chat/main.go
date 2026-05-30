@@ -19,7 +19,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	go listen()
+	go func() {
+		if err := listen(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}()
 
 	fmt.Println(`Type a message and press enter.
 
@@ -47,25 +52,22 @@ Type "exit" to quit.`)
 	}
 }
 
-func listen() {
+func listen() error {
 	conn, err := pool.Acquire(context.Background())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error acquiring connection:", err)
-		os.Exit(1)
+		return fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
 	_, err = conn.Exec(context.Background(), "listen chat")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error listening to chat channel:", err)
-		os.Exit(1)
+		return fmt.Errorf("listening to chat channel: %w", err)
 	}
 
 	for {
 		notification, err := conn.Conn().WaitForNotification(context.Background())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
-			os.Exit(1)
+			return fmt.Errorf("waiting for notification: %w", err)
 		}
 
 		fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)

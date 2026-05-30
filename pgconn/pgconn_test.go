@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"os"
@@ -4141,13 +4140,15 @@ func Example() {
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 	defer pgConn.Close(ctx)
 
 	result := pgConn.ExecParams(ctx, "select generate_series(1,3)", nil, nil, nil, nil).Read()
 	if result.Err != nil {
-		log.Fatalln(result.Err)
+		fmt.Fprintln(os.Stderr, result.Err)
+		return
 	}
 
 	for _, row := range result.Rows {

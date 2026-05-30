@@ -112,13 +112,11 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value any
 func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		switch target.(type) {
-		case CompositeIndexScanner:
+		if _, ok := target.(CompositeIndexScanner); ok {
 			return &scanPlanBinaryCompositeToCompositeIndexScanner{cc: c, m: m}
 		}
 	case TextFormatCode:
-		switch target.(type) {
-		case CompositeIndexScanner:
+		if _, ok := target.(CompositeIndexScanner); ok {
 			return &scanPlanTextCompositeToCompositeIndexScanner{cc: c, m: m}
 		}
 	}
@@ -410,22 +408,24 @@ func (cfs *CompositeTextScanner) Next() bool {
 	case '"': // quoted value
 		cfs.rp++
 		cfs.fieldBytes = make([]byte, 0, 16)
+	quotedValue:
 		for {
 			ch := cfs.src[cfs.rp]
 
-			if ch == '"' {
+			switch ch {
+			case '"':
 				cfs.rp++
 				if cfs.src[cfs.rp] == '"' {
 					cfs.fieldBytes = append(cfs.fieldBytes, '"')
 					cfs.rp++
 				} else {
-					break
+					break quotedValue
 				}
-			} else if ch == '\\' {
+			case '\\':
 				cfs.rp++
 				cfs.fieldBytes = append(cfs.fieldBytes, cfs.src[cfs.rp])
 				cfs.rp++
-			} else {
+			default:
 				cfs.fieldBytes = append(cfs.fieldBytes, ch)
 				cfs.rp++
 			}

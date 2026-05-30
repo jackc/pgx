@@ -530,20 +530,21 @@ func (p *Pool) checkConnsHealth() bool {
 	totalConns := p.Stat().TotalConns()
 	resources := p.p.AcquireAllIdle()
 	for _, res := range resources {
+		switch {
 		// We're okay going under minConns if the lifetime is up
-		if p.isExpired(res) && totalConns >= p.minConns {
+		case p.isExpired(res) && totalConns >= p.minConns:
 			p.lifetimeDestroyCount.Add(1)
 			res.Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
 			totalConns--
-		} else if res.IdleDuration() > p.maxConnIdleTime && totalConns > p.minConns {
+		case res.IdleDuration() > p.maxConnIdleTime && totalConns > p.minConns:
 			p.idleDestroyCount.Add(1)
 			res.Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
 			totalConns--
-		} else {
+		default:
 			res.ReleaseUnused()
 		}
 	}
