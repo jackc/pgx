@@ -185,44 +185,34 @@ func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst any) error {
 		return fmt.Errorf("invalid length for lseg: %v", len(src))
 	}
 
-	str := string(src[2:])
-
-	var end int
-	end = strings.IndexByte(str, ',')
-	if end == -1 {
+	// Expected format: [(x1,y1),(x2,y2)]
+	sp1, sp2, found := strings.Cut(string(src[2:len(src)-2]), "),(")
+	if !found {
 		return fmt.Errorf("invalid format for lseg")
 	}
 
-	x1, err := strconv.ParseFloat(str[:end], 64)
-	if err != nil {
-		return err
+	sx1, sy1, found := strings.Cut(sp1, ",")
+	if !found {
+		return fmt.Errorf("invalid format for lseg")
 	}
-
-	str = str[end+1:]
-	end = strings.IndexByte(str, ')')
-	if end == -1 {
+	sx2, sy2, found := strings.Cut(sp2, ",")
+	if !found {
 		return fmt.Errorf("invalid format for lseg")
 	}
 
-	y1, err := strconv.ParseFloat(str[:end], 64)
+	x1, err := strconv.ParseFloat(sx1, 64)
 	if err != nil {
 		return err
 	}
-
-	str = str[end+3:]
-	end = strings.IndexByte(str, ',')
-	if end == -1 {
-		return fmt.Errorf("invalid format for lseg")
-	}
-
-	x2, err := strconv.ParseFloat(str[:end], 64)
+	y1, err := strconv.ParseFloat(sy1, 64)
 	if err != nil {
 		return err
 	}
-
-	str = str[end+1 : len(str)-2]
-
-	y2, err := strconv.ParseFloat(str, 64)
+	x2, err := strconv.ParseFloat(sx2, 64)
+	if err != nil {
+		return err
+	}
+	y2, err := strconv.ParseFloat(sy2, 64)
 	if err != nil {
 		return err
 	}

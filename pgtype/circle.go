@@ -198,30 +198,34 @@ func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst any) error {
 		return fmt.Errorf("invalid length for Circle: %v", len(src))
 	}
 
-	str := string(src[2:])
-	end := strings.IndexByte(str, ',')
-	if end == -1 {
+	// Expected format: <(x,y),r>
+	str, ok := strings.CutPrefix(string(src), "<(")
+	if !ok {
 		return fmt.Errorf("invalid format for Circle")
 	}
-	x, err := strconv.ParseFloat(str[:end], 64)
-	if err != nil {
-		return err
-	}
-
-	str = str[end+1:]
-	end = strings.IndexByte(str, ')')
-	if end == -1 {
+	str, ok = strings.CutSuffix(str, ">")
+	if !ok {
 		return fmt.Errorf("invalid format for Circle")
 	}
 
-	y, err := strconv.ParseFloat(str[:end], 64)
+	sx, str, found := strings.Cut(str, ",")
+	if !found {
+		return fmt.Errorf("invalid format for Circle")
+	}
+	sy, sr, found := strings.Cut(str, "),")
+	if !found {
+		return fmt.Errorf("invalid format for Circle")
+	}
+
+	x, err := strconv.ParseFloat(sx, 64)
 	if err != nil {
 		return err
 	}
-
-	str = str[end+2 : len(str)-1]
-
-	r, err := strconv.ParseFloat(str, 64)
+	y, err := strconv.ParseFloat(sy, 64)
+	if err != nil {
+		return err
+	}
+	r, err := strconv.ParseFloat(sr, 64)
 	if err != nil {
 		return err
 	}

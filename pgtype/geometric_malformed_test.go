@@ -21,6 +21,14 @@ func TestGeometricScanMalformedReturnsError(t *testing.T) {
 		{"Lseg", func(s string) error { var v pgtype.Lseg; return v.Scan(s) }, "[(123456789"},
 		{"Path", func(s string) error { var v pgtype.Path; return v.Scan(s) }, "((1234567"},
 		{"Polygon", func(s string) error { var v pgtype.Polygon; return v.Scan(s) }, "((1234567"},
+		// Inputs where the missing separator slips past an IndexByte == -1
+		// guard but the subsequent fixed-offset slice (str[end+2:],
+		// str[end+3:], str[:len-1]) still ran off the end. These panicked
+		// even with the -1 guards in place and are covered by the strings.Cut
+		// rewrite.
+		{"CircleRadius", func(s string) error { var v pgtype.Circle; return v.Scan(s) }, "<(1,000000)"},
+		{"BoxTail", func(s string) error { var v pgtype.Box; return v.Scan(s) }, "(0,000000000)"},
+		{"LsegTail", func(s string) error { var v pgtype.Lseg; return v.Scan(s) }, "[(0,000000000)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
