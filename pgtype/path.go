@@ -223,29 +223,39 @@ func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst any) error {
 	closed := src[0] == '('
 	points := make([]Vec2, 0)
 
-	str := string(src[2:])
+	// Expected format: ((x1,y1),...,(xn,yn)) or [(x1,y1),...,(xn,yn)]
+	str := string(src[1 : len(src)-1])
 
 	for {
-		end := strings.IndexByte(str, ',')
-		x, err := strconv.ParseFloat(str[:end], 64)
+		if len(str) == 0 || str[0] != '(' {
+			return fmt.Errorf("invalid format for Path")
+		}
+		body, rest, found := strings.Cut(str[1:], ")")
+		if !found {
+			return fmt.Errorf("invalid format for Path")
+		}
+
+		sx, sy, found := strings.Cut(body, ",")
+		if !found {
+			return fmt.Errorf("invalid format for Path")
+		}
+		x, err := strconv.ParseFloat(sx, 64)
 		if err != nil {
 			return err
 		}
-
-		str = str[end+1:]
-		end = strings.IndexByte(str, ')')
-
-		y, err := strconv.ParseFloat(str[:end], 64)
+		y, err := strconv.ParseFloat(sy, 64)
 		if err != nil {
 			return err
 		}
 
 		points = append(points, Vec2{x, y})
 
-		if end+3 < len(str) {
-			str = str[end+3:]
-		} else {
+		if rest == "" {
 			break
+		}
+		str, found = strings.CutPrefix(rest, ",")
+		if !found {
+			return fmt.Errorf("invalid format for Path")
 		}
 	}
 
