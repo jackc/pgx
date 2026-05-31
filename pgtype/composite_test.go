@@ -378,6 +378,60 @@ create type parent_with_slice as (
 	})
 }
 
+type compositeWithJsonbValuer struct {
+	Name string
+	Data jsonbValuerSlice
+}
+
+func (c compositeWithJsonbValuer) IsNull() bool { return false }
+
+func (c compositeWithJsonbValuer) Index(i int) any {
+	switch i {
+	case 0:
+		return c.Name
+	case 1:
+		return c.Data
+	default:
+		panic("invalid index")
+	}
+}
+
+func TestCompositeCodecTypedNilFieldWithValuer(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Exec(ctx, `drop type if exists composite_with_jsonb;
+create type composite_with_jsonb as (
+	name text,
+	data jsonb
+);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop type composite_with_jsonb")
+
+		dt, err := conn.LoadType(ctx, "composite_with_jsonb")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(dt)
+
+		formats := []struct {
+			name string
+			code int16
+		}{
+			{name: "TextFormat", code: pgx.TextFormatCode},
+			{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		}
+
+		for _, format := range formats {
+			input := compositeWithJsonbValuer{Name: "test", Data: nil}
+			var gotName, gotData string
+			err := conn.QueryRow(ctx,
+				"select (r).name, (r).data::text from (select $1::composite_with_jsonb as r) s",
+				pgx.QueryResultFormats{format.code}, input,
+			).Scan(&gotName, &gotData)
+			require.NoErrorf(t, err, "%v", format.name)
+			require.Equalf(t, "test", gotName, "%v", format.name)
+			require.Equalf(t, "[]", gotData, "%v", format.name)
+		}
+	})
+}
+
 func TestCompositeCodecDecodeValue(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(ctx, `drop type if exists point3d;
