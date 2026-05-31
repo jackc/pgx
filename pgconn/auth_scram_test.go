@@ -408,7 +408,7 @@ func TestScramClientRecvServerFinalMessage(t *testing.T) {
 
 		sc := setup(t)
 
-		validSignature := computeServerSignature(sc.saltedPassword, sc.authMessage)
+		validSignature := computeServerSignature(sc.saltedPassword[:], sc.authMessage)
 		err := sc.recvServerFinalMessage(append([]byte("v="), validSignature...))
 		require.NoError(t, err)
 	})
