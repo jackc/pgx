@@ -293,6 +293,15 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
 // TLSConfig.
 //
+// Several connection parameters cause ParseConfig to read files from the local filesystem: servicefile, passfile,
+// sslkey, sslcert, and sslrootcert. Applications that build connection strings from untrusted input must not allow
+// these keys to be set by that input. In particular, servicefile (which pgconn accepts in the connection string;
+// libpq does not) is read as an INI file whose entries override other connection settings including host, port, and
+// sslmode, so an attacker who controls servicefile and service can redirect the connection. If any portion of the
+// connection string is externally supplied, use ParseConfigWithOptions and set ParseConfigOptions.ConnStringAllowedKeys
+// to an allow-list of the keys that input is expected to supply; any other key in the connection string is then
+// rejected before any filesystem access occurs.
+//
 // Other known differences with libpq:
 //
 // When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
