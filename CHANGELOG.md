@@ -1,3 +1,43 @@
+# 5.10.0 (June 3, 2026)
+
+This release includes a significant amount of hardening against malicious or compromised PostgreSQL servers,
+contributed by Sean Chittenden at CrowdStrike, Inc. This work bounds binary decoders against attacker-controlled
+message sizes, caps server-supplied SCRAM iteration counts, adds `require_auth` to restrict which authentication
+methods a server may use (mitigating downgrade attacks under `sslmode=prefer`), and ensures cancellation requests are
+sent over TLS when the original connection used TLS.
+
+## Features
+
+* Add `require_auth` to restrict accepted server authentication methods (Sean Chittenden at CrowdStrike, Inc.)
+* Add `ParseConfigOptions.ConnStringAllowedKeys` to restrict allowed connection string keys (Sean Chittenden at CrowdStrike, Inc.)
+* Add `StructArgs` and `StrictStructArgs` for `@`-named queries (Tubelight30)
+* Add `ErrConnClosed` sentinel error and unwrap it from `connLockError` (Charlie Tonneslan)
+* pgxpool: check if connection is expired before acquire (arthurdotwork)
+
+## Security Hardening
+
+* Encrypt `CancelRequest` connection when the primary connection used TLS (Sean Chittenden at CrowdStrike, Inc.)
+* Cap server-supplied SCRAM iteration count (Sean Chittenden at CrowdStrike, Inc.)
+* Default Frontend max message body length to ~1 GiB (Sean Chittenden at CrowdStrike, Inc.)
+* Bound hstore binary decode against malicious server input (Sean Chittenden at CrowdStrike, Inc.)
+* Bound array binary decode element length against remaining message bytes (Sean Chittenden at CrowdStrike, Inc.)
+* Bound array element count against remaining message bytes (Sean Chittenden at CrowdStrike, Inc.)
+* Bound range, multirange, and tsvector binary decoders (Sean Chittenden at CrowdStrike, Inc.)
+* Document secure connection configuration (Sean Chittenden at CrowdStrike, Inc.)
+* Fix panic on malformed geometric text; return an error instead (MaIII)
+
+## Fixes
+
+* Fix scanning `"char"` (OID 18) into `*string` in binary format (luongs3)
+* Fix handling of typed-nil `driver.Valuer` in array and composite codecs (Donncha Fahy)
+* Fix `CopyData.Data` hex decoding in `UnmarshalJSON` (Charlie Tonneslan)
+* Fix data race when context is cancelled during connect
+* Fix `parseKeywordValueSettings` rejecting trailing whitespace (alliasgher)
+* pgconn: preserve full error chain in `normalizeTimeoutError` (Charlie Tonneslan)
+* pgconn: use a fresh context for the fallback connection in `connectPreferred` (Charlie Tonneslan)
+* pgxpool: fix `MaxLifetimeDestroyCount` and ping order for acquire-time expiry check
+* Add missing error check of `rows.Err` to load types (Jen Altavilla)
+
 # 5.9.2 (April 18, 2026)
 
 Fix SQL Injection via placeholder confusion with dollar quoted string literals (GHSA-j88v-2chj-qfwx)
