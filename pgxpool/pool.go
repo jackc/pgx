@@ -461,6 +461,9 @@ func (p *Pool) Close() {
 }
 
 func (p *Pool) isExpired(res *puddle.Resource[*connResource]) bool {
+	if p.maxConnLifetime <= 0 {
+		return false
+	}
 	return time.Now().After(res.Value().maxAgeTime)
 }
 
