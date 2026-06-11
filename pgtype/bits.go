@@ -174,6 +174,11 @@ func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst any) error {
 
 	bitLen := int32(binary.BigEndian.Uint32(src))
 	rp := 4
+
+	if bitLen < 0 || (int(bitLen)+7)/8 != len(src[rp:]) {
+		return fmt.Errorf("invalid length for bit/varbit: bitLen=%d dataBytes=%d", bitLen, len(src[rp:]))
+	}
+
 	buf := make([]byte, len(src[rp:]))
 	copy(buf, src[rp:])
 
