@@ -483,14 +483,13 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Fallbacks = fallbacks[1:]
 	config.SSLNegotiation = settings["sslnegotiation"]
 
-	passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
-	if err == nil {
-		if config.Password == "" {
+	if config.Password == "" {
+		passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
+		if err == nil {
 			host := config.Host
 			if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
 				host = "localhost"
 			}
-
 			config.Password = passfile.FindPassword(host, strconv.Itoa(int(config.Port)), config.Database, config.User)
 		}
 	}
