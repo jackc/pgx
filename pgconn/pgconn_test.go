@@ -4704,6 +4704,153 @@ func mustEncode(buf []byte, err error) []byte {
 	return buf
 }
 
+// https://github.com/jackc/pgx/issues/2584
+//
+// When a context is canceled while the server is mid-stream, asyncClose must drain the socket
+// before closing it. Closing a TCP socket with unread data in the kernel receive buffer causes
+// the OS to send RST instead of FIN, which surfaces on the server / proxy as "connection reset by
+// peer". This test floods the client with DataRows, cancels the context, and asserts the mock
+// server sees Terminate followed by a clean EOF rather than ECONNRESET.
+func TestAsyncCloseDrainsBeforeClose(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	type serverResult struct {
+		gotTerminate bool
+		readErr      error
+	}
+	serverDone := make(chan serverResult, 1)
+
+	go func() {
+		var res serverResult
+		defer func() { serverDone <- res }()
+
+		conn, err := ln.Accept()
+		if err != nil {
+			res.readErr = err
+			return
+		}
+		defer conn.Close()
+		conn.SetDeadline(time.Now().Add(30 * time.Second))
+
+		// asyncClose dials a second connection to deliver CancelRequest and then blocks on a Read
+		// until the server closes (libpq does the same). Accept it, consume the request, and close
+		// promptly so asyncClose proceeds to Terminate. Spawned after the primary Accept() so there
+		// is no race over which goroutine gets the first connection.
+		go func() {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+			c.SetDeadline(time.Now().Add(5 * time.Second))
+			io.ReadFull(c, make([]byte, 16)) // len + code + pid + 4-byte secret
+		}()
+
+		backend := pgproto3.NewBackend(conn, conn)
+
+		if _, err := backend.ReceiveStartupMessage(); err != nil {
+			res.readErr = err
+			return
+		}
+		backend.Send(&pgproto3.AuthenticationOk{})
+		backend.Send(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}})
+		backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+		if err := backend.Flush(); err != nil {
+			res.readErr = err
+			return
+		}
+
+		// Read the simple Query message.
+		if _, err := backend.Receive(); err != nil {
+			res.readErr = err
+			return
+		}
+
+		backend.Send(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{{Name: []byte("n")}}})
+		if err := backend.Flush(); err != nil {
+			res.readErr = err
+			return
+		}
+
+		// Flood DataRows. Use a payload large enough that the client's kernel receive buffer holds
+		// unread data at the moment of cancellation; without the drain in asyncClose, the client's
+		// Close() would emit RST and the server's subsequent Receive() would see ECONNRESET. Stop
+		// when the client closes its write side or the socket buffers are full enough that we have
+		// blocked past the cancel point; either way fall through to read Terminate.
+		row := &pgproto3.DataRow{Values: [][]byte{bytes.Repeat([]byte("x"), 1024)}}
+		conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		for i := 0; i < 16*1024; i++ {
+			backend.Send(row)
+			if err := backend.Flush(); err != nil {
+				break
+			}
+		}
+		conn.SetWriteDeadline(time.Time{})
+
+		// The client's asyncClose sends Terminate and then drains until we close. Read until we see
+		// Terminate, then half-close our write side so the client's drain observes EOF and proceeds
+		// to Close() its end.
+		conn.SetReadDeadline(time.Now().Add(20 * time.Second))
+		for {
+			msg, err := backend.Receive()
+			if err != nil {
+				res.readErr = err
+				return
+			}
+			if _, ok := msg.(*pgproto3.Terminate); ok {
+				res.gotTerminate = true
+				break
+			}
+		}
+
+		// Half-close: send FIN to the client so its io.Copy(io.Discard, ...) returns io.EOF, while
+		// keeping our read side open to observe how the client closes. A clean client close yields
+		// io.EOF here; an abortive close (RST due to unread data) yields ECONNRESET.
+		conn.(*net.TCPConn).CloseWrite()
+		buf := make([]byte, 1)
+		_, res.readErr = conn.Read(buf)
+	}()
+
+	host, port, _ := strings.Cut(ln.Addr().String(), ":")
+	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+
+	conn, err := pgconn.Connect(context.Background(), connStr)
+	require.NoError(t, err)
+
+	queryCtx, queryCancel := context.WithCancel(context.Background())
+	mrr := conn.Exec(queryCtx, "select n from generate_series(1,1000000) n")
+	require.True(t, mrr.NextResult())
+	rr := mrr.ResultReader()
+
+	// Read a handful of rows so the server is definitely streaming, then cancel.
+	for i := 0; i < 50 && rr.NextRow(); i++ {
+	}
+	queryCancel()
+	for rr.NextRow() {
+	}
+	rr.Close()
+	mrr.Close()
+
+	// asyncClose runs in a background goroutine; wait for it (and the drain) to finish.
+	select {
+	case <-conn.CleanupDone():
+	case <-time.After(30 * time.Second):
+		t.Fatal("timed out waiting for client cleanup")
+	}
+
+	select {
+	case res := <-serverDone:
+		require.True(t, res.gotTerminate, "server never received Terminate message")
+		require.ErrorIs(t, res.readErr, io.EOF, "server saw %v, expected clean EOF (FIN); RST indicates the client closed with unread data", res.readErr)
+	case <-time.After(30 * time.Second):
+		t.Fatal("timed out waiting for server")
+	}
+}
+
 func TestDeadlineContextWatcherHandler(t *testing.T) {
 	t.Parallel()
 

@@ -790,6 +790,16 @@ func (pgConn *PgConn) asyncClose() {
 
 		pgConn.frontend.Send(&pgproto3.Terminate{})
 		pgConn.flushWithPotentialWriteReadDeadlock()
+
+		// Drain any data already in flight from the server (DataRows that were sent before the
+		// CancelRequest landed, the resulting ErrorResponse, ReadyForQuery, and finally the server's
+		// own close after it processes Terminate). Closing a TCP socket while unread data remains in
+		// the kernel receive buffer causes the OS to send RST instead of FIN, which surfaces on the
+		// server or proxy as "connection reset by peer". The deadline set above bounds how long this
+		// will block; on timeout we fall through to Close() and accept the abortive close.
+		//
+		// See https://github.com/jackc/pgx/issues/2584
+		io.Copy(io.Discard, pgConn.conn)
 	}()
 }
 

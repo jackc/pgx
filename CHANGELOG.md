@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixes
+
+* pgconn: drain socket before close in `asyncClose` so context cancellation produces a TCP FIN instead of RST, avoiding "connection reset by peer" on the server / proxy (Sean Chittenden at CrowdStrike, Inc.)
+
 # 5.10.0 (June 3, 2026)
 
 This release includes a significant amount of hardening against malicious or compromised PostgreSQL servers,
