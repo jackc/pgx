@@ -875,7 +875,7 @@ func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgconn.ConnectConfig(ctx, config) })
 }
 
-func TestConnectConfigMaxBodyLen(t *testing.T) {
+func TestConnectConfigMaxProtocolMessageBodyLen(t *testing.T) {
 	t.Parallel()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:")
@@ -906,7 +906,7 @@ func TestConnectConfigMaxBodyLen(t *testing.T) {
 			return
 		}
 
-		// ParameterStatus declares a 6-octet body, which verifies that Config.MaxBodyLen
+		// ParameterStatus declares a 6-octet body, which verifies that Config.MaxProtocolMessageBodyLen
 		// is installed before startup responses are received.
 		_, err = conn.Write([]byte{'S', 0, 0, 0, 10})
 		if err != nil {
@@ -923,7 +923,7 @@ func TestConnectConfigMaxBodyLen(t *testing.T) {
 
 	config, err := pgconn.ParseConfig(connStr)
 	require.NoError(t, err)
-	config.MaxBodyLen = 5
+	config.MaxProtocolMessageBodyLen = 5
 
 	conn, err := pgconn.ConnectConfig(ctx, config)
 	require.Nil(t, conn)
