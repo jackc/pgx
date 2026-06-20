@@ -1324,6 +1324,52 @@ func TestPoolAcquireDestroysExpiredIdleConn(t *testing.T) {
 	require.EqualValues(t, 1, stats.TotalConns())
 }
 
+func TestPoolAcquireUnlimitedLifetimeDoesNotExpire(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	// A MaxConnLifetime of zero means connections never expire due to age. The
+	// acquire-time expiry check must not treat such connections as expired,
+	// otherwise Acquire destroys and recreates them in a loop and ultimately fails.
+	config.MaxConnLifetime = 0
+	config.HealthCheckPeriod = 100 * time.Millisecond
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Establish a single connection and remember its identity.
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	firstConn := c.Conn()
+	c.Release()
+	waitForReleaseToComplete()
+
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+
+	// Give the background health check several chances to (wrongly) reap the conn.
+	time.Sleep(500 * time.Millisecond)
+
+	// Re-acquiring must succeed and hand back the very same connection: it was
+	// neither expired at acquire time nor destroyed by the health check.
+	for range 5 {
+		c, err = pool.Acquire(ctx)
+		require.NoError(t, err)
+		require.Same(t, firstConn, c.Conn())
+		c.Release()
+		waitForReleaseToComplete()
+	}
+
+	stats := pool.Stat()
+	require.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	require.EqualValues(t, 1, stats.TotalConns())
+}
+
 func TestPoolAcquirePingTimeout(t *testing.T) {
 	t.Parallel()
 
