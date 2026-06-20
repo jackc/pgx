@@ -43,6 +43,11 @@ type Config struct {
 	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
 	BuildFrontend  BuildFrontendFunc
 
+	// MaxProtocolMessageBodyLen is the maximum length of a PostgreSQL wire protocol message body in octets. If a
+	// message body exceeds this length, reading the message will fail with pgproto3.ExceededMaxBodyLenErr. The default
+	// value is 0, which means no maximum is enforced.
+	MaxProtocolMessageBodyLen int
+
 	// BuildContextWatcherHandler is called to create a ContextWatcherHandler for a connection. The handler is called
 	// when a context passed to a PgConn method is canceled.
 	BuildContextWatcherHandler func(*PgConn) ctxwatch.Handler

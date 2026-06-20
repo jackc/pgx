@@ -874,6 +874,67 @@ func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgconn.ConnectConfig(ctx, config) })
 }
 
+func TestConnectConfigMaxProtocolMessageBodyLen(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	serverErrChan := make(chan error, 1)
+	go func() {
+		defer close(serverErrChan)
+
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		backend := pgproto3.NewBackend(conn, conn)
+		_, err = backend.ReceiveStartupMessage()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		// ParameterStatus declares a 6-octet body, which verifies that Config.MaxProtocolMessageBodyLen
+		// is installed before startup responses are received.
+		_, err = conn.Write([]byte{'S', 0, 0, 0, 10})
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+	}()
+
+	host, port, _ := strings.Cut(ln.Addr().String(), ":")
+	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(connStr)
+	require.NoError(t, err)
+	config.MaxProtocolMessageBodyLen = 5
+
+	conn, err := pgconn.ConnectConfig(ctx, config)
+	require.Nil(t, conn)
+
+	var bodyLenErr *pgproto3.ExceededMaxBodyLenErr
+	require.ErrorAs(t, err, &bodyLenErr)
+	assert.Equal(t, 5, bodyLenErr.MaxExpectedBodyLen)
+	assert.Equal(t, 6, bodyLenErr.ActualBodyLen)
+
+	require.NoError(t, <-serverErrChan)
+}
+
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 

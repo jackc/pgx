@@ -392,6 +392,9 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	pgConn.slowWriteTimer.Stop()
 	pgConn.bgReaderStarted = make(chan struct{})
 	pgConn.frontend = config.BuildFrontend(pgConn.bgReader, pgConn.conn)
+	if config.MaxProtocolMessageBodyLen > 0 {
+		pgConn.frontend.SetMaxBodyLen(config.MaxProtocolMessageBodyLen)
+	}
 
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: maxProtocolVersion,
@@ -2252,6 +2255,9 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn.slowWriteTimer.Stop()
 	pgConn.bgReaderStarted = make(chan struct{})
 	pgConn.frontend = hc.Config.BuildFrontend(pgConn.bgReader, pgConn.conn)
+	if hc.Config.MaxProtocolMessageBodyLen > 0 {
+		pgConn.frontend.SetMaxBodyLen(hc.Config.MaxProtocolMessageBodyLen)
+	}
 
 	return pgConn, nil
 }
