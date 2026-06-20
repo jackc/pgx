@@ -841,6 +841,7 @@ func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
+	original.MaxProtocolMessageBodyLen = 12345
 
 	copied := original.Copy()
 	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
@@ -938,6 +939,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName 
 	assert.Equalf(t, expected.User, actual.User, "%s - User", testName)
 	assert.Equalf(t, expected.Password, actual.Password, "%s - Password", testName)
 	assert.Equalf(t, expected.ConnectTimeout, actual.ConnectTimeout, "%s - ConnectTimeout", testName)
+	assert.Equalf(t, expected.MaxProtocolMessageBodyLen, actual.MaxProtocolMessageBodyLen, "%s - MaxProtocolMessageBodyLen", testName)
 	assert.Equalf(t, expected.RuntimeParams, actual.RuntimeParams, "%s - RuntimeParams", testName)
 
 	// Can't test function equality, so just test that they are set or not.
