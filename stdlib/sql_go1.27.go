@@ -4,8 +4,12 @@ package stdlib
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"io"
 )
+
+// Rows implements driver.RowsColumnScanner as of Go 1.27.
+var _ driver.RowsColumnScanner = (*Rows)(nil)
 
 // NextRow implements the driver.RowsColumnScanner interface. It advances to the
 // next row of data and returns io.EOF when there are no more rows.
@@ -37,7 +41,7 @@ func (r *Rows) NextRow() error {
 // sql.ConvertAssign on a driver.Value produced by the column codec. This gives
 // database/sql callers the same conversion semantics they had before Go 1.27
 // (e.g., scanning a PostgreSQL boolean into a *string).
-func (r *Rows) ScanColumn(index int, dest any) error {
+func (r *Rows) ScanColumn(scanCtx driver.ScanContext, index int, dest any) error {
 	m := r.conn.conn.TypeMap()
 	fd := r.rows.FieldDescriptions()[index]
 	src := r.rows.RawValues()[index]
@@ -55,7 +59,7 @@ func (r *Rows) ScanColumn(index int, dest any) error {
 	if decodeErr != nil {
 		return err
 	}
-	if convertErr := sql.ConvertAssign(dest, value); convertErr != nil {
+	if convertErr := sql.ConvertAssign(scanCtx, dest, value); convertErr != nil {
 		return err
 	}
 	return nil
