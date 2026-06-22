@@ -376,7 +376,10 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		RuntimeParams:        make(map[string]string),
 		BuildFrontend:        pgproto3.NewFrontend,
 		BuildContextWatcherHandler: func(pgConn *PgConn) ctxwatch.Handler {
-			return &DeadlineContextWatcherHandler{Conn: pgConn.conn}
+			return &DeadlineContextWatcherHandler{
+				Conn:          pgConn.conn,
+				DeadlineDelay: 50 * time.Millisecond,
+			}
 		},
 		OnPgError: func(_ *PgConn, pgErr *PgError) bool {
 			// we want to automatically close any fatal errors
