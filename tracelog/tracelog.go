@@ -368,7 +368,8 @@ func (tl *TraceLog) TraceAcquireEnd(ctx context.Context, _ *pgxpool.Pool, data p
 	interval := endTime.Sub(acquireData.startTime)
 
 	if data.Err != nil {
-		if tl.shouldLog(LogLevelError) {
+		// Ignore context.Canceled as this is a common occurence, unless debug logging is on.
+		if tl.shouldLog(LogLevelDebug) || (!errors.Is(data.Err, context.Canceled) && tl.shouldLog(LogLevelError)) {
 			tl.Logger.Log(ctx, LogLevelError, "Acquire", map[string]any{"err": data.Err, tl.Config.TimeKey: interval})
 		}
 		return
