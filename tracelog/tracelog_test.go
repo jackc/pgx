@@ -224,7 +224,7 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 		logs = logger.FilterByMsg("Query")
 		require.Len(t, logs, 1)
 		require.Equal(t, tracelog.LogLevelInfo, logs[0].lvl)
-		require.Equal(t, s+" (truncated 3 bytes)", logs[0].data["args"].([]any)[0])
+		require.Equal(t, s+"…", logs[0].data["args"].([]any)[0])
 	})
 }
 

@@ -97,19 +97,41 @@ func logQueryArgs(args []any) []any {
 	for _, a := range args {
 		switch v := a.(type) {
 		case []byte:
-			if len(v) < 64 {
+			if len(v) <= 64 {
 				a = hex.EncodeToString(v)
 			} else {
-				a = fmt.Sprintf("%x (truncated %d bytes)", v[:64], len(v)-64)
+				// Show first 60 bytes as hex (120 chars) + ellipsis.
+				// This ensures the result is always shorter than the
+				// full hex encoding: 120 + 3 < 130+ for any 65+ byte input.
+				a = hex.EncodeToString(v[:60]) + "…"
 			}
 		case string:
 			if len(v) > 64 {
+				// Find the rune boundary nearest to 64 bytes,
+				// then back off so the ellipsis (3 bytes) still
+				// makes the result shorter than the original.
 				l := 0
 				for w := 0; l < 64; l += w {
 					_, w = utf8.DecodeRuneInString(v[l:])
 				}
 				if len(v) > l {
-					a = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
+					// Ensure truncation + ellipsis is strictly shorter than original.
+					// Ellipsis is 3 bytes, so cut+3 must be < len(v), i.e. cut <= len(v)-4.
+					maxCut := len(v) - 4
+					if maxCut < 1 {
+						maxCut = 1
+					}
+					cut := 0
+					var prevW int
+					for w := 0; cut < maxCut; cut += w {
+						prevW = w
+						_, w = utf8.DecodeRuneInString(v[cut:])
+					}
+					// If cut overshot, back up to the previous rune boundary.
+					if cut > maxCut && prevW > 0 {
+						cut -= prevW
+					}
+					a = v[:cut] + "…"
 				}
 			}
 		}
