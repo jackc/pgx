@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -157,13 +158,13 @@ type Tx interface {
 type dbTx struct {
 	conn         *Conn
 	savepointNum int64
-	closed       bool
+	closed       atomic.Bool
 	commitQuery  string
 }
 
 // Begin starts a pseudo nested transaction implemented with a savepoint.
 func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
-	if tx.closed {
+	if tx.closed.Load() {
 		return nil, ErrTxClosed
 	}
 
@@ -178,7 +179,7 @@ func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
 
 // Commit commits the transaction.
 func (tx *dbTx) Commit(ctx context.Context) error {
-	if tx.closed {
+	if !tx.closed.CompareAndSwap(false, true) {
 		return ErrTxClosed
 	}
 
@@ -188,7 +189,6 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 	}
 
 	commandTag, err := tx.conn.Exec(ctx, commandSQL)
-	tx.closed = true
 	if err != nil {
 		if tx.conn.PgConn().TxStatus() != 'I' {
 			_ = tx.conn.Close(ctx) // already have error to return
@@ -207,12 +207,11 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 // defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 // non-error condition.
 func (tx *dbTx) Rollback(ctx context.Context) error {
-	if tx.closed {
+	if !tx.closed.CompareAndSwap(false, true) {
 		return ErrTxClosed
 	}
 
 	_, err := tx.conn.Exec(ctx, "rollback")
-	tx.closed = true
 	if err != nil {
 		// A rollback failure leaves the connection in an undefined state
 		tx.conn.die()
@@ -224,7 +223,7 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 
 // Exec delegates to the underlying *Conn
 func (tx *dbTx) Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
-	if tx.closed {
+	if tx.closed.Load() {
 		return pgconn.CommandTag{}, ErrTxClosed
 	}
 
@@ -233,7 +232,7 @@ func (tx *dbTx) Exec(ctx context.Context, sql string, arguments ...any) (command
 
 // Prepare delegates to the underlying *Conn
 func (tx *dbTx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
-	if tx.closed {
+	if tx.closed.Load() {
 		return nil, ErrTxClosed
 	}
 
@@ -242,7 +241,7 @@ func (tx *dbTx) Prepare(ctx context.Context, name, sql string) (*pgconn.Statemen
 
 // Query delegates to the underlying *Conn
 func (tx *dbTx) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
-	if tx.closed {
+	if tx.closed.Load() {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
 		return &baseRows{closed: true, err: err}, err
@@ -259,7 +258,7 @@ func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 
 // CopyFrom delegates to the underlying *Conn
 func (tx *dbTx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
-	if tx.closed {
+	if tx.closed.Load() {
 		return 0, ErrTxClosed
 	}
 
@@ -268,7 +267,7 @@ func (tx *dbTx) CopyFrom(ctx context.Context, tableName Identifier, columnNames 
 
 // SendBatch delegates to the underlying *Conn
 func (tx *dbTx) SendBatch(ctx context.Context, b *Batch) BatchResults {
-	if tx.closed {
+	if tx.closed.Load() {
 		return &batchResults{err: ErrTxClosed}
 	}
 
