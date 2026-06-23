@@ -1066,8 +1066,6 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	// The invalid BEGIN fails with a non-fatal error, so the connection stays
-	// usable and is released back to the pool rather than destroyed.
 	assert.EqualValues(t, 1, db.Stat().TotalConns())
 
 	var n int
@@ -1090,8 +1088,6 @@ func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	// The BEGIN terminates its own backend, so it fails with a fatal error and
-	// the connection is destroyed rather than released back to the pool.
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
 	assert.Error(t, err)
 	if !assert.Zero(t, tx) {
