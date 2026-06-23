@@ -1075,6 +1075,40 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 	require.EqualValues(t, 1, n)
 }
 
+func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	controllerConn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(ctx)
+	pgxtest.SkipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	db, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	// The BEGIN terminates its own backend, so it fails with a fatal error and
+	// the connection is destroyed rather than released back to the pool.
+	tx, err := db.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
+	assert.Error(t, err)
+	if !assert.Zero(t, tx) {
+		err := tx.Rollback(ctx)
+		assert.NoError(t, err)
+	}
+
+	for range 1000 {
+		if db.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	assert.EqualValues(t, 0, db.Stat().TotalConns())
+}
+
 func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
