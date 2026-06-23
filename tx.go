@@ -100,7 +100,8 @@ func (c *Conn) Begin(ctx context.Context) (Tx, error) {
 func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
-		// begin kills the connection upon receiving fatal or panic errors, but does not otherwise as the connection should be reusable
+		// begin kills the connection upon receiving fatal, panic or non PGError errors,
+		// but does not otherwise as the connection should be reusable.
 		var pgErr *pgconn.PgError
 		if !errors.As(err, &pgErr) || isConnectionFatal(pgErr) {
 			c.die()
