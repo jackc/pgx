@@ -1066,14 +1066,13 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	for range 1000 {
-		if db.Stat().TotalConns() == 0 {
-			break
-		}
-		time.Sleep(time.Millisecond)
-	}
+	// The invalid BEGIN fails with a non-fatal error, so the connection stays
+	// usable and is released back to the pool rather than destroyed.
+	assert.EqualValues(t, 1, db.Stat().TotalConns())
 
-	assert.EqualValues(t, 0, db.Stat().TotalConns())
+	var n int
+	require.NoError(t, db.QueryRow(ctx, "select 1").Scan(&n))
+	require.EqualValues(t, 1, n)
 }
 
 func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {

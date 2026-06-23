@@ -643,3 +643,47 @@ func TestTxSendBatchClosed(t *testing.T) {
 	_, err = br.Query()
 	require.Error(t, err)
 }
+
+func TestBeginTxNonFatalErrorKeepsConnAlive(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server returns a different severity/error for an invalid BEGIN")
+
+	ctx := context.Background()
+
+	_, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "begin transaction isolation level nonsense"})
+	require.Error(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.NotEqual(t, "FATAL", pgErr.SeverityUnlocalized)
+
+	require.False(t, conn.IsClosed())
+
+	var n int
+	require.NoError(t, conn.QueryRow(ctx, "select 1").Scan(&n))
+	require.Equal(t, 1, n)
+}
+
+func TestBeginTxFatalErrorKillsConn(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support pg_terminate_backend()")
+
+	ctx := context.Background()
+
+	_, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
+	require.Error(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "FATAL", pgErr.SeverityUnlocalized)
+
+	require.True(t, conn.IsClosed())
+}
