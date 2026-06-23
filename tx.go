@@ -100,9 +100,11 @@ func (c *Conn) Begin(ctx context.Context) (Tx, error) {
 func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
-		// begin should never fail unless there is an underlying connection issue or
-		// a context timeout. In either case, the connection is possibly broken.
-		c.die()
+		// begin kills the connection upon receiving fatal or panic errors, but does not otherwise as the connection should be reusable
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || isConnectionFatal(pgErr) {
+			c.die()
+		}
 		return nil, err
 	}
 
@@ -110,6 +112,14 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 		conn:        c,
 		commitQuery: txOptions.CommitQuery,
 	}, nil
+}
+
+func isConnectionFatal(pgErr *pgconn.PgError) bool {
+	severity := pgErr.SeverityUnlocalized
+	if severity == "" {
+		severity = pgErr.Severity
+	}
+	return severity == "FATAL" || severity == "PANIC"
 }
 
 // Tx represents a database transaction.
