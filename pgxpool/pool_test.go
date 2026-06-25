@@ -1060,11 +1060,8 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.TxIsoLevel("foo"),
 	})
-	assert.Error(t, err)
-	if !assert.Zero(t, tx) {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}
+	require.Error(t, err)
+	require.Zero(t, tx)
 
 	require.EqualValues(t, 1, db.Stat().TotalConns())
 
