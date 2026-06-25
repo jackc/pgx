@@ -1066,7 +1066,7 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	assert.EqualValues(t, 1, db.Stat().TotalConns())
+	require.EqualValues(t, 1, db.Stat().TotalConns())
 
 	var n int
 	require.NoError(t, db.QueryRow(ctx, "select 1").Scan(&n))
@@ -1089,11 +1089,8 @@ func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
 	defer db.Close()
 
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
-	assert.Error(t, err)
-	if !assert.Zero(t, tx) {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}
+	require.Error(t, err)
+	require.Zero(t, tx)
 
 	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
@@ -1102,7 +1099,7 @@ func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	assert.EqualValues(t, 0, db.Stat().TotalConns())
+	require.EqualValues(t, 0, db.Stat().TotalConns())
 }
 
 func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
