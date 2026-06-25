@@ -643,3 +643,33 @@ func TestTxSendBatchClosed(t *testing.T) {
 	_, err = br.Query()
 	require.Error(t, err)
 }
+
+// When a query is cancelled mid-flight the underlying connection is closed, but
+// the Tx handle has not been finalized. The first Rollback then fails to send
+// ROLLBACK over the dead connection. That error must be matchable as
+// pgconn.ErrConnClosed (transport gone) rather than ErrTxClosed (handle already
+// finalized), so callers can tell the two apart. A second Rollback returns
+// ErrTxClosed. See https://github.com/jackc/pgx/issues/2557.
+func TestTxRollbackOnClosedConnReturnsErrConnClosed(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	tx, err := conn.Begin(context.Background())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = tx.Exec(ctx, "select pg_sleep(5)")
+	require.Error(t, err)
+	require.True(t, conn.IsClosed())
+
+	err = tx.Rollback(context.Background())
+	require.ErrorIs(t, err, pgconn.ErrConnClosed)
+	require.NotErrorIs(t, err, pgx.ErrTxClosed)
+
+	err = tx.Rollback(context.Background())
+	require.ErrorIs(t, err, pgx.ErrTxClosed)
+}
