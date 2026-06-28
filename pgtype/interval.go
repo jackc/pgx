@@ -232,7 +232,7 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 		}
 
 		var negative bool
-		if timeParts[0][0] == '-' {
+		if len(timeParts[0]) > 0 && timeParts[0][0] == '-' {
 			negative = true
 			timeParts[0] = timeParts[0][1:]
 		}
