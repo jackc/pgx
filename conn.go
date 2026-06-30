@@ -475,6 +475,9 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 	}
 
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
+		if c.queryTracer != nil {
+			c.queryTracer.TraceQueryEnd(ctx, c, TraceQueryEndData{Err: err})
+		}
 		return pgconn.CommandTag{}, err
 	}
 
