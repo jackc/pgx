@@ -1060,11 +1060,34 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.TxIsoLevel("foo"),
 	})
-	assert.Error(t, err)
-	if !assert.Zero(t, tx) {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}
+	require.Error(t, err)
+	require.Zero(t, tx)
+
+	require.EqualValues(t, 1, db.Stat().TotalConns())
+
+	var n int
+	require.NoError(t, db.QueryRow(ctx, "select 1").Scan(&n))
+	require.EqualValues(t, 1, n)
+}
+
+func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	controllerConn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(ctx)
+	pgxtest.SkipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	db, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
+	require.Error(t, err)
+	require.Zero(t, tx)
 
 	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
@@ -1073,7 +1096,7 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	assert.EqualValues(t, 0, db.Stat().TotalConns())
+	require.EqualValues(t, 0, db.Stat().TotalConns())
 }
 
 func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
