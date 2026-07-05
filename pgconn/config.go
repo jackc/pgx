@@ -359,6 +359,26 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	}
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
+
+	// The home-directory-derived defaults (passfile, servicefile, sslcert,
+	// sslkey, sslrootcert) are already present in settings at this point:
+	// defaultSettings resolves them via the user's home directory, which is
+	// safe and cheap to look up (see defaults.go / defaults_windows.go).
+	//
+	// The default PostgreSQL user name is different: resolving it requires
+	// looking up the OS user account, which can be slow or, in some
+	// restricted container environments, crash the process. So that lookup
+	// is memoized and only performed lazily below, the first time it is
+	// actually needed -- i.e. only when a connection string or environment
+	// does not already supply a user.
+	var cachedOSUserSettings map[string]string
+	lazyOSUserSettings := func() map[string]string {
+		if cachedOSUserSettings == nil {
+			cachedOSUserSettings = osUserSettings()
+		}
+		return cachedOSUserSettings
+	}
+
 	if service, present := settings["service"]; present {
 		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
 		if err != nil {
@@ -366,6 +386,13 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		}
 
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
+	}
+
+	// Only fall back to the OS user account for the default PostgreSQL user
+	// name when it was not already supplied by the connection string,
+	// environment, or service file.
+	if settings["user"] == "" {
+		settings = mergeSettings(lazyOSUserSettings(), settings)
 	}
 
 	config := &Config{
