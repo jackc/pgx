@@ -1189,7 +1189,7 @@ func TestConnQueryRowConstraintErrors(t *testing.T) {
 		_, err = db.Exec(`create function test_trigger() returns trigger language plpgsql as $$
 		begin
 		if new.n = 4 then
-			raise exception 'n cant be 4!';
+			raise exception 'n can''t be 4!';
 		end if;
 		return new;
 	end$$`)
