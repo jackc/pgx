@@ -62,7 +62,7 @@ func (c *LRUCache) Put(sd *pgconn.StatementDescription) {
 		return
 	}
 
-	// The statement may have been invalidated but not yet handled. Do not readd it to the cache.
+	// The statement may have been invalidated but not yet handled. Do not re-add it to the cache.
 	if _, invalidated := c.invalidSet[sd.SQL]; invalidated {
 		return
 	}
