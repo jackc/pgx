@@ -245,6 +245,31 @@ func TestNumericMarshalJSON(t *testing.T) {
 	})
 }
 
+func TestNumericMarshalJSONInfinity(t *testing.T) {
+	// PostgreSQL renders numeric infinity in JSON as the quoted strings
+	// "Infinity"/"-Infinity" (like to_json('infinity'::numeric)), matching the
+	// existing "NaN" handling. Previously these marshaled to 0, silently
+	// corrupting the value.
+	for _, tt := range []struct {
+		name string
+		num  pgtype.Numeric
+		want string
+	}{
+		{"Infinity", pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, `"Infinity"`},
+		{"-Infinity", pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, `"-Infinity"`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := json.Marshal(tt.num)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(got))
+
+			var back pgtype.Numeric
+			require.NoError(t, back.UnmarshalJSON(got))
+			require.Equal(t, tt.num, back)
+		})
+	}
+}
+
 func TestNumericUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -262,6 +287,18 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 			name:    "NaN",
 			want:    &pgtype.Numeric{Valid: true, NaN: true},
 			src:     []byte(`"NaN"`),
+			wantErr: false,
+		},
+		{
+			name:    "Infinity",
+			want:    &pgtype.Numeric{Valid: true, InfinityModifier: pgtype.Infinity},
+			src:     []byte(`"Infinity"`),
+			wantErr: false,
+		},
+		{
+			name:    "-Infinity",
+			want:    &pgtype.Numeric{Valid: true, InfinityModifier: pgtype.NegativeInfinity},
+			src:     []byte(`"-Infinity"`),
 			wantErr: false,
 		},
 		{
