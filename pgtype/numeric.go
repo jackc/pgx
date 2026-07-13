@@ -242,8 +242,13 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	if n.NaN {
+	switch {
+	case n.NaN:
 		return []byte(`"NaN"`), nil
+	case n.InfinityModifier == Infinity:
+		return []byte(`"Infinity"`), nil
+	case n.InfinityModifier == NegativeInfinity:
+		return []byte(`"-Infinity"`), nil
 	}
 
 	return n.numberTextBytes(), nil
@@ -257,6 +262,14 @@ func (n *Numeric) UnmarshalJSON(src []byte) error {
 	}
 	if bytes.Equal(src, []byte(`"NaN"`)) {
 		*n = Numeric{NaN: true, Valid: true}
+		return nil
+	}
+	if bytes.Equal(src, []byte(`"Infinity"`)) {
+		*n = Numeric{InfinityModifier: Infinity, Valid: true}
+		return nil
+	}
+	if bytes.Equal(src, []byte(`"-Infinity"`)) {
+		*n = Numeric{InfinityModifier: NegativeInfinity, Valid: true}
 		return nil
 	}
 	return scanPlanTextAnyToNumericScanner{}.Scan(src, n)
