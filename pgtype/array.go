@@ -377,7 +377,7 @@ func isSpace(ch byte) bool {
 }
 
 func quoteArrayElementIfNeeded(src string) string {
-	if src == "" || (len(src) == 4 && strings.EqualFold(src, "null")) || isSpace(src[0]) || isSpace(src[len(src)-1]) || strings.ContainsAny(src, `{},"\`) {
+	if src == "" || (len(src) == 4 && strings.EqualFold(src, "null")) || strings.ContainsAny(src, " \t\n\r\v\f") || strings.ContainsAny(src, `{},"\`) {
 		return quoteArrayElement(src)
 	}
 	return src

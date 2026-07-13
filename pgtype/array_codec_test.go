@@ -86,6 +86,12 @@ func TestArrayCodecFlatArrayString(t *testing.T) {
 	})
 }
 
+func TestArrayCodecEncodeTextArrayQuotesInternalWhitespace(t *testing.T) {
+	buf, err := pgtype.NewMap().Encode(pgtype.TextArrayOID, pgtype.TextFormatCode, []string{"has space", "two words", "nospaces"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, `{"has space","two words",nospaces}`, string(buf))
+}
+
 func TestArrayCodecArray(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
