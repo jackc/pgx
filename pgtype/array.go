@@ -370,12 +370,6 @@ func quoteArrayElement(src string) string {
 	return `"` + quoteArrayReplacer.Replace(src) + `"`
 }
 
-func isSpace(ch byte) bool {
-	// see array_isspace:
-	// https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/arrayfuncs.c
-	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f'
-}
-
 func quoteArrayElementIfNeeded(src string) string {
 	if src == "" || (len(src) == 4 && strings.EqualFold(src, "null")) || strings.ContainsAny(src, " \t\n\r\v\f") || strings.ContainsAny(src, `{},"\`) {
 		return quoteArrayElement(src)
