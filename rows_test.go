@@ -702,6 +702,24 @@ func TestRowToStructByNameDbTags(t *testing.T) {
 	})
 }
 
+// A db tag must match its column case-insensitively. PostgreSQL folds unquoted
+// identifiers to lower case, so a column aliased `as Region` comes back as
+// "region" and has to match a `db:"Region"` tag. See
+// https://github.com/jackc/pgx/issues/2296.
+func TestRowToStructByNameDbTagsCaseInsensitive(t *testing.T) {
+	type record struct {
+		Region string `db:"Region"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'east' as Region`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[record])
+		require.NoError(t, err)
+		require.Len(t, slice, 1)
+		assert.Equal(t, "east", slice[0].Region)
+	})
+}
+
 func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 	type Name struct {
 		Last  string `db:"last_name"`

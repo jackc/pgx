@@ -843,7 +843,7 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 				return i
 			}
 		} else {
-			if desc.Name == field {
+			if strings.EqualFold(desc.Name, field) {
 				return i
 			}
 		}
