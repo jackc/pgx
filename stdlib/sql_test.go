@@ -965,7 +965,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(int64(0)),
+				ScanType: reflect.TypeFor[int64](),
 			}, {
 				Name:     "bar",
 				TypeName: "TEXT",
@@ -985,7 +985,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(""),
+				ScanType: reflect.TypeFor[string](),
 			}, {
 				Name:     "dec",
 				TypeName: "NUMERIC",
@@ -1005,7 +1005,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     2,
 					OK:        true,
 				},
-				ScanType: reflect.TypeOf(float64(0)),
+				ScanType: reflect.TypeFor[float64](),
 			}, {
 				Name:     "d",
 				TypeName: "1266",
@@ -1025,7 +1025,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(""),
+				ScanType: reflect.TypeFor[string](),
 			},
 		}
 

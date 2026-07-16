@@ -92,20 +92,21 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	defer closeConn(t, conn)
 
 	columnCount := 1000
-	sql := "select "
+	var sql strings.Builder
+	sql.WriteString("select ")
 	for i := range columnCount {
 		if i > 0 {
-			sql += ","
+			sql.WriteString(",")
 		}
-		sql += fmt.Sprintf(" %d", i)
+		sql.WriteString(fmt.Sprintf(" %d", i))
 	}
-	sql += " from generate_series(1,5)"
+	sql.WriteString(" from generate_series(1,5)")
 
 	dest := make([]int, columnCount)
 
 	var rowCount int
 
-	rows, err := conn.Query(context.Background(), sql)
+	rows, err := conn.Query(context.Background(), sql.String())
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
