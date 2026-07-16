@@ -4708,7 +4708,7 @@ func TestPipelineCloseDoesNotPanicOnMultipleFatalErrors(t *testing.T) {
 		}
 
 		// Read all client pipeline messages (Parse, Describe, Parse, Describe, Sync)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			_, err = backend.Receive()
 			if err != nil {
 				serverErrChan <- err
@@ -4844,7 +4844,7 @@ func TestAsyncCloseDrainsBeforeClose(t *testing.T) {
 		// blocked past the cancel point; either way fall through to read Terminate.
 		row := &pgproto3.DataRow{Values: [][]byte{bytes.Repeat([]byte("x"), 1024)}}
 		conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
-		for i := 0; i < 16*1024; i++ {
+		for range 16 * 1024 {
 			backend.Send(row)
 			if err := backend.Flush(); err != nil {
 				break

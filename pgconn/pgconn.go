@@ -13,6 +13,7 @@ import (
 	"maps"
 	"math"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -472,13 +473,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			clientFinishedAuth = true
 		case *pgproto3.AuthenticationSASL:
 			// Check if OAUTHBEARER is supported
-			serverSupportsOAuthBearer := false
-			for _, mech := range msg.AuthMechanisms {
-				if mech == "OAUTHBEARER" {
-					serverSupportsOAuthBearer = true
-					break
-				}
-			}
+			serverSupportsOAuthBearer := slices.Contains(msg.AuthMechanisms, "OAUTHBEARER")
 
 			if serverSupportsOAuthBearer && pgConn.config.OAuthTokenProvider != nil {
 				if err := requireAuthPolicy.check(authMethodOAuth); err != nil {
