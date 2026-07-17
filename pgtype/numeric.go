@@ -700,7 +700,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 
 	reduced := &big.Int{}
 	remainder := &big.Int{}
-	if exp >= 0 {
+	if exp >= 0 && accum.Sign() != 0 {
 		for {
 			reduced.DivMod(accum, big10, remainder)
 			if remainder.Sign() != 0 {

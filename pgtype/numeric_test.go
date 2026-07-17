@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -145,6 +146,42 @@ func TestNumericCodecInfinity(t *testing.T) {
 		{Param: pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, Result: new(string), Test: isExpectedEq("Infinity")},
 		{Param: pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, Result: new(string), Test: isExpectedEq("-Infinity")},
 	})
+}
+
+// TestNumericBinaryDecodeUnnormalizedZero ensures the binary decoder does not
+// hang on a zero value encoded with ndigits > 0. PostgreSQL always normalizes
+// zero to ndigits == 0, but other servers speaking the same wire protocol
+// (e.g. CockroachDB) and connection poolers may send an unnormalized zero. The
+// trailing-zero reduction loop divided such a value by 10 forever because
+// 0 % 10 == 0, spinning the CPU indefinitely.
+func TestNumericBinaryDecodeUnnormalizedZero(t *testing.T) {
+	// ndigits=1, weight=0, sign=0 (positive), dscale=0, single base-10000 digit = 0.
+	src := []byte{
+		0x00, 0x01, // ndigits
+		0x00, 0x00, // weight
+		0x00, 0x00, // sign
+		0x00, 0x00, // dscale
+		0x00, 0x00, // digit[0]
+	}
+
+	done := make(chan error, 1)
+	var n pgtype.Numeric
+	go func() {
+		plan := pgtype.NumericCodec{}.PlanScan(nil, pgtype.NumericOID, pgtype.BinaryFormatCode, &n)
+		require.NotNil(t, plan)
+		done <- plan.Scan(src, &n)
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+		require.True(t, n.Valid)
+		require.False(t, n.NaN)
+		require.Equal(t, pgtype.Finite, n.InfinityModifier)
+		require.Equal(t, 0, n.Int.Sign())
+	case <-time.After(5 * time.Second):
+		t.Fatal("decoding unnormalized zero did not terminate (infinite loop)")
+	}
 }
 
 func TestNumericFloat64Valuer(t *testing.T) {
