@@ -3621,6 +3621,67 @@ func TestPipelineEmptyQuery(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelineQueryStatementBindError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	sdA, err := pgConn.Prepare(ctx, "ps_a", "select $1::int8, $2::text", nil)
+	require.NoError(t, err)
+	sdB, err := pgConn.Prepare(ctx, "ps_b", "select $1::text", nil)
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+
+	// Bind error: sdA takes two parameters but only one is sent.
+	pipeline.SendQueryStatement(sdA, [][]byte{[]byte("1")}, []int16{0}, []int16{1, 0})
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Nil(t, results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok := results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	// The statement data for the failed query must not still be in the queue where it would be misaligned with
+	// this query.
+	pipeline.SendQueryStatement(sdB, [][]byte{[]byte("hello")}, []int16{0}, []int16{0})
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	fds := rr.FieldDescriptions()
+	require.Len(t, fds, 1)
+	require.Equal(t, uint32(pgtype.TextOID), fds[0].DataTypeOID)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Equal(t, "hello", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 

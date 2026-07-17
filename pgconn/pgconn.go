@@ -2710,6 +2710,13 @@ func (p *Pipeline) getResultsQueryPrepared() (*ResultReader, error) {
 }
 
 func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
+	// The statement data must be extracted even if an error occurs. Otherwise, it would still be in the queue and
+	// subsequent QueryStatement results would be misaligned with their statement descriptions.
+	sd, resultFormats := p.state.ExtractFrontStatementData()
+	if sd == nil {
+		return nil, errors.New("BUG: missing statement description or result formats for QueryStatement")
+	}
+
 	err := p.receiveBindComplete("QueryStatement")
 	if err != nil {
 		return nil, err
@@ -2720,10 +2727,6 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 		return nil, err
 	}
 
-	sd, resultFormats := p.state.ExtractFrontStatementData()
-	if sd == nil {
-		return nil, errors.New("BUG: missing statement description or result formats for QueryStatement")
-	}
 	sdFields := sd.Fields
 	fieldDescriptions := p.conn.getFieldDescriptionSlice(len(sdFields))
 	err = combineFieldDescriptionsAndResultFormats(fieldDescriptions, sdFields, resultFormats)
