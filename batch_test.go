@@ -157,6 +157,27 @@ func TestConnSendBatch(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2601
+func TestConnSendBatchEmptyQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("-- comment-only query")
+		br := conn.SendBatch(ctx, batch)
+
+		ct, err := br.Exec()
+		require.NoError(t, err)
+		require.Equal(t, "", ct.String())
+
+		err = br.Close()
+		require.NoError(t, err)
+	})
+}
+
 func TestConnSendBatchQueuedQuery(t *testing.T) {
 	t.Parallel()
 
