@@ -3578,6 +3578,49 @@ func TestPipelinePrepareQuery(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2601
+func TestPipelineEmptyQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	sd, err := pgConn.Prepare(ctx, "ps_empty", "-- comment-only query", nil)
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+	pipeline.SendQueryParams(`-- comment-only query`, nil, nil, nil, nil)
+	pipeline.SendQueryPrepared(`ps_empty`, nil, nil, nil)
+	pipeline.SendQueryStatement(sd, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	for _, requestType := range []string{"QueryParams", "QueryPrepared", "QueryStatement"} {
+		results, err := pipeline.GetResults()
+		require.NoErrorf(t, err, "%s", requestType)
+		rr, ok := results.(*pgconn.ResultReader)
+		require.Truef(t, ok, "%s: expected ResultReader, got: %#v", requestType, results)
+		readResult := rr.Read()
+		require.NoErrorf(t, readResult.Err, "%s", requestType)
+		require.Lenf(t, readResult.Rows, 0, "%s", requestType)
+		require.Equalf(t, "", readResult.CommandTag.String(), "%s", requestType)
+	}
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok := results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 

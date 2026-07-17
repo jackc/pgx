@@ -2750,6 +2750,12 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 			fieldDescriptions: fieldDescriptions,
 		}
 		return &p.conn.resultReader, nil
+	case *pgproto3.EmptyQueryResponse:
+		p.conn.resultReader = ResultReader{
+			commandConcluded: true,
+			closed:           true,
+		}
+		return &p.conn.resultReader, nil
 	case *pgproto3.ErrorResponse:
 		pgErr := ErrorResponseToPgError(msg)
 		p.state.HandleError(pgErr)
@@ -2877,6 +2883,15 @@ func (p *Pipeline) receiveDescribedResultReader(errStr string) (*ResultReader, e
 			closed:           true,
 		}
 		return &p.conn.resultReader, nil
+
+	// EmptyQueryResponse is returned instead of CommandComplete when the query is empty. e.g. A comment-only query.
+	case *pgproto3.EmptyQueryResponse:
+		p.conn.resultReader = ResultReader{
+			commandConcluded: true,
+			closed:           true,
+		}
+		return &p.conn.resultReader, nil
+
 	case *pgproto3.ErrorResponse:
 		pgErr := ErrorResponseToPgError(msg)
 		p.state.HandleError(pgErr)
