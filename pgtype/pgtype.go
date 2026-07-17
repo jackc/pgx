@@ -575,8 +575,7 @@ func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nex
 		if nextDstType == nil {
 			if elemValue.Kind() == reflect.Slice {
 				if elemValue.Type().Elem().Kind() == reflect.Uint8 {
-					var v *[]byte
-					nextDstType = reflect.TypeOf(v)
+					nextDstType = reflect.TypeFor[*[]byte]()
 				}
 			}
 
