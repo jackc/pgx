@@ -2618,22 +2618,29 @@ func (p *Pipeline) getResults() (results any, err error) {
 	case pipelineNil:
 		return nil, nil
 	case pipelinePrepare:
-		return p.getResultsPrepare()
+		results, err = p.getResultsPrepare()
 	case pipelineQueryParams:
-		return p.getResultsQueryParams()
+		results, err = p.getResultsQueryParams()
 	case pipelineQueryPrepared:
-		return p.getResultsQueryPrepared()
+		results, err = p.getResultsQueryPrepared()
 	case pipelineQueryStatement:
-		return p.getResultsQueryStatement()
+		results, err = p.getResultsQueryStatement()
 	case pipelineDeallocate:
-		return p.getResultsDeallocate()
+		results, err = p.getResultsDeallocate()
 	case pipelineSyncRequest:
-		return p.getResultsSync()
+		results, err = p.getResultsSync()
 	case pipelineFlushRequest:
 		return nil, errors.New("BUG: pipelineFlushRequest should not be in request queue")
 	default:
 		return nil, errors.New("BUG: unknown pipeline request type")
 	}
+
+	if err != nil {
+		// Return an untyped nil instead of an interface containing a typed nil pointer so that callers can compare
+		// results to nil.
+		return nil, err
+	}
+	return results, nil
 }
 
 func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {

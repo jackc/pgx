@@ -3682,6 +3682,52 @@ func TestPipelineQueryStatementBindError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelineGetResultsNilResultsOnError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(ctx)
+
+	pipeline.SendPrepare("ps_err", "wat", nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	// results must be an untyped nil, not an interface containing a typed nil pointer.
+	require.Truef(t, results == nil, "expected nil results, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok := results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	pipeline.SendQueryParams(`wat`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err = pipeline.GetResults()
+	require.ErrorAs(t, err, &pgErr)
+	require.Truef(t, results == nil, "expected nil results, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 
