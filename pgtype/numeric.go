@@ -149,6 +149,16 @@ func (n *Numeric) ScanScientific(src string) error {
 }
 
 func (n *Numeric) toBigInt() (*big.Int, error) {
+	if n.NaN {
+		return nil, fmt.Errorf("cannot convert NaN to integer")
+	} else if n.InfinityModifier != Finite {
+		return nil, fmt.Errorf("cannot convert %v to integer", n.InfinityModifier)
+	}
+
+	if n.Int == nil {
+		return big.NewInt(0), nil
+	}
+
 	if n.Exp == 0 {
 		return n.Int, nil
 	}

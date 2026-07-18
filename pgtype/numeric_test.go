@@ -208,6 +208,36 @@ func TestNumericFloat64Valuer(t *testing.T) {
 	assert.True(t, f.Valid)
 }
 
+func TestNumericInt64Valuer(t *testing.T) {
+	for i, tt := range []struct {
+		n pgtype.Numeric
+		i pgtype.Int8
+	}{
+		{mustParseNumeric(t, "1"), pgtype.Int8{Int64: 1, Valid: true}},
+		{mustParseNumeric(t, "-99999999999"), pgtype.Int8{Int64: -99999999999, Valid: true}},
+		{mustParseNumeric(t, "0"), pgtype.Int8{Int64: 0, Valid: true}},
+		// A valid Numeric with a nil Int is zero, matching Float64Value, Value,
+		// and MarshalJSON. Int64Value used to dereference the nil Int and panic.
+		{pgtype.Numeric{Valid: true}, pgtype.Int8{Int64: 0, Valid: true}},
+		{pgtype.Numeric{}, pgtype.Int8{}},
+	} {
+		v, err := tt.n.Int64Value()
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, tt.i, v, "%d", i)
+	}
+
+	// NaN and infinite values cannot be represented as int64. They also have a
+	// nil Int, but must error rather than convert to zero.
+	for i, n := range []pgtype.Numeric{
+		{NaN: true, Valid: true},
+		{InfinityModifier: pgtype.Infinity, Valid: true},
+		{InfinityModifier: pgtype.NegativeInfinity, Valid: true},
+	} {
+		_, err := n.Int64Value()
+		assert.Errorf(t, err, "%d", i)
+	}
+}
+
 func TestNumericCodecFuzz(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 
