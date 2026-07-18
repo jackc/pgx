@@ -188,6 +188,17 @@ func TestNumericInt64Valuer(t *testing.T) {
 		assert.NoErrorf(t, err, "%d", i)
 		assert.Equalf(t, tt.i, v, "%d", i)
 	}
+
+	// NaN and infinite values cannot be represented as int64. They also have a
+	// nil Int, but must error rather than convert to zero.
+	for i, n := range []pgtype.Numeric{
+		{NaN: true, Valid: true},
+		{InfinityModifier: pgtype.Infinity, Valid: true},
+		{InfinityModifier: pgtype.NegativeInfinity, Valid: true},
+	} {
+		_, err := n.Int64Value()
+		assert.Errorf(t, err, "%d", i)
+	}
 }
 
 func TestNumericCodecFuzz(t *testing.T) {
