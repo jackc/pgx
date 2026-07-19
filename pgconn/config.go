@@ -237,10 +237,10 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // to only read from the environment. If a password is not supplied it will attempt to read the .pgpass file.
 //
 //	# Example Keyword/Value
-//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca
+//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-full
 //
 //	# Example URL
-//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca
+//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-full
 //
 // The returned *Config may be modified. However, it is strongly recommended that any configuration that can be done
 // through the connection string be done there. In particular the fields Host, Port, TLSConfig, and Fallbacks can be
