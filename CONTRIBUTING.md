@@ -130,6 +130,9 @@ psql --no-psqlrc -f testsetup/postgresql_setup.sql
 ### PgBouncer
 
 There are tests specific for PgBouncer that will be executed if `PGX_TEST_PGBOUNCER_CONN_STRING` is set.
+The test PgBouncer must be version 1.21.0 or newer, use transaction pooling, and have `max_prepared_statements` set to a
+non-zero value. This ensures the tests cover PgBouncer's protocol-level named prepared statement support in addition to
+the pgx query modes that do not use named prepared statements.
 
 ### Optional Tests
 
