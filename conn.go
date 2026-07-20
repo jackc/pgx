@@ -36,9 +36,10 @@ type ConnConfig struct {
 	DescriptionCacheCapacity int
 
 	// DefaultQueryExecMode controls the default mode for executing queries. By default pgx uses the extended protocol
-	// and automatically prepares and caches prepared statements. However, this may be incompatible with proxies such as
-	// PGBouncer. In this case it may be preferable to use [QueryExecModeExec] or [QueryExecModeSimpleProtocol]. The same
-	// functionality can be controlled on a per query basis by passing a [QueryExecMode] as the first query argument.
+	// and automatically prepares and caches prepared statements. This may be incompatible with proxies such as PgBouncer
+	// unless they are configured to support protocol-level prepared statements. In an incompatible configuration it may
+	// be preferable to use [QueryExecModeExec] or [QueryExecModeSimpleProtocol]. The same functionality can be controlled
+	// on a per query basis by passing a [QueryExecMode] as the first query argument.
 	DefaultQueryExecMode QueryExecMode
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.

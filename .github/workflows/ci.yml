@@ -128,6 +128,36 @@ jobs:
           PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
           PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
 
+  test-pgbouncer:
+    name: Test PgBouncer with PostgreSQL 18
+    runs-on: ubuntu-22.04
+    env:
+      PGBOUNCER_VERSION: "1.25.2"
+      PGBOUNCER_SHA256: "924ad35113fd0a71c8e2dbe85b5d03445532e2b7b37a9f8a48983beea238b332"
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
+
+      - name: Set up Go 1.26
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up PostgreSQL 18
+        run: ci/setup_test.bash
+        env:
+          PGVERSION: "18"
+
+      - name: Set up PgBouncer
+        run: ci/setup_pgbouncer.bash
+
+      - name: Test PgBouncer
+        run: go test -parallel=1 -race -count=1 -v ./...
+        env:
+          PGX_TEST_DATABASE: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
+          PGX_TEST_PGBOUNCER_CONN_STRING: "host=127.0.0.1 port=6432 user=pgx_md5 password=secret dbname=pgx_test"
+
   test-windows:
     name: Test Windows
     runs-on: windows-latest
