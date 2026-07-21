@@ -667,6 +667,76 @@ func TestRowToStructByName(t *testing.T) {
 	})
 }
 
+func TestRowToStructByNameDoublePointer(t *testing.T) {
+	type person struct {
+		Last      string
+		First     **string
+		Age       int32
+		AccountID string
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Equal(t, "John", **slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+	})
+}
+
+func TestRowToStructByNameTriplePointer(t *testing.T) {
+	type person struct {
+		Last      string
+		First     ***string
+		Age       int32
+		AccountID string
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Equal(t, "John", ***slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+	})
+}
+
 func TestRowToStructByNameDbTags(t *testing.T) {
 	type person struct {
 		Last             string `db:"last_name"`
