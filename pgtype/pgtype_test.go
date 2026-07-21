@@ -330,6 +330,65 @@ func TestPointerPointerStructScan(t *testing.T) {
 	require.Equal(t, 1, c.ID)
 }
 
+func TestPointerDoublePointerStructScan(t *testing.T) {
+	m := pgtype.NewMap()
+	type composite struct {
+		ID **int
+	}
+
+	int4Type, _ := m.TypeForOID(pgtype.Int4OID)
+	pgt := &pgtype.Type{
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{
+					Name: "id",
+					Type: int4Type,
+				},
+			},
+		},
+		Name: "composite",
+		OID:  215333,
+	}
+	m.RegisterType(pgt)
+
+	var c *composite
+	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
+	err := plan.Scan([]byte("(1)"), &c)
+	require.NoError(t, err)
+	require.Equal(t, 1, **c.ID)
+}
+
+func TestPointerDoublePointerStructScannerScan(t *testing.T) {
+	m := pgtype.NewMap()
+	type composite struct {
+		ID **sql.NullInt64
+	}
+
+	int4Type, _ := m.TypeForOID(pgtype.Int4OID)
+	pgt := &pgtype.Type{
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{
+					Name: "id",
+					Type: int4Type,
+				},
+			},
+		},
+		Name: "composite",
+		OID:  215333,
+	}
+	m.RegisterType(pgt)
+
+	var c *composite
+	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
+	err := plan.Scan([]byte("(1)"), &c)
+	require.NoError(t, err)
+	require.Equal(t, sql.NullInt64{
+		Int64: 1,
+		Valid: true,
+	}, **c.ID)
+}
+
 // https://github.com/jackc/pgx/issues/1263
 func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	m := pgtype.NewMap()
