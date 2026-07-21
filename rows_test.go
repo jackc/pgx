@@ -687,6 +687,18 @@ func TestRowToStructByNameDoublePointer(t *testing.T) {
 			assert.EqualValues(t, i, slice[i].Age)
 			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
 		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
 	})
 }
 
@@ -707,6 +719,18 @@ func TestRowToStructByNameTriplePointer(t *testing.T) {
 		for i := range slice {
 			assert.Equal(t, "Smith", slice[i].Last)
 			assert.Equal(t, "John", ***slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
 			assert.EqualValues(t, i, slice[i].Age)
 			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
 		}
