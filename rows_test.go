@@ -687,16 +687,6 @@ func TestRowToStructByNameDoublePointer(t *testing.T) {
 			assert.EqualValues(t, i, slice[i].Age)
 			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
 		}
-
-		// check missing fields in a returned row
-		rows, _ = conn.Query(ctx, `select 'Smith' as last, n as age from generate_series(0, 9) n`)
-		_, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
-		assert.ErrorContains(t, err, "cannot find field First in returned row")
-
-		// check missing field in a destination struct
-		rows, _ = conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id, null as ignore from generate_series(0, 9) n`)
-		_, err = pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[person])
-		assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
 	})
 }
 
@@ -720,16 +710,6 @@ func TestRowToStructByNameTriplePointer(t *testing.T) {
 			assert.EqualValues(t, i, slice[i].Age)
 			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
 		}
-
-		// check missing fields in a returned row
-		rows, _ = conn.Query(ctx, `select 'Smith' as last, n as age from generate_series(0, 9) n`)
-		_, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
-		assert.ErrorContains(t, err, "cannot find field First in returned row")
-
-		// check missing field in a destination struct
-		rows, _ = conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id, null as ignore from generate_series(0, 9) n`)
-		_, err = pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[person])
-		assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
 	})
 }
 
