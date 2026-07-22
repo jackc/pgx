@@ -54,6 +54,57 @@ func TestRowScannerErrorIsFatalToRows(t *testing.T) {
 	})
 }
 
+type testCompositeWithRowScanner struct {
+	name string
+	age  int32
+}
+
+func (rs *testCompositeWithRowScanner) ScanRow(rows pgx.Rows) error {
+	return rows.Scan(&rs.name, &rs.age)
+}
+
+func (value *testCompositeWithRowScanner) ScanNull() error {
+	return fmt.Errorf("cannot scan NULL into %s", "Result")
+}
+
+func (value *testCompositeWithRowScanner) ScanIndex(i int) any {
+	switch i {
+	case 0:
+		return &value.name
+	case 1:
+		return &value.age
+	default:
+		panic(fmt.Errorf("%s unknown field requested - %d is out of bounds", "testCompositeWithRowScanner", i))
+	}
+}
+
+// https://github.com/jackc/pgx/issues/2609
+func TestScanOnRowCompositeWithRowScanner(t *testing.T) {
+	t.Parallel()
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Exec(ctx, `create type ct_test as (a text, b int4);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop type ct_test")
+
+		dt, err := conn.LoadType(ctx, "ct_test")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(dt)
+
+		var s testCompositeWithRowScanner
+
+		// When returned as a composite scanning works
+		err = conn.QueryRow(ctx, "select ROW('Adam',72)::ct_test").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, testCompositeWithRowScanner{name: "Adam", age: 72}, s)
+
+		// When returned as multiple columns RowScanner still works
+		err = conn.QueryRow(ctx, "select 'Adam', 72").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, testCompositeWithRowScanner{name: "Adam", age: 72}, s)
+	})
+}
+
 func TestForEachRow(t *testing.T) {
 	t.Parallel()
 
