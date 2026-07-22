@@ -16,7 +16,7 @@ var maxLargeObjectMessageLength = 1024*1024*1024 - 1024
 // LargeObjects is a structure used to access the large objects API. It is only valid within the transaction where it
 // was created.
 //
-// For more details see: http://www.postgresql.org/docs/current/static/largeobjects.html
+// For more details see: https://www.postgresql.org/docs/current/static/largeobjects.html
 type LargeObjects struct {
 	tx Tx
 }

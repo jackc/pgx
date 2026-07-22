@@ -278,7 +278,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //	PGMINPROTOCOLVERSION
 //	PGMAXPROTOCOLVERSION
 //
-// See http://www.postgresql.org/docs/current/static/libpq-envars.html for details on the meaning of environment variables.
+// See https://www.postgresql.org/docs/current/static/libpq-envars.html for details on the meaning of environment variables.
 //
 // See https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS for parameter key word names. They are
 // usually but not always the environment variable name downcased and without the "PG" prefix.
@@ -288,7 +288,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to "prefer" behavior if
 // not set.
 //
-// See http://www.postgresql.org/docs/current/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
+// See https://www.postgresql.org/docs/current/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
 // security each sslmode provides.
 //
 // The sslmode "prefer" (the default), sslmode "allow", and multiple hosts are implemented via the Fallbacks field of
