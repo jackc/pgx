@@ -25,6 +25,24 @@ type TraceQueryEndData struct {
 	Err        error
 }
 
+type MultiQueryTracer struct {
+	Tracers []QueryTracer
+}
+
+func (m *MultiQueryTracer) TraceQueryStart(ctx context.Context, conn *Conn, data TraceQueryStartData) context.Context {
+	for _, t := range m.Tracers {
+		ctx = t.TraceQueryStart(ctx, conn, data)
+	}
+
+	return ctx
+}
+
+func (m *MultiQueryTracer) TraceQueryEnd(ctx context.Context, conn *Conn, data TraceQueryEndData) {
+	for _, t := range m.Tracers {
+		t.TraceQueryEnd(ctx, conn, data)
+	}
+}
+
 // BatchTracer traces SendBatch.
 type BatchTracer interface {
 	// TraceBatchStart is called at the beginning of SendBatch calls. The returned context is used for the

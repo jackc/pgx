@@ -97,6 +97,26 @@ func (tt *testTracer) TraceConnectEnd(ctx context.Context, data pgx.TraceConnect
 	}
 }
 
+type testMultiQueryTracer []testTracer
+
+func (tmqt *testMultiQueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	for _, tt := range *tmqt {
+		if tt.traceQueryStart != nil {
+			return tt.traceQueryStart(ctx, conn, data)
+		}
+	}
+
+	return ctx
+}
+
+func (tmqt *testMultiQueryTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+	for _, tt := range *tmqt {
+		if tt.traceQueryEnd != nil {
+			tt.traceQueryEnd(ctx, conn, data)
+		}
+	}
+}
+
 func TestTraceExec(t *testing.T) {
 	t.Parallel()
 
@@ -164,6 +184,49 @@ func TestTraceQuery(t *testing.T) {
 
 		traceQueryEndCalled := false
 		tracer.traceQueryEnd = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+			traceQueryEndCalled = true
+			require.Equal(t, "foo", ctx.Value(ctxKey("fromTraceQueryStart")))
+			require.Equal(t, `SELECT 1`, data.CommandTag.String())
+			require.NoError(t, data.Err)
+		}
+
+		var s string
+		err := conn.QueryRow(ctx, `select $1::text`, "testing").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "testing", s)
+		require.True(t, traceQueryStartCalled)
+		require.True(t, traceQueryEndCalled)
+	})
+}
+
+func TestMultiTraceQuery(t *testing.T) {
+	t.Parallel()
+
+	tracer := &testTracer{}
+	multiQueryTracer := &testMultiQueryTracer{*tracer}
+
+	ctr := defaultConnTestRunner
+	ctr.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config := defaultConnTestRunner.CreateConfig(ctx, t)
+		config.Tracer = multiQueryTracer
+		return config
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		traceQueryStartCalled := false
+		(*multiQueryTracer)[0].traceQueryStart = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+			traceQueryStartCalled = true
+			require.Equal(t, `select $1::text`, data.SQL)
+			require.Len(t, data.Args, 1)
+			require.Equal(t, `testing`, data.Args[0])
+			return context.WithValue(ctx, ctxKey("fromTraceQueryStart"), "foo")
+		}
+
+		traceQueryEndCalled := false
+		(*multiQueryTracer)[0].traceQueryEnd = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 			traceQueryEndCalled = true
 			require.Equal(t, "foo", ctx.Value(ctxKey("fromTraceQueryStart")))
 			require.Equal(t, `SELECT 1`, data.CommandTag.String())
