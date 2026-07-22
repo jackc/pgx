@@ -1,8 +1,6 @@
 package pgx
 
 import (
-	"errors"
-
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -29,11 +27,7 @@ func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, er
 	buf = pgio.AppendInt32(buf, -1)
 	argBuf, err := m.Encode(oid, BinaryFormatCode, arg, buf)
 	if err != nil {
-		if argBuf2, err2 := tryScanStringCopyValueThenEncode(m, buf, oid, arg); err2 == nil {
-			argBuf = argBuf2
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	if argBuf != nil {
@@ -43,21 +37,36 @@ func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, er
 	return buf, nil
 }
 
-func tryScanStringCopyValueThenEncode(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, error) {
-	s, ok := arg.(string)
-	if !ok {
-		textBuf, err := m.Encode(oid, TextFormatCode, arg, nil)
-		if err != nil {
-			return nil, errors.New("not a string and cannot be encoded as text")
-		}
-		s = string(textBuf)
-	}
-
-	var v any
-	err := m.Scan(oid, TextFormatCode, []byte(s), &v)
+func encodeCopyValueText(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, error) {
+	// Encode into a separate buffer to distinguish NULL (nil return) from empty string (empty non-nil return). Using a
+	// non-nil empty slice ensures that encoding an empty value (e.g. empty string) returns non-nil. This also avoids
+	// aliasing issues when the subsequent escaping step expands special characters in-place.
+	textBuf, err := m.Encode(oid, TextFormatCode, arg, []byte{})
 	if err != nil {
 		return nil, err
 	}
+	if textBuf == nil {
+		// NULL is represented as \N in text COPY format.
+		return append(buf, '\\', 'N'), nil
+	}
+	return appendTextCopyEscaped(buf, textBuf), nil
+}
 
-	return m.Encode(oid, BinaryFormatCode, v, buf)
+// appendTextCopyEscaped appends src to buf, escaping characters that are special in PostgreSQL text COPY format.
+func appendTextCopyEscaped(buf []byte, src []byte) []byte {
+	for _, b := range src {
+		switch b {
+		case '\\':
+			buf = append(buf, '\\', '\\')
+		case '\n':
+			buf = append(buf, '\\', 'n')
+		case '\r':
+			buf = append(buf, '\\', 'r')
+		case '\t':
+			buf = append(buf, '\\', 't')
+		default:
+			buf = append(buf, b)
+		}
+	}
+	return buf
 }
