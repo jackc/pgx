@@ -243,19 +243,18 @@ func (rows *baseRows) Scan(dest ...any) error {
 		return err
 	}
 
-	if len(dest) == 1 {
-		if rc, ok := dest[0].(RowScanner); ok {
-			err := rc.ScanRow(rows)
-			if err != nil {
-				rows.fatal(err)
-			}
+	if len(fieldDescriptions) != len(dest) {
+		rc, hasRowScanner := dest[0].(RowScanner)
+		if !hasRowScanner || len(dest) != 1 {
+			err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
+			rows.fatal(err)
 			return err
 		}
-	}
 
-	if len(fieldDescriptions) != len(dest) {
-		err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
-		rows.fatal(err)
+		err := rc.ScanRow(rows)
+		if err != nil {
+			rows.fatal(err)
+		}
 		return err
 	}
 
