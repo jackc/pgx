@@ -1698,3 +1698,9 @@ func TestErrNoRows(t *testing.T) {
 
 	require.ErrorIs(t, pgx.ErrNoRows, sql.ErrNoRows, "pgx.ErrNowRows must match sql.ErrNoRows")
 }
+
+
+func TestConnectConfigNil(t *testing.T) {
+	_, err := pgx.ConnectConfig(context.Background(), nil)
+	require.Error(t, err)
+}
