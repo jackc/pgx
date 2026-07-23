@@ -329,6 +329,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
 
+	// Allow surrounding space from config files and env expansion.
+	connString = strings.TrimSpace(connString)
+
 	connStringSettings := make(map[string]string)
 	if connString != "" {
 		var err error
