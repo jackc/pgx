@@ -310,6 +310,12 @@ func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array Array
 		return err
 	}
 
+	// The element loop below indexes the value sized by SetDimensions, so the
+	// dimensions and the parsed elements must agree.
+	if elementCount := cardinality(uta.Dimensions); elementCount != len(uta.Elements) {
+		return fmt.Errorf("array dimensions describe %d elements but %d were parsed", elementCount, len(uta.Elements))
+	}
+
 	err = array.SetDimensions(uta.Dimensions)
 	if err != nil {
 		return err
