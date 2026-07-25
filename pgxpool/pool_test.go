@@ -235,11 +235,13 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
+	const idleTime = 200 * time.Millisecond
+
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	c.Release()
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(idleTime)
 
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
@@ -247,7 +249,9 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 
 	require.NotNil(t, shouldPingLastCalledWith)
 	assert.Equal(t, conn, shouldPingLastCalledWith.Conn)
-	assert.InDelta(t, time.Millisecond*200, shouldPingLastCalledWith.IdleDuration, float64(time.Millisecond*100))
+	// Only the lower bound can be asserted. A busy machine can delay the acquire arbitrarily long after the sleep,
+	// which made an upper bound assertion flaky in CI.
+	assert.GreaterOrEqual(t, shouldPingLastCalledWith.IdleDuration, idleTime)
 
 	c.Release()
 }
