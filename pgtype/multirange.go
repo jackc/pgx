@@ -207,9 +207,10 @@ func (c *MultirangeCodec) PlanScan(m *Map, oid uint32, format int16, target any)
 func (c *MultirangeCodec) decodeBinary(m *Map, multirangeOID uint32, src []byte, multirange MultirangeSetter) error {
 	rp := 0
 
-	if len(src[rp:]) < 4 {
-		return fmt.Errorf("multirange too short for element count: %d bytes", len(src[rp:]))
+	if len(src) < 4 {
+		return fmt.Errorf("multirange header too short: %d", len(src))
 	}
+
 	elementCount := int(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
 
