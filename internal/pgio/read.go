@@ -1,6 +1,7 @@
 package pgio
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -118,6 +119,23 @@ func (r *Reader) Bytes(n int) []byte {
 	}
 	b := r.s[r.rp : r.rp+n]
 	r.rp += n
+	return b
+}
+
+// CString reads a NUL-terminated string, returning the bytes before the
+// terminator and consuming the terminator. The returned slice aliases the
+// source; it is not a copy.
+func (r *Reader) CString() []byte {
+	if r.err != nil {
+		return nil
+	}
+	i := bytes.IndexByte(r.s[r.rp:], 0)
+	if i < 0 {
+		r.fail(fmt.Errorf("%w: unterminated string at offset %d", ErrInsufficientBytes, r.rp))
+		return nil
+	}
+	b := r.s[r.rp : r.rp+i]
+	r.rp += i + 1
 	return b
 }
 

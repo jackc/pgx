@@ -150,6 +150,36 @@ func TestReaderValueTruncatedData(t *testing.T) {
 	}
 }
 
+func TestReaderCString(t *testing.T) {
+	r := NewReader([]byte{'a', 'b', 0x00, 0x00, 'c'})
+
+	if b := r.CString(); !bytes.Equal(b, []byte("ab")) {
+		t.Errorf("CString() => %q, want \"ab\"", b)
+	}
+	// An empty string is just an immediate terminator.
+	if b := r.CString(); len(b) != 0 {
+		t.Errorf("CString() => %q, want \"\"", b)
+	}
+	if b := r.Bytes(1); !bytes.Equal(b, []byte("c")) {
+		t.Errorf("Bytes(1) => %q, want \"c\"", b)
+	}
+	if err := r.Finish(); err != nil {
+		t.Errorf("Finish() => %v, want nil", err)
+	}
+}
+
+func TestReaderCStringUnterminated(t *testing.T) {
+	for _, src := range [][]byte{nil, []byte("abc")} {
+		r := NewReader(src)
+		if b := r.CString(); b != nil {
+			t.Errorf("CString(%q) => %q, want nil", src, b)
+		}
+		if !errors.Is(r.Err(), ErrInsufficientBytes) {
+			t.Errorf("CString(%q): Err() => %v, want ErrInsufficientBytes", src, r.Err())
+		}
+	}
+}
+
 func TestReaderCount(t *testing.T) {
 	// Count 2 with 8 bytes remaining and minElemSize 4 is valid.
 	r := NewReader([]byte{0x00, 0x00, 0x00, 0x02, 0, 0, 0, 0, 0, 0, 0, 0})
