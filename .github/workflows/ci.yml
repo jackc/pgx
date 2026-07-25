@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
+      # A failure in one matrix job says nothing about the others, and cancelled jobs report a confusing "exit code
+      # 143" instead of the actual failure. Let every job run so a single failure gives complete information.
+      fail-fast: false
       matrix:
         go-version: ["1.25", "1.26"]
         pg-version: [14, 15, 16, 17, 18, cockroachdb]
@@ -132,6 +135,7 @@ jobs:
     name: Test Windows
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         go-version: ["1.25", "1.26"]
 
