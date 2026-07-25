@@ -9,6 +9,7 @@ import (
 
 func TestQueryBiggerThanMaxMessageBodyLen(t *testing.T) {
 	t.Parallel()
+	skipIfRaceEnabled(t)
 
 	// Maximum allowed size. 4 bytes for size and 1 byte for 0 terminated string.
 	_, err := (&pgproto3.Query{String: string(make([]byte, pgproto3.MaxMessageBodyLen-5))}).Encode(nil)
