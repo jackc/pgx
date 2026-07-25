@@ -139,14 +139,17 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 	scanner := NewCompositeBinaryScanner(plan.m, src)
 	for i, field := range plan.cc.Fields {
 		if scanner.Next() {
-			fieldTarget := targetScanner.ScanIndex(i)
+			fieldTarget, err := compositeFieldTarget(targetScanner, i)
+			if err != nil {
+				return err
+			}
 			if fieldTarget != nil {
 				fieldPlan := plan.m.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
 				if fieldPlan == nil {
 					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.Type.OID)
 				}
 
-				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
+				err = fieldPlan.Scan(scanner.Bytes(), fieldTarget)
 				if err != nil {
 					return err
 				}
@@ -297,6 +300,15 @@ func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
 	fieldCount := int32(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
 
+	if fieldCount < 0 {
+		return &CompositeBinaryScanner{err: fmt.Errorf("Record field count %d is negative", fieldCount)}
+	}
+
+	// Each field requires at least 8 bytes: 4 for the OID and 4 for the length prefix.
+	if int(fieldCount) > len(src[rp:])/8 {
+		return &CompositeBinaryScanner{err: fmt.Errorf("Record field count %d exceeds available data", fieldCount)}
+	}
+
 	return &CompositeBinaryScanner{
 		m:          m,
 		rp:         rp,
@@ -342,6 +354,17 @@ func (cfs *CompositeBinaryScanner) Next() bool {
 
 func (cfs *CompositeBinaryScanner) FieldCount() int {
 	return int(cfs.fieldCount)
+}
+
+// compositeFieldTarget returns the scan target for field i. CompositeFields is
+// a slice, so indexing past its end would panic. A source with more fields than
+// the destination is a mismatch that must be reported as an error.
+func compositeFieldTarget(targetScanner CompositeIndexScanner, i int) (any, error) {
+	if cf, ok := targetScanner.(CompositeFields); ok && i >= len(cf) {
+		return nil, fmt.Errorf("cannot scan composite field %d into CompositeFields of length %d", i, len(cf))
+	}
+
+	return targetScanner.ScanIndex(i), nil
 }
 
 // Bytes returns the bytes of the field most recently read by Scan().
