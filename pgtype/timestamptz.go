@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -254,12 +253,13 @@ func (plan *scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst 
 		return scanner.ScanTimestamptz(Timestamptz{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for timestamptz: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("timestamptz: %w", err)
 	}
 
 	var tstz Timestamptz
-	microsecSinceY2K := int64(binary.BigEndian.Uint64(src))
+	microsecSinceY2K := int64(raw)
 
 	switch microsecSinceY2K {
 	case infinityMicrosecondOffset:

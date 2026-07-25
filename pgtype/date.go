@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -249,11 +248,12 @@ func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanDate(Date{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for date: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("date: %w", err)
 	}
 
-	dayOffset := int32(binary.BigEndian.Uint32(src))
+	dayOffset := int32(raw)
 
 	switch dayOffset {
 	case infinityDayOffset:
