@@ -1,6 +1,7 @@
 package pgproto3_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgproto3"
@@ -12,10 +13,10 @@ func TestQueryBiggerThanMaxMessageBodyLen(t *testing.T) {
 	skipIfRaceEnabled(t)
 
 	// Maximum allowed size. 4 bytes for size and 1 byte for 0 terminated string.
-	_, err := (&pgproto3.Query{String: string(make([]byte, pgproto3.MaxMessageBodyLen-5))}).Encode(nil)
+	_, err := (&pgproto3.Query{String: strings.Repeat("x", pgproto3.MaxMessageBodyLen-5)}).Encode(nil)
 	require.NoError(t, err)
 
 	// 1 byte too big
-	_, err = (&pgproto3.Query{String: string(make([]byte, pgproto3.MaxMessageBodyLen-4))}).Encode(nil)
+	_, err = (&pgproto3.Query{String: strings.Repeat("x", pgproto3.MaxMessageBodyLen-4)}).Encode(nil)
 	require.Error(t, err)
 }
