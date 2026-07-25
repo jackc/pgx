@@ -3,7 +3,6 @@ package pgtype
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"reflect"
 
@@ -205,18 +204,12 @@ func (c *MultirangeCodec) PlanScan(m *Map, oid uint32, format int16, target any)
 }
 
 func (c *MultirangeCodec) decodeBinary(m *Map, multirangeOID uint32, src []byte, multirange MultirangeSetter) error {
-	rp := 0
-
-	if len(src) < 4 {
-		return fmt.Errorf("multirange header too short: %d", len(src))
-	}
-
-	elementCount := int(binary.BigEndian.Uint32(src[rp:]))
-	rp += 4
+	r := pgio.NewReader(src)
 
 	// Each element requires at least 4 bytes for its length prefix.
-	if elementCount > len(src)/4 {
-		return fmt.Errorf("multirange element count %d exceeds available data", elementCount)
+	elementCount := r.Count(4)
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("multirange: %w", err)
 	}
 
 	err := multirange.SetLen(elementCount)
@@ -225,7 +218,7 @@ func (c *MultirangeCodec) decodeBinary(m *Map, multirangeOID uint32, src []byte,
 	}
 
 	if elementCount == 0 {
-		return nil
+		return r.Finish()
 	}
 
 	elementScanPlan := c.ElementType.Codec.PlanScan(m, c.ElementType.OID, BinaryFormatCode, multirange.ScanIndex(0))
@@ -235,18 +228,9 @@ func (c *MultirangeCodec) decodeBinary(m *Map, multirangeOID uint32, src []byte,
 
 	for i := range elementCount {
 		elem := multirange.ScanIndex(i)
-		if len(src[rp:]) < 4 {
-			return fmt.Errorf("multirange body truncated at element %d", i)
-		}
-		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
-		rp += 4
-		var elemSrc []byte
-		if elemLen >= 0 {
-			if len(src[rp:]) < elemLen {
-				return fmt.Errorf("multirange element %d length %d exceeds remaining %d bytes", i, elemLen, len(src[rp:]))
-			}
-			elemSrc = src[rp : rp+elemLen]
-			rp += elemLen
+		elemSrc, _ := r.Value()
+		if err := r.Err(); err != nil {
+			return fmt.Errorf("multirange element %d: %w", i, err)
 		}
 		err = elementScanPlan.Scan(elemSrc, elem)
 		if err != nil {
@@ -254,7 +238,7 @@ func (c *MultirangeCodec) decodeBinary(m *Map, multirangeOID uint32, src []byte,
 		}
 	}
 
-	return nil
+	return r.Finish()
 }
 
 func (c *MultirangeCodec) decodeText(m *Map, multirangeOID uint32, src []byte, multirange MultirangeSetter) error {

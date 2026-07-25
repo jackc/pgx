@@ -2,8 +2,9 @@ package pgtype
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 type BoundType byte
@@ -201,17 +202,16 @@ const (
 
 func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
 	ubr := &untypedBinaryRange{}
+	r := pgio.NewReader(src)
 
-	if len(src) == 0 {
+	rangeType := r.Byte()
+	if r.Err() != nil {
 		return nil, fmt.Errorf("range too short: %v", len(src))
 	}
 
-	rangeType := src[0]
-	rp := 1
-
 	if rangeType&emptyMask > 0 {
-		if len(src[rp:]) > 0 {
-			return nil, fmt.Errorf("unexpected trailing bytes parsing empty range: %v", len(src[rp:]))
+		if err := r.Finish(); err != nil {
+			return nil, fmt.Errorf("empty range: %w", err)
 		}
 		ubr.LowerType = Empty
 		ubr.UpperType = Empty
@@ -236,50 +236,24 @@ func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
 		ubr.UpperType = Exclusive
 	}
 
-	if ubr.LowerType == Unbounded && ubr.UpperType == Unbounded {
-		if len(src[rp:]) > 0 {
-			return nil, fmt.Errorf("unexpected trailing bytes parsing unbounded range: %v", len(src[rp:]))
-		}
-		return ubr, nil
-	}
-
-	if len(src[rp:]) < 4 {
-		return nil, fmt.Errorf("too few bytes for size: %v", src[rp:])
-	}
-	valueLen := int(binary.BigEndian.Uint32(src[rp:]))
-	rp += 4
-
-	if valueLen < 0 || len(src[rp:]) < valueLen {
-		return nil, fmt.Errorf("range lower bound length %d exceeds remaining %d bytes", valueLen, len(src[rp:]))
-	}
-	val := src[rp : rp+valueLen]
-	rp += valueLen
-
 	if ubr.LowerType != Unbounded {
-		ubr.Lower = val
-	} else {
-		ubr.Upper = val
-		if len(src[rp:]) > 0 {
-			return nil, fmt.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
+		val, null := r.Value()
+		if null {
+			return nil, fmt.Errorf("range lower bound cannot be NULL")
 		}
-		return ubr, nil
+		ubr.Lower = val
 	}
 
 	if ubr.UpperType != Unbounded {
-		if len(src[rp:]) < 4 {
-			return nil, fmt.Errorf("too few bytes for size: %v", src[rp:])
+		val, null := r.Value()
+		if null {
+			return nil, fmt.Errorf("range upper bound cannot be NULL")
 		}
-		valueLen := int(binary.BigEndian.Uint32(src[rp:]))
-		rp += 4
-		if valueLen < 0 || len(src[rp:]) < valueLen {
-			return nil, fmt.Errorf("range upper bound length %d exceeds remaining %d bytes", valueLen, len(src[rp:]))
-		}
-		ubr.Upper = src[rp : rp+valueLen]
-		rp += valueLen
+		ubr.Upper = val
 	}
 
-	if len(src[rp:]) > 0 {
-		return nil, fmt.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
+	if err := r.Finish(); err != nil {
+		return nil, fmt.Errorf("range: %w", err)
 	}
 
 	return ubr, nil
