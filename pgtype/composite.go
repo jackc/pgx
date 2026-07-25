@@ -280,9 +280,8 @@ func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byt
 }
 
 type CompositeBinaryScanner struct {
-	m   *Map
-	rp  int
-	src []byte
+	m *Map
+	r *pgio.Reader
 
 	fieldCount int32
 	fieldBytes []byte
@@ -292,28 +291,18 @@ type CompositeBinaryScanner struct {
 
 // NewCompositeBinaryScanner a scanner over a binary encoded composite value.
 func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
-	rp := 0
-	if len(src[rp:]) < 4 {
-		return &CompositeBinaryScanner{err: fmt.Errorf("Record incomplete %v", src)}
-	}
-
-	fieldCount := int32(binary.BigEndian.Uint32(src[rp:]))
-	rp += 4
-
-	if fieldCount < 0 {
-		return &CompositeBinaryScanner{err: fmt.Errorf("Record field count %d is negative", fieldCount)}
-	}
+	r := pgio.NewReader(src)
 
 	// Each field requires at least 8 bytes: 4 for the OID and 4 for the length prefix.
-	if int(fieldCount) > len(src[rp:])/8 {
-		return &CompositeBinaryScanner{err: fmt.Errorf("Record field count %d exceeds available data", fieldCount)}
+	fieldCount := r.Count(8)
+	if err := r.Err(); err != nil {
+		return &CompositeBinaryScanner{err: fmt.Errorf("Record incomplete: %w", err)}
 	}
 
 	return &CompositeBinaryScanner{
 		m:          m,
-		rp:         rp,
-		src:        src,
-		fieldCount: fieldCount,
+		r:          r,
+		fieldCount: int32(fieldCount),
 	}
 }
 
@@ -324,29 +313,15 @@ func (cfs *CompositeBinaryScanner) Next() bool {
 		return false
 	}
 
-	if cfs.rp == len(cfs.src) {
+	if cfs.r.Remaining() == 0 {
 		return false
 	}
 
-	if len(cfs.src[cfs.rp:]) < 8 {
-		cfs.err = fmt.Errorf("Record incomplete %v", cfs.src)
+	cfs.fieldOID = cfs.r.Uint32()
+	cfs.fieldBytes, _ = cfs.r.Value()
+	if err := cfs.r.Err(); err != nil {
+		cfs.err = fmt.Errorf("Record incomplete: %w", err)
 		return false
-	}
-	cfs.fieldOID = binary.BigEndian.Uint32(cfs.src[cfs.rp:])
-	cfs.rp += 4
-
-	fieldLen := int(int32(binary.BigEndian.Uint32(cfs.src[cfs.rp:])))
-	cfs.rp += 4
-
-	if fieldLen >= 0 {
-		if len(cfs.src[cfs.rp:]) < fieldLen {
-			cfs.err = fmt.Errorf("Record incomplete rp=%d src=%v", cfs.rp, cfs.src)
-			return false
-		}
-		cfs.fieldBytes = cfs.src[cfs.rp : cfs.rp+fieldLen]
-		cfs.rp += fieldLen
-	} else {
-		cfs.fieldBytes = nil
 	}
 
 	return true
