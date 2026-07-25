@@ -1,0 +1,4 @@
+go test fuzz v1
+uint16(268)
+byte(' ')
+[]byte("{{{}0}}")
