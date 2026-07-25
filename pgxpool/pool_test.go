@@ -176,8 +176,10 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	require.EqualValues(t, 3, pool.Stat().TotalConns())
 
 	var pids []uint32
+	var originalConns []*pgx.Conn
 	for _, c := range conns {
 		pids = append(pids, c.Conn().PgConn().PID())
+		originalConns = append(originalConns, c.Conn())
 		c.Release()
 	}
 
@@ -199,10 +201,14 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	cPID := c.Conn().PgConn().PID()
+	newConn := c.Conn()
 	c.Release()
 
-	require.NotContains(t, pids, cPID)
+	// Compare connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's PID to a
+	// new backend, which made this test flaky in CI.
+	for _, originalConn := range originalConns {
+		require.NotSame(t, originalConn, newConn)
+	}
 }
 
 func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
@@ -477,17 +483,20 @@ func TestPoolAfterRelease(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	connPIDs := map[uint32]struct{}{}
+	// Count distinct connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's
+	// PID to a new backend, which made this test flaky in CI. Retaining the connections in the map also prevents them
+	// from being garbage collected, so a destroyed connection's address cannot be reused either.
+	distinctConns := map[*pgx.Conn]struct{}{}
 
 	for range 10 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
-		connPIDs[conn.Conn().PgConn().PID()] = struct{}{}
+		distinctConns[conn.Conn()] = struct{}{}
 		conn.Release()
 		waitForReleaseToComplete()
 	}
 
-	assert.EqualValues(t, 5, len(connPIDs))
+	assert.EqualValues(t, 5, len(distinctConns))
 }
 
 func TestPoolBeforeClose(t *testing.T) {
@@ -1405,13 +1414,10 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	config.PingTimeout = 200 * time.Millisecond
 	config.ConnConfig.DialFunc = newDelayProxyDialFunc(500 * time.Millisecond)
 
-	var conID *uint32
-	// Only ping the connection with the original PID to force creation of a new connection
+	var originalConn *pgx.Conn
+	// Only ping the original connection to force creation of a new connection
 	config.ShouldPing = func(_ context.Context, params pgxpool.ShouldPingParams) bool {
-		if conID != nil && params.Conn.PgConn().PID() == *conID {
-			return true
-		}
-		return false
+		return originalConn != nil && params.Conn == originalConn
 	}
 
 	// Limit to a single connection to ensure the same connection is reused
@@ -1425,8 +1431,7 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
-	originalPID := c.Conn().PgConn().PID()
-	conID = &originalPID
+	originalConn = c.Conn()
 
 	c.Release()
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
@@ -1434,12 +1439,12 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
-	newPID := c.Conn().PgConn().PID()
+	newConn := c.Conn()
 
 	c.Release()
 
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
 	assert.Nil(t, ctx.Err())
-	assert.NotEqualValues(t, originalPID, newPID,
+	assert.NotSame(t, originalConn, newConn,
 		"Expected new connection due to ping timeout, but got same connection")
 }

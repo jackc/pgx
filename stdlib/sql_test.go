@@ -1328,9 +1328,12 @@ func TestCheckIdleConn(t *testing.T) {
 	require.EqualValues(t, 3, db.Stats().OpenConnections)
 
 	var pids []uint32
+	var originalConns []*pgx.Conn
 	for _, c := range conns {
 		err := c.Raw(func(driverConn any) error {
-			pids = append(pids, driverConn.(*stdlib.Conn).Conn().PgConn().PID())
+			pgxConn := driverConn.(*stdlib.Conn).Conn()
+			pids = append(pids, pgxConn.PgConn().PID())
+			originalConns = append(originalConns, pgxConn)
 			return nil
 		})
 		require.NoError(t, err)
@@ -1359,16 +1362,20 @@ func TestCheckIdleConn(t *testing.T) {
 	c, err := db.Conn(context.Background())
 	require.NoError(t, err)
 
-	var cPID uint32
+	var newConn *pgx.Conn
 	err = c.Raw(func(driverConn any) error {
-		cPID = driverConn.(*stdlib.Conn).Conn().PgConn().PID()
+		newConn = driverConn.(*stdlib.Conn).Conn()
 		return nil
 	})
 	require.NoError(t, err)
 	err = c.Close()
 	require.NoError(t, err)
 
-	require.NotContains(t, pids, cPID)
+	// Compare connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's PID to a
+	// new backend, which made the equivalent pgxpool test flaky in CI.
+	for _, originalConn := range originalConns {
+		require.NotSame(t, originalConn, newConn)
+	}
 }
 
 func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
