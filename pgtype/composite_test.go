@@ -513,3 +513,23 @@ create table point3d (
 		}
 	})
 }
+
+// A quoted field can consume the final ')' of a composite text value, e.g.
+// `(")` or an escape before the end like `("\)`. The scanner must report an
+// unterminated field instead of reading past the end of the source.
+func TestCompositeTextScannerUnterminatedQuotedField(t *testing.T) {
+	for _, src := range []string{`(")`, `("\)`, `(""")`} {
+		scanner := pgtype.NewCompositeTextScanner(pgtype.NewMap(), []byte(src))
+		for scanner.Next() {
+		}
+		require.Errorf(t, scanner.Err(), "src %q", src)
+	}
+}
+
+func TestCompositeTextScannerEmptyQuotedField(t *testing.T) {
+	scanner := pgtype.NewCompositeTextScanner(pgtype.NewMap(), []byte(`("")`))
+	require.True(t, scanner.Next())
+	require.Equal(t, []byte{}, scanner.Bytes())
+	require.False(t, scanner.Next())
+	require.NoError(t, scanner.Err())
+}

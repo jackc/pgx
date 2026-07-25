@@ -419,7 +419,7 @@ func (cfs *CompositeTextScanner) Next() bool {
 		return false
 	}
 
-	if cfs.rp == len(cfs.src) {
+	if cfs.rp >= len(cfs.src) {
 		return false
 	}
 
@@ -433,12 +433,18 @@ func (cfs *CompositeTextScanner) Next() bool {
 		cfs.fieldBytes = make([]byte, 0, 16)
 	quotedValue:
 		for {
+			// A quote or escape may have consumed the final ')', leaving an
+			// unterminated quoted field.
+			if cfs.rp >= len(cfs.src) {
+				cfs.err = fmt.Errorf("composite text format unterminated quoted field")
+				return false
+			}
 			ch := cfs.src[cfs.rp]
 
 			switch ch {
 			case '"':
 				cfs.rp++
-				if cfs.src[cfs.rp] == '"' {
+				if cfs.rp < len(cfs.src) && cfs.src[cfs.rp] == '"' {
 					cfs.fieldBytes = append(cfs.fieldBytes, '"')
 					cfs.rp++
 				} else {
@@ -446,6 +452,10 @@ func (cfs *CompositeTextScanner) Next() bool {
 				}
 			case '\\':
 				cfs.rp++
+				if cfs.rp >= len(cfs.src) {
+					cfs.err = fmt.Errorf("composite text format unterminated quoted field")
+					return false
+				}
 				cfs.fieldBytes = append(cfs.fieldBytes, cfs.src[cfs.rp])
 				cfs.rp++
 			default:
