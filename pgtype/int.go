@@ -1215,7 +1215,7 @@ func (dst *Int8) Scan(src any) error {
 	}
 
 	if n < math.MinInt64 {
-		return fmt.Errorf("%d is greater than maximum value for Int8", n)
+		return fmt.Errorf("%d is less than minimum value for Int8", n)
 	}
 	if n > math.MaxInt64 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n)
