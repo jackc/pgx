@@ -115,8 +115,11 @@ jobs:
           git diff --exit-code
 
       - name: Test
-        # parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
-        run: go test -parallel=1 -race ./...
+        # Parallel testing used to kill the runner. The cause was the pgproto3 tests that encode a maximum size (~1GB)
+        # message: with the race detector's shadow memory they peaked at 27GB of RSS when run in parallel, well past the
+        # 16GB a runner has. Those tests no longer run under the race detector, and the whole suite now peaks around 1GB
+        # either way, so parallel testing is enabled again. It cuts this step from ~72s to ~26s.
+        run: go test -race ./...
         env:
           PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
           PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
@@ -162,7 +165,9 @@ jobs:
         shell: bash
 
       - name: Test
-        # Parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
+        # Parallel testing stays disabled here even though the Linux jobs enable it. This is the slower runner and every
+        # timing sensitive test failure so far has come from it, so leave it serial until the Linux jobs have proven the
+        # change.
         # Disabling CGO because that is not working on the Windows runner. Apparently, we could install MingW and set up
         # CGO to work, but disabling CGO takes less CI time. Without CGO, we also must not use the race detector.
         run: go test -parallel=1 ./...
