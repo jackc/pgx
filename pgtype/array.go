@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -45,39 +44,30 @@ func cardinality(dimensions []ArrayDimension) int {
 	return elementCount
 }
 
-func (dst *arrayHeader) DecodeBinary(m *Map, src []byte) (int, error) {
-	if len(src) < 12 {
-		return 0, fmt.Errorf("array header too short: %d", len(src))
+func (dst *arrayHeader) DecodeBinary(r *pgio.Reader) error {
+	// Each dimension is 8 bytes, which also bounds the Dimensions allocation below.
+	numDims := r.Count(8)
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("array header: %w", err)
 	}
-
-	rp := 0
-
-	numDims := int(binary.BigEndian.Uint32(src[rp:]))
-	rp += 4
 
 	if numDims > 6 {
-		return 0, fmt.Errorf("array has too many dimensions: %d", numDims)
+		return fmt.Errorf("array has too many dimensions: %d", numDims)
 	}
 
-	dst.ContainsNull = binary.BigEndian.Uint32(src[rp:]) == 1
-	rp += 4
+	dst.ContainsNull = r.Uint32() == 1
+	dst.ElementOID = r.Uint32()
 
-	dst.ElementOID = binary.BigEndian.Uint32(src[rp:])
-	rp += 4
-
-	if len(src) < 12+numDims*8 {
-		return 0, fmt.Errorf("array header too short for %d dimensions: %d", numDims, len(src))
-	}
 	dst.Dimensions = make([]ArrayDimension, numDims)
 	for i := range dst.Dimensions {
-		dst.Dimensions[i].Length = int32(binary.BigEndian.Uint32(src[rp:]))
-		rp += 4
-
-		dst.Dimensions[i].LowerBound = int32(binary.BigEndian.Uint32(src[rp:]))
-		rp += 4
+		dst.Dimensions[i].Length = r.Int32()
+		dst.Dimensions[i].LowerBound = r.Int32()
 	}
 
-	return rp, nil
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("array header: %w", err)
+	}
+	return nil
 }
 
 func (src arrayHeader) EncodeBinary(buf []byte) []byte {
