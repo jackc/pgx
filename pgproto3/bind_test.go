@@ -35,6 +35,7 @@ func TestBindDecodeNegativeParameterLength(t *testing.T) {
 
 func TestBindBiggerThanMaxMessageBodyLen(t *testing.T) {
 	t.Parallel()
+	skipIfRaceEnabled(t)
 
 	// Maximum allowed size.
 	_, err := (&pgproto3.Bind{Parameters: [][]byte{make([]byte, pgproto3.MaxMessageBodyLen-16)}}).Encode(nil)
