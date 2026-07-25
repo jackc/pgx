@@ -38,15 +38,23 @@ func (r *Reader) fail(err error) {
 }
 
 // need reports whether n more bytes are available, recording an error if not.
+//
+// The error is built by failShort rather than here so that need stays within
+// the inliner's budget. Reads of fixed-size values are the hottest path in the
+// driver, and an un-inlined bounds check costs more than the read itself.
 func (r *Reader) need(n int) bool {
 	if r.err != nil {
 		return false
 	}
 	if len(r.s)-r.rp < n {
-		r.fail(fmt.Errorf("%w: %d needed at offset %d, %d remain", ErrInsufficientBytes, n, r.rp, len(r.s)-r.rp))
+		r.failShort(n)
 		return false
 	}
 	return true
+}
+
+func (r *Reader) failShort(n int) {
+	r.fail(fmt.Errorf("%w: %d needed at offset %d, %d remain", ErrInsufficientBytes, n, r.rp, len(r.s)-r.rp))
 }
 
 // Err returns the first error encountered, if any.
@@ -191,7 +199,52 @@ func (r *Reader) Finish() error {
 		return r.err
 	}
 	if r.rp != len(r.s) {
-		return fmt.Errorf("%d unexpected trailing bytes at offset %d", len(r.s)-r.rp, r.rp)
+		return r.errTrailing()
 	}
 	return nil
+}
+
+func (r *Reader) errTrailing() error {
+	return fmt.Errorf("%d unexpected trailing bytes at offset %d", len(r.s)-r.rp, r.rp)
+}
+
+// ErrInvalidLength is wrapped by the errors returned from the exact-length
+// read functions below.
+var ErrInvalidLength = errors.New("invalid length")
+
+func errLength(want, got int) error {
+	return fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidLength, want, got)
+}
+
+// The Uint*Exact functions read a single fixed-size value that makes up an
+// entire message, which is what the scan plans for the fixed-size PostgreSQL
+// types receive. They are the counterpart to Reader for values that have no
+// internal structure: there is no position to track and no error to make
+// sticky, just an exact-length assertion the caller cannot skip. Keeping them
+// separate from Reader is deliberate — these are the hottest decode paths in
+// the driver and they are small enough for the compiler to inline, which a
+// Reader method carrying a bounds check and a read pointer is not.
+
+// Uint16Exact returns the big-endian uint16 in src, which must be exactly 2 bytes.
+func Uint16Exact(src []byte) (uint16, error) {
+	if len(src) != 2 {
+		return 0, errLength(2, len(src))
+	}
+	return binary.BigEndian.Uint16(src), nil
+}
+
+// Uint32Exact returns the big-endian uint32 in src, which must be exactly 4 bytes.
+func Uint32Exact(src []byte) (uint32, error) {
+	if len(src) != 4 {
+		return 0, errLength(4, len(src))
+	}
+	return binary.BigEndian.Uint32(src), nil
+}
+
+// Uint64Exact returns the big-endian uint64 in src, which must be exactly 8 bytes.
+func Uint64Exact(src []byte) (uint64, error) {
+	if len(src) != 8 {
+		return 0, errLength(8, len(src))
+	}
+	return binary.BigEndian.Uint64(src), nil
 }

@@ -213,3 +213,33 @@ func TestReaderFinishTrailingBytes(t *testing.T) {
 		t.Error("Finish() with unread bytes => nil, want error")
 	}
 }
+
+func TestUintExact(t *testing.T) {
+	if n, err := Uint16Exact([]byte{0x01, 0x02}); n != 0x0102 || err != nil {
+		t.Errorf("Uint16Exact => %v, %v, want 0x0102, nil", n, err)
+	}
+	if n, err := Uint32Exact([]byte{0x01, 0x02, 0x03, 0x04}); n != 0x01020304 || err != nil {
+		t.Errorf("Uint32Exact => %v, %v, want 0x01020304, nil", n, err)
+	}
+	if n, err := Uint64Exact([]byte{1, 2, 3, 4, 5, 6, 7, 8}); n != 0x0102030405060708 || err != nil {
+		t.Errorf("Uint64Exact => %v, %v, want 0x0102030405060708, nil", n, err)
+	}
+}
+
+func TestUintExactWrongLength(t *testing.T) {
+	// Both short and long inputs are rejected: these read a whole message, so
+	// trailing bytes are as malformed as missing ones.
+	for name, read := range map[string]func([]byte) error{
+		"Uint16Exact": func(b []byte) error { _, err := Uint16Exact(b); return err },
+		"Uint32Exact": func(b []byte) error { _, err := Uint32Exact(b); return err },
+		"Uint64Exact": func(b []byte) error { _, err := Uint64Exact(b); return err },
+	} {
+		// None of these is a valid length for any of the three.
+		for _, n := range []int{0, 1, 3, 7, 9, 16} {
+			err := read(make([]byte, n))
+			if !errors.Is(err, ErrInvalidLength) {
+				t.Errorf("%s(%d bytes) => %v, want ErrInvalidLength", name, n, err)
+			}
+		}
+	}
+}
