@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -208,11 +207,12 @@ func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for float4: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("float4: %w", err)
 	}
 
-	n := int32(binary.BigEndian.Uint32(src))
+	n := int32(raw)
 	f := (dst).(*float32)
 	*f = math.Float32frombits(uint32(n))
 
@@ -228,11 +228,12 @@ func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst any) error {
 		return s.ScanFloat64(Float8{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for float4: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("float4: %w", err)
 	}
 
-	n := int32(binary.BigEndian.Uint32(src))
+	n := int32(raw)
 	return s.ScanFloat64(Float8{Float64: float64(math.Float32frombits(uint32(n))), Valid: true})
 }
 
@@ -245,11 +246,12 @@ func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst any) error {
 		return s.ScanInt64(Int8{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for float4: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("float4: %w", err)
 	}
 
-	ui32 := int32(binary.BigEndian.Uint32(src))
+	ui32 := int32(raw)
 	f32 := math.Float32frombits(uint32(ui32))
 	i64 := int64(f32)
 	if f32 != float32(i64) {
@@ -268,11 +270,12 @@ func (scanPlanBinaryFloat4ToTextScanner) Scan(src []byte, dst any) error {
 		return s.ScanText(Text{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for float4: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("float4: %w", err)
 	}
 
-	ui32 := int32(binary.BigEndian.Uint32(src))
+	ui32 := int32(raw)
 	f32 := math.Float32frombits(uint32(ui32))
 
 	return s.ScanText(Text{String: strconv.FormatFloat(float64(f32), 'f', -1, 32), Valid: true})

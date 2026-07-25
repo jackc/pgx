@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"strconv"
 
@@ -164,11 +163,12 @@ func (scanPlanBinaryTimeToTimeScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanTime(Time{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for time: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("time: %w", err)
 	}
 
-	usec := int64(binary.BigEndian.Uint64(src))
+	usec := int64(raw)
 
 	return scanner.ScanTime(Time{Microseconds: usec, Valid: true})
 }
@@ -185,11 +185,12 @@ func (scanPlanBinaryTimeToTextScanner) Scan(src []byte, dst any) error {
 		return ts.ScanText(Text{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for time: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("time: %w", err)
 	}
 
-	usec := int64(binary.BigEndian.Uint64(src))
+	usec := int64(raw)
 
 	tim := Time{Microseconds: usec, Valid: true}
 
