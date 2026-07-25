@@ -3,7 +3,6 @@ package pgtype
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -203,20 +202,19 @@ func parseNumericString(str string) (n *big.Int, exp int32, err error) {
 	return accum, exp, nil
 }
 
-func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
-	digits := min(len(src)/2, 4)
-
-	rp := 0
+// nbaseDigitsToInt64 reads up to 4 nbase digits and packs them into an int64.
+// It stops early at digitsLeft or at the end of r, whichever comes first.
+func nbaseDigitsToInt64(r *pgio.Reader, digitsLeft int) (accum int64, digitsRead int) {
+	digits := min(digitsLeft, r.Remaining()/2, 4)
 
 	for i := range digits {
 		if i > 0 {
 			accum *= nbase
 		}
-		accum += int64(binary.BigEndian.Uint16(src[rp:]))
-		rp += 2
+		accum += int64(r.Uint16())
 	}
 
-	return accum, rp, digits
+	return accum, digits
 }
 
 // Scan implements the [database/sql.Scanner] interface.
@@ -629,19 +627,15 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{})
 	}
 
-	if len(src) < 8 {
-		return fmt.Errorf("numeric incomplete %v", src)
-	}
+	r := pgio.NewReader(src)
 
-	rp := 0
-	ndigits := binary.BigEndian.Uint16(src[rp:])
-	rp += 2
-	weight := int16(binary.BigEndian.Uint16(src[rp:]))
-	rp += 2
-	sign := binary.BigEndian.Uint16(src[rp:])
-	rp += 2
-	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
-	rp += 2
+	ndigits := r.Uint16()
+	weight := r.Int16()
+	sign := r.Uint16()
+	dscale := r.Int16()
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("numeric incomplete: %w", err)
+	}
 
 	switch sign {
 	case pgNumericNaNSign:
@@ -656,15 +650,16 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{Int: big.NewInt(0), Valid: true})
 	}
 
-	if len(src[rp:]) < int(ndigits)*2 {
+	if r.Remaining() < int(ndigits)*2 {
 		return fmt.Errorf("numeric incomplete %v", src)
 	}
 
 	accum := &big.Int{}
 
-	for i := 0; i < int(ndigits+3)/4; i++ {
-		int64accum, bytesRead, digitsRead := nbaseDigitsToInt64(src[rp:])
-		rp += bytesRead
+	// int(ndigits) before the addition: ndigits is a uint16, so ndigits+3
+	// would wrap for counts above 65532 and skip the loop entirely.
+	for i := 0; i < (int(ndigits)+3)/4; i++ {
+		int64accum, digitsRead := nbaseDigitsToInt64(r, int(ndigits)-i*4)
 
 		if i > 0 {
 			var mul *big.Int
@@ -684,6 +679,10 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		}
 
 		accum.Add(accum, big.NewInt(int64accum))
+	}
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("numeric: %w", err)
 	}
 
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
