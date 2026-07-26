@@ -497,7 +497,12 @@ type pointerPointerScanPlan struct {
 func (plan *pointerPointerScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
 func (plan *pointerPointerScanPlan) Scan(src []byte, dst any) error {
-	el := reflect.ValueOf(dst).Elem()
+	dstValue := reflect.ValueOf(dst)
+	if dstValue.Kind() != reflect.Pointer || dstValue.IsNil() {
+		return fmt.Errorf("cannot scan into non-pointer or nil destinations %T", dst)
+	}
+
+	el := dstValue.Elem()
 	if src == nil {
 		el.Set(reflect.Zero(el.Type()))
 		return nil

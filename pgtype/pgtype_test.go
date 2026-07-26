@@ -389,6 +389,25 @@ func TestPointerDoublePointerStructScannerScan(t *testing.T) {
 	}, **c.ID)
 }
 
+func TestPointerPointerScanNilDestination(t *testing.T) {
+	m := pgtype.NewMap()
+
+	var nilDst **string
+	err := m.Scan(pgtype.TextOID, pgtype.TextFormatCode, []byte("hello"), nilDst)
+	require.Error(t, err)
+
+	err = m.Scan(pgtype.TextOID, pgtype.TextFormatCode, nil, nilDst)
+	require.Error(t, err)
+
+	// A plan built for a non-nil destination may be reused for a nil destination of the same type. e.g. Rows.Scan
+	// caches scan plans by reflect.Type.
+	s := "hello"
+	ps := &s
+	plan := m.PlanScan(pgtype.TextOID, pgtype.TextFormatCode, &ps)
+	require.NoError(t, plan.Scan([]byte("hello"), &ps))
+	require.Error(t, plan.Scan([]byte("hello"), nilDst))
+}
+
 func TestTryPointerPointerScanPlanNil(t *testing.T) {
 	_, _, ok := pgtype.TryPointerPointerScanPlan(nil)
 	require.False(t, ok)
