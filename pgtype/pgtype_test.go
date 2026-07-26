@@ -389,6 +389,11 @@ func TestPointerDoublePointerStructScannerScan(t *testing.T) {
 	}, **c.ID)
 }
 
+func TestTryPointerPointerScanPlanNil(t *testing.T) {
+	_, _, ok := pgtype.TryPointerPointerScanPlan(nil)
+	require.False(t, ok)
+}
+
 // https://github.com/jackc/pgx/issues/1263
 func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	m := pgtype.NewMap()

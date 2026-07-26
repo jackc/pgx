@@ -510,7 +510,7 @@ func (plan *pointerPointerScanPlan) Scan(src []byte, dst any) error {
 // TryPointerPointerScanPlan handles a pointer to a pointer by setting the target to nil for SQL NULL and allocating and
 // scanning for non-NULL.
 func TryPointerPointerScanPlan(target any) (plan WrappedScanPlanNextSetter, nextTarget any, ok bool) {
-	if dstType := reflect.TypeOf(target); dstType.Kind() == reflect.Pointer {
+	if dstType := reflect.TypeOf(target); dstType != nil && dstType.Kind() == reflect.Pointer {
 		elemType := dstType.Elem()
 		if elemType.Kind() == reflect.Pointer {
 			plan = &pointerPointerScanPlan{dstType: dstType}
