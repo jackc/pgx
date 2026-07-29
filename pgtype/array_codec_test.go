@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"context"
 	"database/sql/driver"
+	"encoding/binary"
 	"encoding/hex"
 	"reflect"
 	"strings"
@@ -145,6 +146,93 @@ func (v jsonbValuerSlice) Value() (driver.Value, error) {
 		return []byte("[]"), nil
 	}
 	return []byte("[1]"), nil
+}
+
+const (
+	codecValuerUUIDOID      uint32 = 910001
+	codecValuerUUIDArrayOID uint32 = 910002
+	codecValuerCompositeOID uint32 = 910003
+)
+
+type codecValuerUUID []byte
+
+func (v codecValuerUUID) Value() (driver.Value, error) {
+	if v == nil {
+		return "", nil
+	}
+	return "driver-valuer", nil
+}
+
+type codecValuerUUIDCodec struct{}
+
+func (codecValuerUUIDCodec) FormatSupported(format int16) bool {
+	return format == pgtype.TextFormatCode || format == pgtype.BinaryFormatCode
+}
+
+func (codecValuerUUIDCodec) PreferredFormat() int16 {
+	return pgtype.BinaryFormatCode
+}
+
+func (codecValuerUUIDCodec) PlanEncode(m *pgtype.Map, oid uint32, format int16, value any) pgtype.EncodePlan {
+	if _, ok := value.(codecValuerUUID); !ok {
+		return nil
+	}
+
+	return encodePlanCodecValuerUUID{}
+}
+
+func (codecValuerUUIDCodec) PlanScan(m *pgtype.Map, oid uint32, format int16, target any) pgtype.ScanPlan {
+	return nil
+}
+
+func (codecValuerUUIDCodec) DecodeDatabaseSQLValue(m *pgtype.Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return nil, nil
+}
+
+func (codecValuerUUIDCodec) DecodeValue(m *pgtype.Map, oid uint32, format int16, src []byte) (any, error) {
+	return nil, nil
+}
+
+type encodePlanCodecValuerUUID struct{}
+
+func (encodePlanCodecValuerUUID) Encode(value any, buf []byte) ([]byte, error) {
+	v := value.(codecValuerUUID)
+	if v == nil {
+		return nil, nil
+	}
+	return append(buf, v...), nil
+}
+
+func newCodecValuerTestMap() *pgtype.Map {
+	m := pgtype.NewMap()
+	elementType := &pgtype.Type{Name: "codec_valuer_uuid", OID: codecValuerUUIDOID, Codec: codecValuerUUIDCodec{}}
+	m.RegisterType(elementType)
+	m.RegisterType(&pgtype.Type{Name: "_codec_valuer_uuid", OID: codecValuerUUIDArrayOID, Codec: &pgtype.ArrayCodec{ElementType: elementType}})
+	m.RegisterType(&pgtype.Type{Name: "codec_valuer_composite", OID: codecValuerCompositeOID, Codec: &pgtype.CompositeCodec{Fields: []pgtype.CompositeCodecField{
+		{Name: "id", Type: elementType},
+	}}})
+	return m
+}
+
+func TestArrayCodecTypedNilElementUsesCodecBeforeDriverValuer(t *testing.T) {
+	m := newCodecValuerTestMap()
+	input := []codecValuerUUID{codecValuerUUID("codec-value"), nil}
+
+	textBuf, err := m.Encode(codecValuerUUIDArrayOID, pgtype.TextFormatCode, input, nil)
+	require.NoError(t, err)
+	require.Equal(t, `{codec-value,NULL}`, string(textBuf))
+
+	binaryBuf, err := m.Encode(codecValuerUUIDArrayOID, pgtype.BinaryFormatCode, input, nil)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(binaryBuf), 39)
+	require.Equal(t, int32(1), int32(binary.BigEndian.Uint32(binaryBuf[0:4])))
+	require.Equal(t, int32(1), int32(binary.BigEndian.Uint32(binaryBuf[4:8])))
+	require.Equal(t, codecValuerUUIDOID, binary.BigEndian.Uint32(binaryBuf[8:12]))
+	require.Equal(t, int32(2), int32(binary.BigEndian.Uint32(binaryBuf[12:16])))
+	require.Equal(t, int32(1), int32(binary.BigEndian.Uint32(binaryBuf[16:20])))
+	require.Equal(t, int32(len("codec-value")), int32(binary.BigEndian.Uint32(binaryBuf[20:24])))
+	require.Equal(t, "codec-value", string(binaryBuf[24:35]))
+	require.Equal(t, int32(-1), int32(binary.BigEndian.Uint32(binaryBuf[35:39])))
 }
 
 func TestArrayCodecTypedNilElementWithValuer(t *testing.T) {
