@@ -440,7 +440,15 @@ func (a *FlatArray[T]) SetDimensions(dimensions []ArrayDimension) error {
 	}
 
 	elementCount := cardinality(dimensions)
-	*a = make(FlatArray[T], elementCount)
+	if *a != nil && elementCount <= cap(*a) {
+		if elementCount > len(*a) {
+			*a = (*a)[:elementCount]
+		}
+		clear(*a)
+		*a = (*a)[:elementCount]
+	} else {
+		*a = make(FlatArray[T], elementCount)
+	}
 	return nil
 }
 
