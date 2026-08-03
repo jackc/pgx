@@ -120,6 +120,11 @@ func TestScanOnRowCompositeWithRowScanner(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testCompositeWithRowScanner{name: "Adam", age: 72}, s)
 
+		// When returned as an anonymous record type scanning works
+		err = conn.QueryRow(ctx, "select ROW('Adam',72)").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, testCompositeWithRowScanner{name: "Adam", age: 72}, s)
+
 		// When returned as multiple columns RowScanner still works
 		err = conn.QueryRow(ctx, "select 'Adam', 72").Scan(&s)
 		require.NoError(t, err)

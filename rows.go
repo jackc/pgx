@@ -232,6 +232,23 @@ func (rows *baseRows) Next() bool {
 	}
 }
 
+func isRegisteredAsComposite(typeMap *pgtype.Map, oid uint32) bool {
+	// Types registered with an appropriate codec can be inferred to be a composite.
+	// In the case we don't know it's a composite then we don't scan it as one.
+	// That's consistent with the requirement that composites need to be registered in the type map.
+	dt, ok := typeMap.TypeForOID(oid)
+	if !ok {
+		return false
+	}
+
+	switch dt.Codec.(type) {
+	case pgtype.RecordCodec, *pgtype.CompositeCodec:
+		return true
+	default:
+		return false
+	}
+}
+
 func (rows *baseRows) Scan(dest ...any) error {
 	m := rows.typeMap
 	fieldDescriptions := rows.FieldDescriptions()
@@ -243,18 +260,26 @@ func (rows *baseRows) Scan(dest ...any) error {
 		return err
 	}
 
-	if len(fieldDescriptions) != len(dest) {
-		rc, hasRowScanner := dest[0].(RowScanner)
-		if !hasRowScanner || len(dest) != 1 {
-			err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
-			rows.fatal(err)
-			return err
+	if len(dest) == 1 {
+		if rc, ok := dest[0].(RowScanner); ok {
+			// Generally the documented behavior is to invoke the RowScanner when there is only one destination.
+			// As a special case if the returned field is a composite then we use the normal Scan logic.
+			// See https://github.com/jackc/pgx/issues/2609
+			_, canCompositeScan := dest[0].(pgtype.CompositeIndexScanner)
+			isComposite := len(fieldDescriptions) > 0 && isRegisteredAsComposite(m, fieldDescriptions[0].DataTypeOID)
+			if !canCompositeScan || !isComposite {
+				err := rc.ScanRow(rows)
+				if err != nil {
+					rows.fatal(err)
+				}
+				return err
+			}
 		}
+	}
 
-		err := rc.ScanRow(rows)
-		if err != nil {
-			rows.fatal(err)
-		}
+	if len(fieldDescriptions) != len(dest) {
+		err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
+		rows.fatal(err)
 		return err
 	}
 
