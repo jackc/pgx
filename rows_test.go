@@ -480,6 +480,19 @@ func ExampleRowToAddrOf() {
 	// 5
 }
 
+func TestRowToMapSingleColumn(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Joe' as name from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToMap)
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Joe", slice[i]["name"])
+		}
+	})
+}
+
 func TestRowToMap(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		rows, _ := conn.Query(ctx, `select 'Joe' as name, n as age from generate_series(0, 9) n`)
