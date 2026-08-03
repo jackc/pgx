@@ -37,6 +37,28 @@ func TestRowScanner(t *testing.T) {
 	})
 }
 
+type testRowScannerSingleColumn struct {
+	name   string
+	wasRun bool `db:"-"`
+}
+
+func (rs *testRowScannerSingleColumn) ScanRow(rows pgx.Rows) error {
+	rs.wasRun = true
+	return rows.Scan(&rs.name)
+}
+
+func TestRowScannerSingleColumn(t *testing.T) {
+	t.Parallel()
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var s testRowScannerSingleColumn
+		err := conn.QueryRow(ctx, "select 'Adam' as name").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "Adam", s.name)
+		require.True(t, s.wasRun)
+	})
+}
+
 type testErrRowScanner string
 
 func (ers *testErrRowScanner) ScanRow(rows pgx.Rows) error {
