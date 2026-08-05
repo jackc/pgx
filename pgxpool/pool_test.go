@@ -53,6 +53,35 @@ func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
 }
 
+func TestParseConfigExtractsPingTimeout(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig("pool_ping_timeout=250ms")
+	require.NoError(t, err)
+	assert.Equal(t, 250*time.Millisecond, config.PingTimeout)
+
+	// Anything left in RuntimeParams is sent to the server as a startup parameter, which makes every connection fail
+	// with "unrecognized configuration parameter".
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_ping_timeout")
+}
+
+func TestParseConfigPingTimeoutDefaultsToZero(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig("")
+	require.NoError(t, err)
+	assert.Zero(t, config.PingTimeout)
+}
+
+func TestParseConfigRejectsInvalidPingTimeout(t *testing.T) {
+	t.Parallel()
+
+	for _, v := range []string{"abc", "250", "-1s"} {
+		_, err := pgxpool.ParseConfig("pool_ping_timeout=" + v)
+		assert.Errorf(t, err, "pool_ping_timeout=%s should be rejected", v)
+	}
+}
+
 func TestConstructorIgnoresContext(t *testing.T) {
 	t.Parallel()
 
