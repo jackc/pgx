@@ -145,7 +145,15 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 				return nil, err
 			}
 		} else if callNilDriverValuer {
-			elemBuf, err = (&encodePlanDriverValuer{m: p.m, oid: p.ac.ElementType.OID, formatCode: TextFormatCode}).Encode(elem, inElemBuf)
+			elemType := reflect.TypeOf(elem)
+			if lastElemType != elemType {
+				lastElemType = elemType
+				encodePlan = p.m.PlanEncode(p.ac.ElementType.OID, TextFormatCode, elem)
+				if encodePlan == nil {
+					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+				}
+			}
+			elemBuf, err = encodePlan.Encode(elem, inElemBuf)
 			if err != nil {
 				return nil, err
 			}
@@ -215,7 +223,15 @@ func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byt
 				return nil, err
 			}
 		} else if callNilDriverValuer {
-			elemBuf, err = (&encodePlanDriverValuer{m: p.m, oid: p.ac.ElementType.OID, formatCode: BinaryFormatCode}).Encode(elem, buf)
+			elemType := reflect.TypeOf(elem)
+			if lastElemType != elemType {
+				lastElemType = elemType
+				encodePlan = p.m.PlanEncode(p.ac.ElementType.OID, BinaryFormatCode, elem)
+				if encodePlan == nil {
+					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+				}
+			}
+			elemBuf, err = encodePlan.Encode(elem, buf)
 			if err != nil {
 				return nil, err
 			}
