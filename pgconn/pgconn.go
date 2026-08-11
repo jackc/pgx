@@ -866,6 +866,11 @@ func (pgConn *PgConn) lock() error {
 			return &connLockError{status: "conn closed"}
 		case connStatusUninitialized:
 			return &connLockError{status: "conn uninitialized"}
+		case connStatusConnecting:
+			// Not ready can not be locked; this also guarantees the loop below
+			// always terminates even if lock were somehow called before the
+			// connection finished connecting.
+			return &connLockError{status: "conn not ready"}
 		}
 		// CAS so only one caller wins when the connection is acquired from
 		// multiple goroutines (e.g. a CopyFrom on the raw connection racing
