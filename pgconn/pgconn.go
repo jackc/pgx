@@ -116,6 +116,13 @@ type PgConn struct {
 	// cleanupOnce guarantees cleanupDone is closed exactly once, no matter how
 	// many close paths run concurrently.
 	cleanupOnce sync.Once
+
+	// slowWriteTimerMux serializes the slow write timer lifecycle across
+	// enter/exitPotentialWriteReadDeadlock pairs. Concurrent flushes (for
+	// example CopyFrom completing its final flush while Close tears the
+	// connection down) would otherwise both arm the single shared timer and
+	// trip the "slow write timer already active" panic.
+	slowWriteTimerMux sync.Mutex
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or keyword/value
@@ -851,16 +858,24 @@ func (pgConn *PgConn) IsBusy() bool {
 
 // lock locks the connection.
 func (pgConn *PgConn) lock() error {
-	switch pgConn.status.Load() {
-	case connStatusBusy:
-		return &connLockError{status: "conn busy"} // This only should be possible in case of an application bug.
-	case connStatusClosed:
-		return &connLockError{status: "conn closed"}
-	case connStatusUninitialized:
-		return &connLockError{status: "conn uninitialized"}
+	for {
+		switch pgConn.status.Load() {
+		case connStatusBusy:
+			return &connLockError{status: "conn busy"} // This only should be possible in case of an application bug.
+		case connStatusClosed:
+			return &connLockError{status: "conn closed"}
+		case connStatusUninitialized:
+			return &connLockError{status: "conn uninitialized"}
+		}
+		// CAS so only one caller wins when the connection is acquired from
+		// multiple goroutines (e.g. a CopyFrom on the raw connection racing
+		// a rollback triggered by database/sql). A plain store here would let
+		// two lockers both think they own the connection and the second
+		// unlock would panic.
+		if pgConn.status.CompareAndSwap(uint32(connStatusIdle), uint32(connStatusBusy)) {
+			return nil
+		}
 	}
-	pgConn.status.Store(uint32(connStatusBusy))
-	return nil
 }
 
 func (pgConn *PgConn) unlock() {
@@ -1544,6 +1559,9 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 					pgConn.conn.Close()
 					pgConn.finishCleanup()
 				}
+				// Stop the copy writer goroutine so it does not keep writing
+				// to the connection while the teardown proceeds.
+				close(abortCopyChan)
 				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
 			// peekMessage never returns err in the bufferingReceive mode - it only forwards the bufferingReceive variables.
@@ -2144,6 +2162,12 @@ func (pgConn *PgConn) enterPotentialWriteReadDeadlock() {
 	//
 	// In addition, on Windows the default timer resolution is 15.6ms. So setting the timer to less than that is
 	// ineffective.
+	//
+	// The mutex makes the enter/exit pair single-flight. flushWithPotentialWriteReadDeadlock and the batch write path
+	// balance each enter with a deferred exit, and normal usage has only one flush in progress at a time, so in
+	// practice the mutex is uncontended. When close paths do overlap with an in-flight flush (e.g. CopyFrom finishing
+	// while Close tears down), the second flush waits instead of double-arming the timer and panicking.
+	pgConn.slowWriteTimerMux.Lock()
 	if pgConn.slowWriteTimer.Reset(15 * time.Millisecond) {
 		panic("BUG: slow write timer already active")
 	}
@@ -2151,6 +2175,7 @@ func (pgConn *PgConn) enterPotentialWriteReadDeadlock() {
 
 // exitPotentialWriteReadDeadlock must be called after a call to enterPotentialWriteReadDeadlock.
 func (pgConn *PgConn) exitPotentialWriteReadDeadlock() {
+	defer pgConn.slowWriteTimerMux.Unlock()
 	if !pgConn.slowWriteTimer.Stop() {
 		// The timer starts its function in a separate goroutine. It is necessary to ensure the background reader has
 		// started before calling Stop. Otherwise, the background reader may not be stopped. That on its own is not a
