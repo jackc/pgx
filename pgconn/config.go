@@ -474,12 +474,23 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	hosts := strings.Split(settings["host"], ",")
 	ports := strings.Split(settings["port"], ",")
 
+	// A host whose port was omitted arrives here as an empty port element. libpq
+	// resolves it to the default port (PGPORT or the compiled-in default), not to
+	// another host's port.
+	defaultPort := envSettings["port"]
+	if defaultPort == "" {
+		defaultPort = defaultSettings["port"]
+	}
+
 	for i, host := range hosts {
 		var portStr string
 		if i < len(ports) {
 			portStr = ports[i]
 		} else {
 			portStr = ports[0]
+		}
+		if portStr == "" {
+			portStr = defaultPort
 		}
 
 		port, err := parsePort(portStr)
@@ -668,31 +679,43 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
+	// The host and port lists are kept positionally aligned: a host that omits
+	// its port contributes an empty port element rather than being skipped, so a
+	// later host's port is never shifted onto an earlier host. Empty ports are
+	// resolved to the default port when the fallbacks are built, matching libpq.
 	var hosts []string
 	var ports []string
+	anyPort := false
 	for host := range strings.SplitSeq(parsedURL.Host, ",") {
 		if host == "" {
 			continue
 		}
 		if isIPOnly(host) {
 			hosts = append(hosts, strings.Trim(host, "[]"))
+			ports = append(ports, "")
 			continue
 		}
 		h, p, err := net.SplitHostPort(host)
 		if err != nil {
 			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
 		}
+		if p != "" {
+			anyPort = true
+		}
 		if h != "" {
 			hosts = append(hosts, h)
-		}
-		if p != "" {
+			ports = append(ports, p)
+		} else if p != "" {
 			ports = append(ports, p)
 		}
 	}
 	if len(hosts) > 0 {
 		settings["host"] = strings.Join(hosts, ",")
 	}
-	if len(ports) > 0 {
+	// Only record the port when at least one host specified one. If no host did,
+	// leaving it unset lets the default port apply and keeps the connection
+	// string from being treated as having specified a port.
+	if anyPort {
 		settings["port"] = strings.Join(ports, ",")
 	}
 

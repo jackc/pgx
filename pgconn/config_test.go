@@ -484,6 +484,55 @@ func TestParseConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			// A leading host that omits its port must use the default port, not
+			// the port of a later host in the list.
+			name:       "URL multiple hosts with a missing leading port",
+			connString: "postgres://jack:secret@foo,bar:5433/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          defaultPort,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      5433,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			// An omitted middle port must not shift the remaining ports onto the
+			// wrong hosts; each explicit port stays with its own host.
+			name:       "URL multiple hosts with a missing middle port",
+			connString: "postgres://jack:secret@foo:1,bar,baz:3/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          1,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      defaultPort,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
 		// https://github.com/jackc/pgconn/issues/72
 		{
 			name:       "URL without host but with port still uses default host",
