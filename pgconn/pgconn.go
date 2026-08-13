@@ -2523,6 +2523,12 @@ func (p *Pipeline) SendQueryStatement(statementDescription *StatementDescription
 	}
 
 	p.conn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+	if len(statementDescription.Fields) == 0 {
+		// The cached field descriptions are empty. This can occur when the statement's result set is
+		// not known at prepare time, e.g. a FETCH from a cursor that did not exist yet. Send a
+		// Describe so the server supplies the actual row description when the statement is executed.
+		p.conn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
+	}
 	p.conn.frontend.SendExecute(&pgproto3.Execute{})
 	p.state.PushBackRequestType(pipelineQueryStatement)
 	p.state.PushBackStatementData(statementDescription, resultFormats)
@@ -2729,12 +2735,36 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 		return nil, err
 	}
 
+	sdFields := sd.Fields
+	if len(sdFields) == 0 {
+		// A Describe was sent for this statement (see SendQueryStatement). Read the server-provided
+		// row description which may include fields that were not known at prepare time.
+		msg, err := p.receiveMessage()
+		if err != nil {
+			return nil, err
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			sdFields = make([]FieldDescription, len(msg.Fields))
+			convertRowDescription(sdFields, msg)
+		case *pgproto3.NoData:
+			// Statement returns no rows.
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		default:
+			return nil, p.handleUnexpectedMessage("QueryStatement RowDescription or NoData", msg)
+		}
+	}
+
 	msg, err := p.receiveMessage()
 	if err != nil {
 		return nil, err
 	}
 
-	sdFields := sd.Fields
 	fieldDescriptions := p.conn.getFieldDescriptionSlice(len(sdFields))
 	err = combineFieldDescriptionsAndResultFormats(fieldDescriptions, sdFields, resultFormats)
 	if err != nil {
