@@ -22,7 +22,7 @@ func (dst *FunctionCallResponse) Decode(src []byte) error {
 		return &invalidMessageFormatErr{messageType: "FunctionCallResponse"}
 	}
 	rp := 0
-	resultSize := int(binary.BigEndian.Uint32(src[rp:]))
+	resultSize := int(int32(binary.BigEndian.Uint32(src[rp:])))
 	rp += 4
 
 	if resultSize == -1 {
@@ -30,7 +30,7 @@ func (dst *FunctionCallResponse) Decode(src []byte) error {
 		return nil
 	}
 
-	if len(src[rp:]) != resultSize {
+	if resultSize < 0 || len(src[rp:]) != resultSize {
 		return &invalidMessageFormatErr{messageType: "FunctionCallResponse"}
 	}
 

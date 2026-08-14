@@ -23,6 +23,11 @@ func (*FunctionCall) Frontend() {}
 func (dst *FunctionCall) Decode(src []byte) error {
 	*dst = FunctionCall{}
 	rp := 0
+
+	if len(src) < 8 {
+		return &invalidMessageFormatErr{messageType: "FunctionCall"}
+	}
+
 	// Specifies the object ID of the function to call.
 	dst.Function = binary.BigEndian.Uint32(src[rp:])
 	rp += 4
@@ -32,6 +37,11 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	// or it can equal the actual number of arguments.
 	nArgumentCodes := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
+
+	if len(src[rp:]) < nArgumentCodes*2+2 {
+		return &invalidMessageFormatErr{messageType: "FunctionCall"}
+	}
+
 	argumentCodes := make([]uint16, nArgumentCodes)
 	for i := 0; i < nArgumentCodes; i++ {
 		// The argument format codes. Each must presently be zero (text) or one (binary).
@@ -49,13 +59,21 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	rp += 2
 	arguments := make([][]byte, nArguments)
 	for i := 0; i < nArguments; i++ {
+		if len(src[rp:]) < 4 {
+			return &invalidMessageFormatErr{messageType: "FunctionCall"}
+		}
 		// The length of the argument value, in bytes (this count does not include itself). Can be zero.
 		// As a special case, -1 indicates a NULL argument value. No value bytes follow in the NULL case.
-		argumentLength := int(binary.BigEndian.Uint32(src[rp:]))
+		argumentLength := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 		if argumentLength == -1 {
 			arguments[i] = nil
+		} else if argumentLength < 0 {
+			return &invalidMessageFormatErr{messageType: "FunctionCall"}
 		} else {
+			if len(src[rp:]) < argumentLength {
+				return &invalidMessageFormatErr{messageType: "FunctionCall"}
+			}
 			// The value of the argument, in the format indicated by the associated format code. n is the above length.
 			argumentValue := src[rp : rp+argumentLength]
 			rp += argumentLength
@@ -64,6 +82,9 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	}
 	dst.Arguments = arguments
 	// The format code for the function result. Must presently be zero (text) or one (binary).
+	if len(src[rp:]) < 2 {
+		return &invalidMessageFormatErr{messageType: "FunctionCall"}
+	}
 	resultFormatCode := binary.BigEndian.Uint16(src[rp:])
 	if resultFormatCode != 0 && resultFormatCode != 1 {
 		return &invalidMessageFormatErr{messageType: "FunctionCall"}
