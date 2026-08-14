@@ -74,6 +74,30 @@ func mustParseNumeric(t *testing.T, src string) pgtype.Numeric {
 	return n
 }
 
+func TestNumericScanScientificPreservesPrecision(t *testing.T) {
+	tests := []struct {
+		src  string
+		want pgtype.Numeric
+	}{
+		{
+			src:  "1234567890123456789e0",
+			want: pgtype.Numeric{Int: mustParseBigInt(t, "1234567890123456789"), Valid: true},
+		},
+		{
+			src:  "1.234567890123456789e5",
+			want: pgtype.Numeric{Int: mustParseBigInt(t, "1234567890123456789"), Exp: -13, Valid: true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			var got pgtype.Numeric
+			require.NoError(t, got.ScanScientific(tt.src))
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestNumericCodec(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 

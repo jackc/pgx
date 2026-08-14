@@ -132,12 +132,7 @@ func (n *Numeric) ScanScientific(src string) error {
 		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
-	if bigF, ok := new(big.Float).SetString(src); ok {
-		smallF, _ := bigF.Float64()
-		src = strconv.FormatFloat(smallF, 'f', -1, 64)
-	}
-
-	num, exp, err := parseNumericString(src)
+	num, exp, err := parseScientificNumericString(src)
 	if err != nil {
 		return err
 	}
@@ -145,6 +140,31 @@ func (n *Numeric) ScanScientific(src string) error {
 	*n = Numeric{Int: num, Exp: exp, Valid: true}
 
 	return nil
+}
+
+func parseScientificNumericString(str string) (n *big.Int, exp int32, err error) {
+	idx := strings.IndexAny(str, "eE")
+	if idx == -1 {
+		return parseNumericString(str)
+	}
+
+	mantissa := str[:idx]
+	scientificExp, err := strconv.ParseInt(str[idx+1:], 10, 32)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	num, mantissaExp, err := parseNumericString(mantissa)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	combinedExp := int64(mantissaExp) + scientificExp
+	if combinedExp < -1<<31 || combinedExp > 1<<31-1 {
+		return nil, 0, fmt.Errorf("%s exponent out of range", str)
+	}
+
+	return num, int32(combinedExp), nil
 }
 
 func (n *Numeric) toBigInt() (*big.Int, error) {
