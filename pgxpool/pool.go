@@ -456,9 +456,6 @@ func ParseConfig(connString string) (*Config, error) {
 		if err != nil {
 			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_ping_timeout", err)
 		}
-		if d < 0 {
-			return nil, pgconn.NewParseConfigError(connString, "pool_ping_timeout must not be negative", nil)
-		}
 		config.PingTimeout = d
 	}
 
