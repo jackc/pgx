@@ -81,3 +81,26 @@ create type dtype_geometric_test as (
 		require.True(t, area.Valid)
 	})
 }
+
+func TestLoadTypesLoadsArrayDelimiter(t *testing.T) {
+	skipCockroachDB(t, "Server does not support box type")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		types, err := conn.LoadTypes(ctx, []string{"_box"})
+		require.NoError(t, err)
+
+		var found bool
+		for _, dt := range types {
+			if dt.Name != "_box" && dt.Name != "pg_catalog._box" {
+				continue
+			}
+
+			codec, ok := dt.Codec.(*pgtype.ArrayCodec)
+			require.True(t, ok)
+			require.Equal(t, byte(';'), codec.Delimiter)
+			found = true
+		}
+
+		require.True(t, found)
+	})
+}

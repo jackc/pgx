@@ -92,6 +92,25 @@ func TestArrayCodecEncodeTextArrayQuotesInternalWhitespace(t *testing.T) {
 	require.Equal(t, `{"has space","two words",nospaces}`, string(buf))
 }
 
+func TestArrayCodecDecodeTextBoxArrayUsesBoxDelimiter(t *testing.T) {
+	var boxes []pgtype.Box
+	err := pgtype.NewMap().Scan(pgtype.BoxArrayOID, pgtype.TextFormatCode, []byte(`{(2,2),(1,1);(4,4),(3,3)}`), &boxes)
+	require.NoError(t, err)
+	require.Equal(t, []pgtype.Box{
+		{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+		{P: [2]pgtype.Vec2{{X: 4, Y: 4}, {X: 3, Y: 3}}, Valid: true},
+	}, boxes)
+}
+
+func TestArrayCodecEncodeTextBoxArrayUsesBoxDelimiter(t *testing.T) {
+	buf, err := pgtype.NewMap().Encode(pgtype.BoxArrayOID, pgtype.TextFormatCode, []pgtype.Box{
+		{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+		{P: [2]pgtype.Vec2{{X: 4, Y: 4}, {X: 3, Y: 3}}, Valid: true},
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, `{"(2,2),(1,1)";"(4,4),(3,3)"}`, string(buf))
+}
+
 func TestArrayCodecArray(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
