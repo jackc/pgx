@@ -22,6 +22,7 @@ var (
 	defaultMaxConnLifetime   = time.Hour
 	defaultMaxConnIdleTime   = time.Minute * 30
 	defaultHealthCheckPeriod = time.Minute
+	defaultPingTimeout       = time.Duration(0)
 )
 
 type connResource struct {
@@ -457,6 +458,8 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_ping_timeout", err)
 		}
 		config.PingTimeout = d
+	} else {
+		config.PingTimeout = defaultPingTimeout
 	}
 
 	return config, nil
