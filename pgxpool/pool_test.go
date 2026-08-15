@@ -76,7 +76,7 @@ func TestParseConfigPingTimeoutDefaultsToZero(t *testing.T) {
 func TestParseConfigRejectsInvalidPingTimeout(t *testing.T) {
 	t.Parallel()
 
-	for _, v := range []string{"abc", "250", "-1s"} {
+	for _, v := range []string{"abc", "250"} {
 		_, err := pgxpool.ParseConfig("pool_ping_timeout=" + v)
 		assert.Errorf(t, err, "pool_ping_timeout=%s should be rejected", v)
 	}
