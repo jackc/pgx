@@ -44,37 +44,23 @@ func TestConnectConfig(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_min_idle_conns=2")
+	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_min_idle_conns=2 pool_ping_timeout=250ms")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
 	assert.EqualValues(t, 1, config.MinConns)
 	assert.EqualValues(t, 2, config.MinIdleConns)
-	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
-	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
-}
-
-func TestParseConfigExtractsPingTimeout(t *testing.T) {
-	t.Parallel()
-
-	config, err := pgxpool.ParseConfig("pool_ping_timeout=250ms")
-	require.NoError(t, err)
 	assert.Equal(t, 250*time.Millisecond, config.PingTimeout)
 
 	// Anything left in RuntimeParams is sent to the server as a startup parameter, which makes every connection fail
 	// with "unrecognized configuration parameter".
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_idle_conns")
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_ping_timeout")
-}
 
-func TestParseConfigPingTimeoutDefaultsToZero(t *testing.T) {
-	t.Parallel()
-
-	config, err := pgxpool.ParseConfig("")
-	require.NoError(t, err)
+	config, err = pgxpool.ParseConfig("")
+	assert.NoError(t, err)
 	assert.Zero(t, config.PingTimeout)
-}
-
-func TestParseConfigRejectsInvalidPingTimeout(t *testing.T) {
-	t.Parallel()
 
 	for _, v := range []string{"abc", "250"} {
 		_, err := pgxpool.ParseConfig("pool_ping_timeout=" + v)
