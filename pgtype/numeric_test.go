@@ -208,6 +208,45 @@ func TestNumericBinaryDecodeUnnormalizedZero(t *testing.T) {
 	}
 }
 
+func TestNumericBinaryEncodeExponentOutOfRange(t *testing.T) {
+	// The binary format stores weight and dscale as int16. Exponents beyond what
+	// those fields can hold used to be silently truncated, encoding a completely
+	// different value.
+	for _, tt := range []struct {
+		name       string
+		n          pgtype.Numeric
+		encodeable bool
+	}{
+		{name: "largest encodable exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 131071, Valid: true}, encodeable: true},
+		{name: "weight overflows by one", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 131072, Valid: true}},
+		{name: "weight wraps to a smaller positive", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 300000, Valid: true}},
+		{name: "maximum exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: math.MaxInt32, Valid: true}},
+		{name: "smallest encodable exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: -math.MaxInt16, Valid: true}, encodeable: true},
+		{name: "dscale overflows by one", n: pgtype.Numeric{Int: big.NewInt(1), Exp: -math.MaxInt16 - 1, Valid: true}},
+		{name: "minimum exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: math.MinInt32, Valid: true}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := pgtype.NewMap()
+			plan := m.PlanEncode(pgtype.NumericOID, pgtype.BinaryFormatCode, tt.n)
+			require.NotNil(t, plan)
+
+			buf, err := plan.Encode(tt.n, nil)
+			if !tt.encodeable {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// The boundary values must still round trip unchanged.
+			var got pgtype.Numeric
+			scanPlan := m.PlanScan(pgtype.NumericOID, pgtype.BinaryFormatCode, &got)
+			require.NotNil(t, scanPlan)
+			require.NoError(t, scanPlan.Scan(buf, &got))
+			require.True(t, isExpectedEqNumeric(tt.n)(got), "got Int=%v Exp=%d", got.Int, got.Exp)
+		})
+	}
+}
+
 func TestNumericFloat64Valuer(t *testing.T) {
 	for i, tt := range []struct {
 		n pgtype.Numeric
