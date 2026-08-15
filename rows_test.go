@@ -1081,3 +1081,35 @@ insert into products (name, price) values
 	// Fries: $5
 	// Soft Drink: $3
 }
+
+// Rows.TypeMap is available even when Rows.Conn is nil, so a caller can decode raw values itself.
+func TestRowsTypeMapWithoutConn(t *testing.T) {
+	t.Parallel()
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support pipeline mode")
+
+		pipeline := conn.PgConn().StartPipeline(ctx)
+		pipeline.SendQueryParams(`select 'Adam'::text`, nil, nil, nil, nil)
+		require.NoError(t, pipeline.Sync())
+
+		results, err := pipeline.GetResults()
+		require.NoError(t, err)
+		rr, ok := results.(*pgconn.ResultReader)
+		require.True(t, ok)
+
+		rows := pgx.RowsFromResultReader(conn.TypeMap(), rr)
+		require.Nil(t, rows.Conn(), "this Rows has no Conn, which is what makes TypeMap necessary")
+		require.Same(t, conn.TypeMap(), rows.TypeMap())
+
+		require.True(t, rows.Next())
+		fd := rows.FieldDescriptions()[0]
+		var name string
+		require.NoError(t, rows.TypeMap().Scan(fd.DataTypeOID, fd.Format, rows.RawValues()[0], &name))
+		require.Equal(t, "Adam", name)
+
+		rows.Close()
+		require.NoError(t, rows.Err())
+		require.NoError(t, pipeline.Close())
+	})
+}
