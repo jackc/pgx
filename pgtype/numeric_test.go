@@ -486,9 +486,49 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "scientific: 1e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 10},
+			src:     []byte("1e10"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: 1.000101231014e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1000101231014), Exp: -2},
+			src:     []byte("1.000101231014e10"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: what encoding/json emits for float64(1e21)",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 21},
+			src:     []byte("1e+21"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: negative exponent",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(-15), Exp: -4},
+			src:     []byte("-1.5e-3"),
+			wantErr: false,
+		},
+		{
+			name: "scientific: beyond float64 precision",
+			want: &pgtype.Numeric{
+				Valid: true,
+				Int:   mustParseBigInt(t, "1234567890123456789"),
+				Exp:   -13,
+			},
+			src:     []byte("1.234567890123456789e5"),
+			wantErr: false,
+		},
+		{
 			name:    "invalid value",
 			want:    &pgtype.Numeric{},
 			src:     []byte("0xffff"),
+			wantErr: true,
+		},
+		{
+			name:    "invalid exponent",
+			want:    &pgtype.Numeric{},
+			src:     []byte("1e1.5"),
 			wantErr: true,
 		},
 	}
