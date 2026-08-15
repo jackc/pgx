@@ -306,7 +306,9 @@ func (n *Numeric) UnmarshalJSON(src []byte) error {
 		*n = Numeric{InfinityModifier: NegativeInfinity, Valid: true}
 		return nil
 	}
-	return scanPlanTextAnyToNumericScanner{}.Scan(src, n)
+	// JSON numbers may use scientific notation even when the producer did not
+	// write it that way: encoding/json emits 1e+21 for float64(1e21).
+	return n.ScanScientific(string(src))
 }
 
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
