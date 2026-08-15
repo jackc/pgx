@@ -98,6 +98,30 @@ func TestNumericScanScientificPreservesPrecision(t *testing.T) {
 	}
 }
 
+func TestNumericScanScientificErrors(t *testing.T) {
+	// Errors report the string the caller passed in, not an internal rewrite of
+	// it, and do not leak strconv's wording.
+	for _, tt := range []struct {
+		src     string
+		wantErr string
+	}{
+		{src: "1e", wantErr: "1e is not a number"},
+		{src: "1e+", wantErr: "1e+ is not a number"},
+		{src: "1e1.5", wantErr: "1e1.5 is not a number"},
+		{src: "1e5e5", wantErr: "1e5e5 is not a number"},
+		{src: "1.2.3e4", wantErr: "1.2.3e4 is not a number"},
+		{src: "e5", wantErr: "e5 is not a number"},
+		{src: "1.2.3", wantErr: "1.2.3 is not a number"},
+		{src: "1e99999999999999999999", wantErr: "1e99999999999999999999 exponent out of range"},
+		{src: "1000e2147483647", wantErr: "1000e2147483647 exponent out of range"},
+	} {
+		t.Run(tt.src, func(t *testing.T) {
+			var n pgtype.Numeric
+			require.EqualError(t, n.ScanScientific(tt.src), tt.wantErr)
+		})
+	}
+}
+
 func TestNumericCodec(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 
