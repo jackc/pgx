@@ -68,6 +68,11 @@ type Rows interface {
 	// Conn returns the underlying *Conn on which the query was executed. This may return nil if Rows did not come from a
 	// *Conn (e.g. if it was created by RowsFromResultReader)
 	Conn() *Conn
+
+	// TypeMap returns the [pgtype.Map] the values of this Rows are decoded with. It is available even when [Rows.Conn]
+	// is nil, such as for a Rows created by [RowsFromResultReader]. It may return nil if the Rows carries no values,
+	// such as one representing only an error.
+	TypeMap() *pgtype.Map
 }
 
 // Row is a convenience wrapper over [Rows] that is returned by [Conn.QueryRow].
@@ -334,6 +339,10 @@ func (rows *baseRows) Values() ([]any, error) {
 
 func (rows *baseRows) RawValues() [][]byte {
 	return rows.values
+}
+
+func (rows *baseRows) TypeMap() *pgtype.Map {
+	return rows.typeMap
 }
 
 func (rows *baseRows) Conn() *Conn {
