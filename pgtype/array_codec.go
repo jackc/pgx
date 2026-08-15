@@ -38,6 +38,16 @@ type ArraySetter interface {
 // ArrayCodec is a codec for any array type.
 type ArrayCodec struct {
 	ElementType *Type
+	// Delimiter is the character PostgreSQL uses to separate array elements for this type.
+	// If unset, "," is used.
+	Delimiter byte
+}
+
+func (c *ArrayCodec) delimiter() byte {
+	if c.Delimiter == 0 {
+		return ','
+	}
+	return c.Delimiter
 }
 
 func (c *ArrayCodec) FormatSupported(format int16) bool {
@@ -117,9 +127,10 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 	var encodePlan EncodePlan
 	var lastElemType reflect.Type
 	inElemBuf := make([]byte, 0, 32)
+	delimiter := p.ac.delimiter()
 	for i := range elementCount {
 		if i > 0 {
-			buf = append(buf, ',')
+			buf = append(buf, delimiter)
 		}
 
 		for _, dec := range dimElemCounts {
@@ -154,7 +165,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 		if elemBuf == nil {
 			buf = append(buf, `NULL`...)
 		} else {
-			buf = append(buf, quoteArrayElementIfNeeded(string(elemBuf))...)
+			buf = append(buf, quoteArrayElementIfNeeded(string(elemBuf), delimiter)...)
 		}
 
 		for _, dec := range dimElemCounts {
@@ -305,7 +316,7 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 }
 
 func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array ArraySetter) error {
-	uta, err := parseUntypedTextArray(string(src))
+	uta, err := parseUntypedTextArray(string(src), c.delimiter())
 	if err != nil {
 		return err
 	}

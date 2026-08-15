@@ -95,7 +95,11 @@ type untypedTextArray struct {
 	Dimensions []ArrayDimension
 }
 
-func parseUntypedTextArray(src string) (*untypedTextArray, error) {
+func parseUntypedTextArray(src string, delimiter byte) (*untypedTextArray, error) {
+	if delimiter == 0 {
+		delimiter = ','
+	}
+
 	dst := &untypedTextArray{
 		Elements:   []string{},
 		Quoted:     []bool{},
@@ -202,7 +206,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 				implicitDimensions[currentDim].Length++
 			}
 			currentDim++
-		case ',':
+		case rune(delimiter):
 		case '}':
 			currentDim--
 			if currentDim < counterDim {
@@ -210,7 +214,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 			}
 		default:
 			buf.UnreadRune()
-			value, quoted, err := arrayParseValue(buf)
+			value, quoted, err := arrayParseValue(buf, delimiter)
 			if err != nil {
 				return nil, fmt.Errorf("invalid array value: %w", err)
 			}
@@ -254,7 +258,7 @@ func skipWhitespace(buf *bytes.Buffer) {
 	}
 }
 
-func arrayParseValue(buf *bytes.Buffer) (string, bool, error) {
+func arrayParseValue(buf *bytes.Buffer, delimiter byte) (string, bool, error) {
 	r, _, err := buf.ReadRune()
 	if err != nil {
 		return "", false, err
@@ -273,7 +277,7 @@ func arrayParseValue(buf *bytes.Buffer) (string, bool, error) {
 		}
 
 		switch r {
-		case ',', '}':
+		case rune(delimiter), '}':
 			buf.UnreadRune()
 			return s.String(), false, nil
 		}
@@ -360,8 +364,12 @@ func quoteArrayElement(src string) string {
 	return `"` + quoteArrayReplacer.Replace(src) + `"`
 }
 
-func quoteArrayElementIfNeeded(src string) string {
-	if src == "" || (len(src) == 4 && strings.EqualFold(src, "null")) || strings.ContainsAny(src, " \t\n\r\v\f") || strings.ContainsAny(src, `{},"\`) {
+func quoteArrayElementIfNeeded(src string, delimiter byte) string {
+	if delimiter == 0 {
+		delimiter = ','
+	}
+
+	if src == "" || (len(src) == 4 && strings.EqualFold(src, "null")) || strings.ContainsAny(src, " \t\n\r\v\f") || strings.ContainsAny(src, `{},"\`) || strings.ContainsRune(src, rune(delimiter)) {
 		return quoteArrayElement(src)
 	}
 	return src
