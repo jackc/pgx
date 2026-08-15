@@ -22,6 +22,7 @@ var (
 	defaultMaxConnLifetime   = time.Hour
 	defaultMaxConnIdleTime   = time.Minute * 30
 	defaultHealthCheckPeriod = time.Minute
+	defaultPingTimeout       = time.Duration(0)
 )
 
 type connResource struct {
@@ -344,10 +345,12 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 //   - pool_max_conns: integer greater than 0 (default 4)
 //   - pool_min_conns: integer 0 or greater (default 0)
+//   - pool_min_idle_conns: integer 0 or greater (default 0)
 //   - pool_max_conn_lifetime: duration string (default 1 hour)
 //   - pool_max_conn_idle_time: duration string (default 30 minutes)
 //   - pool_health_check_period: duration string (default 1 minute)
 //   - pool_max_conn_lifetime_jitter: duration string (default 0)
+//   - pool_ping_timeout: duration string (default 0, meaning no timeout)
 //
 // See Config for definitions of these arguments.
 //
@@ -446,6 +449,17 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_max_conn_lifetime_jitter", err)
 		}
 		config.MaxConnLifetimeJitter = d
+	}
+
+	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_ping_timeout"]; ok {
+		delete(connConfig.Config.RuntimeParams, "pool_ping_timeout")
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, pgconn.NewParseConfigError(connString, "cannot parse pool_ping_timeout", err)
+		}
+		config.PingTimeout = d
+	} else {
+		config.PingTimeout = defaultPingTimeout
 	}
 
 	return config, nil
