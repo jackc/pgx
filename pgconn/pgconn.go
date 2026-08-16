@@ -1303,7 +1303,9 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 //
 // This differs from [PgConn.ExecPrepared] in that it takes a [*StatementDescription] instead of the prepared statement name.
 // Because it has the [*StatementDescription] it can avoid the Describe Portal message that [PgConn.ExecPrepared] must send to get
-// the result column descriptions.
+// the result column descriptions. However, if the statement description has no fields then a Describe is still sent, as
+// an empty Fields may mean the results were not knowable at prepare time, e.g. a FETCH from a cursor that did not exist
+// yet.
 //
 // paramValues are the parameter values. It must be encoded in the format given by paramFormats.
 //
@@ -1364,7 +1366,10 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 }
 
 func (pgConn *PgConn) execExtendedSuffix(result *ResultReader, statementDescription *StatementDescription, resultFormats []int16) {
-	if statementDescription == nil {
+	if statementDescription == nil || len(statementDescription.Fields) == 0 {
+		// The cached field descriptions are missing or empty. Empty field descriptions can occur when the statement's
+		// result set was not known at prepare time, e.g. a FETCH from a cursor that did not exist yet. Send a Describe
+		// so the server supplies the actual row description when the statement is executed.
 		pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
 	}
 	pgConn.frontend.SendExecute(&pgproto3.Execute{})
