@@ -1711,6 +1711,49 @@ func TestConnExecStatement(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2626
+func TestConnExecStatementCursorFetch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support cursors in implicit transactions")
+	}
+
+	// Prepare the FETCH before the cursor exists. The server describes the result as NoData so the statement
+	// description has no fields. The actual fields are only known at execution time.
+	sd, err := pgConn.Prepare(ctx, "ps_fetch", `fetch all in "exec_statement_cursor"`, nil)
+	require.NoError(t, err)
+	require.Empty(t, sd.Fields)
+
+	// DECLARE CURSOR requires an explicit transaction block.
+	_, err = pgConn.Exec(ctx, "begin").ReadAll()
+	require.NoError(t, err)
+
+	_, err = pgConn.Exec(ctx, `declare "exec_statement_cursor" cursor for select n, n::text from generate_series(1, 3) n`).ReadAll()
+	require.NoError(t, err)
+
+	result := pgConn.ExecStatement(ctx, sd, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.FieldDescriptions, 2)
+	require.Equal(t, uint32(pgtype.Int4OID), result.FieldDescriptions[0].DataTypeOID)
+	require.Equal(t, uint32(pgtype.TextOID), result.FieldDescriptions[1].DataTypeOID)
+	require.Len(t, result.Rows, 3)
+	require.Equal(t, "1", string(result.Rows[0][0]))
+	require.Equal(t, "3", string(result.Rows[2][1]))
+
+	_, err = pgConn.Exec(ctx, "rollback").ReadAll()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 type byteCounterConn struct {
 	conn         net.Conn
 	bytesRead    int
