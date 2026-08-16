@@ -24,6 +24,9 @@ _testmain.go
 .envrc
 /.testdb
 
+# Provisioned on demand with `rake references:setup`; never committed.
+/references/
+
 .DS_Store
 
 /.vscode
