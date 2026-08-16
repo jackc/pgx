@@ -111,6 +111,67 @@ func TestArrayCodecEncodeTextBoxArrayUsesBoxDelimiter(t *testing.T) {
 	require.Equal(t, `{"(2,2),(1,1)";"(4,4),(3,3)"}`, string(buf))
 }
 
+func TestArrayCodecBoxArrayRoundTrip(t *testing.T) {
+	testCases := []struct {
+		input []pgtype.Box
+	}{
+		{nil},
+		{[]pgtype.Box{}},
+		{[]pgtype.Box{
+			{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+		}},
+		{[]pgtype.Box{
+			{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+			{P: [2]pgtype.Vec2{{X: 4, Y: 4}, {X: 3, Y: 3}}, Valid: true},
+		}},
+		{[]pgtype.Box{
+			{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+			{},
+			{P: [2]pgtype.Vec2{{X: 4, Y: 4}, {X: 3, Y: 3}}, Valid: true},
+		}},
+	}
+
+	ctr := defaultConnTestRunner
+	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support box type")
+	}
+
+	ctr.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for i, testCase := range testCases {
+			for _, queryMode := range pgxtest.AllQueryExecModes {
+				var out []pgtype.Box
+				err := conn.QueryRow(ctx, "select $1::box[]", queryMode, testCase.input).Scan(&out)
+				if err != nil {
+					t.Fatalf("i=%d input=%#v queryMode=%s: Scan failed: %s",
+						i, testCase.input, queryMode, err)
+				}
+				if !reflect.DeepEqual(out, testCase.input) {
+					t.Errorf("i=%d input=%#v queryMode=%s: not equal output=%#v",
+						i, testCase.input, queryMode, out)
+				}
+			}
+		}
+
+		// The box delimiter only matters in the text format, so also confirm a
+		// server-produced text box[] scans correctly in the modes that return
+		// text format results.
+		for _, queryMode := range []pgx.QueryExecMode{pgx.QueryExecModeSimpleProtocol, pgx.QueryExecModeExec} {
+			var out []pgtype.Box
+			err := conn.QueryRow(ctx, "select array['((2,2),(1,1))'::box, '((4,4),(3,3))'::box]", queryMode).Scan(&out)
+			if err != nil {
+				t.Fatalf("queryMode=%s: Scan failed: %s", queryMode, err)
+			}
+			expected := []pgtype.Box{
+				{P: [2]pgtype.Vec2{{X: 2, Y: 2}, {X: 1, Y: 1}}, Valid: true},
+				{P: [2]pgtype.Vec2{{X: 4, Y: 4}, {X: 3, Y: 3}}, Valid: true},
+			}
+			if !reflect.DeepEqual(out, expected) {
+				t.Errorf("queryMode=%s: not equal output=%#v", queryMode, out)
+			}
+		}
+	})
+}
+
 func TestArrayCodecArray(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
