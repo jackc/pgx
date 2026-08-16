@@ -44,6 +44,14 @@ export PGX_TEST_DATABASE="host=localhost user=postgres password=postgres dbname=
 
 The test database needs extensions: `hstore`, `ltree`, and a `uint64` domain. See `testsetup/postgresql_setup.sql` for full setup. Many tests are skipped unless additional `PGX_TEST_*` env vars are set (for TLS, SCRAM, MD5, unix socket, PgBouncer testing).
 
+## Reference Material
+
+`references/` holds read-only reference checkouts used when building pgx — currently the PostgreSQL source tree pinned to `REL_18_STABLE`. It is gitignored and provisioned on demand: bare mirrors are cached on the devcontainer's shared persist volume (`/persist/shared/references`) and lightweight local checkouts are created in `references/` with `rake references:setup`. Each checkout has per-instance Git metadata while borrowing the shared mirror's object store. Related tasks: `rake references:update`, `rake references:status`, `rake references:clean`.
+
+- Do not automatically provision or update `references/`.
+- Never run `rake references:setup`, `rake references:update`, or any large download on your own initiative.
+- If reference sources are missing, work without them or ask the user.
+
 ## Architecture
 
 The codebase is a layered architecture, bottom-up:
