@@ -1585,9 +1585,14 @@ type MultiResultReader struct {
 
 	rr *ResultReader
 
-	// Data from when the batch was queued.
+	// Data from when the batch was queued. There is one entry per command in the batch. Entries are nil for commands
+	// other than Batch.ExecStatement, which is the only command that does not request a RowDescription from the server.
 	statementDescriptions []*StatementDescription
 	resultFormats         [][]int16
+
+	// Statement data for the command currently being processed. Popped from the queues above at each BindComplete.
+	currentStatementDescription *StatementDescription
+	currentResultFormats        []int16
 
 	closed bool
 	err    error
@@ -1632,19 +1637,19 @@ func (mrr *MultiResultReader) NextResult() bool {
 	for !mrr.closed && mrr.err == nil {
 		msg, _ := mrr.pgConn.peekMessage()
 		if _, ok := msg.(*pgproto3.DataRow); ok {
-			if len(mrr.statementDescriptions) > 0 {
+			if sd := mrr.currentStatementDescription; sd != nil {
 				rr := ResultReader{
 					pgConn:            mrr.pgConn,
 					multiResultReader: mrr,
 					ctx:               mrr.ctx,
 				}
 
-				// This result corresponds to a prepared statement description that was provided when queuing the batch.
-				sd := mrr.statementDescriptions[0]
-				mrr.statementDescriptions = mrr.statementDescriptions[1:]
-
-				resultFormats := mrr.resultFormats[0]
-				mrr.resultFormats = mrr.resultFormats[1:]
+				// This result corresponds to a Batch.ExecStatement command. No RowDescription was requested from the
+				// server so the field descriptions come from the statement description that was provided when queuing
+				// the batch.
+				resultFormats := mrr.currentResultFormats
+				mrr.currentStatementDescription = nil
+				mrr.currentResultFormats = nil
 
 				sdFields := sd.Fields
 				rr.fieldDescriptions = rr.pgConn.getFieldDescriptionSlice(len(sdFields))
@@ -1669,7 +1674,24 @@ func (mrr *MultiResultReader) NextResult() bool {
 		}
 
 		switch msg := msg.(type) {
+		case *pgproto3.BindComplete:
+			// Every command in a batch begins with a BindComplete. Pop this command's statement data so that the
+			// following messages are matched with the correct statement description. It must be popped here rather than
+			// when a DataRow is peeked because a command that returns no rows would otherwise leave its entry in the
+			// queue, misaligning the statement descriptions for all subsequent commands.
+			if len(mrr.statementDescriptions) > 0 {
+				mrr.currentStatementDescription = mrr.statementDescriptions[0]
+				mrr.statementDescriptions = mrr.statementDescriptions[1:]
+				mrr.currentResultFormats = mrr.resultFormats[0]
+				mrr.resultFormats = mrr.resultFormats[1:]
+			} else {
+				mrr.currentStatementDescription = nil
+				mrr.currentResultFormats = nil
+			}
 		case *pgproto3.RowDescription:
+			mrr.currentStatementDescription = nil
+			mrr.currentResultFormats = nil
+
 			mrr.pgConn.resultReader = ResultReader{
 				pgConn:            mrr.pgConn,
 				multiResultReader: mrr,
@@ -1681,11 +1703,25 @@ func (mrr *MultiResultReader) NextResult() bool {
 			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.CommandComplete:
-			mrr.pgConn.resultReader = ResultReader{
+			rr := ResultReader{
 				commandTag:       mrr.pgConn.makeCommandTag(msg.CommandTag),
 				commandConcluded: true,
 				closed:           true,
 			}
+
+			if sd := mrr.currentStatementDescription; sd != nil {
+				// A Batch.ExecStatement command that returned no rows. Attach the field descriptions from the statement
+				// description so the result reports its columns the same as a result that was described by the server.
+				rr.fieldDescriptions = mrr.pgConn.getFieldDescriptionSlice(len(sd.Fields))
+				err := combineFieldDescriptionsAndResultFormats(rr.fieldDescriptions, sd.Fields, mrr.currentResultFormats)
+				if err != nil {
+					rr.err = err
+				}
+				mrr.currentStatementDescription = nil
+				mrr.currentResultFormats = nil
+			}
+
+			mrr.pgConn.resultReader = rr
 			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.EmptyQueryResponse:
@@ -1965,6 +2001,11 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	if batch.err != nil {
 		return
 	}
+
+	// The statement data queues must have one entry per command so results can be matched with the correct statement
+	// description. This command requests a RowDescription from the server so it queues a nil placeholder.
+	batch.statementDescriptions = append(batch.statementDescriptions, nil)
+	batch.resultFormats = append(batch.resultFormats, nil)
 
 	batch.buf, batch.err = (&pgproto3.Describe{ObjectType: 'P'}).Encode(batch.buf)
 	if batch.err != nil {
