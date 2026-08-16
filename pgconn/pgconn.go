@@ -2022,7 +2022,9 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 //
 // This differs from ExecPrepared in that it takes a *StatementDescription instead of just the prepared statement name.
 // Because it has the *StatementDescription it can avoid the Describe Portal message that ExecPrepared must send to get
-// the result column descriptions.
+// the result column descriptions. However, if the statement description has no fields then a Describe is still sent, as
+// an empty Fields may mean the results were not knowable at prepare time, e.g. a FETCH from a cursor that did not exist
+// yet.
 func (batch *Batch) ExecStatement(statementDescription *StatementDescription, paramValues [][]byte, paramFormats, resultFormats []int16) {
 	if batch.err != nil {
 		return
@@ -2031,6 +2033,16 @@ func (batch *Batch) ExecStatement(statementDescription *StatementDescription, pa
 	batch.buf, batch.err = (&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(batch.buf)
 	if batch.err != nil {
 		return
+	}
+
+	if len(statementDescription.Fields) == 0 {
+		// The cached field descriptions are empty, which can occur when the statement's result set was not known at
+		// prepare time, e.g. a FETCH from a cursor that did not exist yet. Send a Describe so the server supplies the
+		// actual row description when the statement is executed.
+		batch.buf, batch.err = (&pgproto3.Describe{ObjectType: 'P'}).Encode(batch.buf)
+		if batch.err != nil {
+			return
+		}
 	}
 
 	batch.statementDescriptions = append(batch.statementDescriptions, statementDescription)
