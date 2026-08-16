@@ -1711,6 +1711,49 @@ func TestConnExecStatement(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2626
+func TestConnExecStatementCursorFetch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support cursors in implicit transactions")
+	}
+
+	// Prepare the FETCH before the cursor exists. The server describes the result as NoData so the statement
+	// description has no fields. The actual fields are only known at execution time.
+	sd, err := pgConn.Prepare(ctx, "ps_fetch", `fetch all in "exec_statement_cursor"`, nil)
+	require.NoError(t, err)
+	require.Empty(t, sd.Fields)
+
+	// DECLARE CURSOR requires an explicit transaction block.
+	_, err = pgConn.Exec(ctx, "begin").ReadAll()
+	require.NoError(t, err)
+
+	_, err = pgConn.Exec(ctx, `declare "exec_statement_cursor" cursor for select n, n::text from generate_series(1, 3) n`).ReadAll()
+	require.NoError(t, err)
+
+	result := pgConn.ExecStatement(ctx, sd, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.FieldDescriptions, 2)
+	require.Equal(t, uint32(pgtype.Int4OID), result.FieldDescriptions[0].DataTypeOID)
+	require.Equal(t, uint32(pgtype.TextOID), result.FieldDescriptions[1].DataTypeOID)
+	require.Len(t, result.Rows, 3)
+	require.Equal(t, "1", string(result.Rows[0][0]))
+	require.Equal(t, "3", string(result.Rows[2][1]))
+
+	_, err = pgConn.Exec(ctx, "rollback").ReadAll()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 type byteCounterConn struct {
 	conn         net.Conn
 	bytesRead    int
@@ -3677,6 +3720,71 @@ func TestPipelineQueryStatementBindError(t *testing.T) {
 	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
 
 	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+// https://github.com/jackc/pgx/issues/2626
+func TestPipelineQueryStatementCursorFetch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support cursors in implicit transactions")
+	}
+
+	// Prepare the FETCH before the cursor exists. The server describes the result as NoData so the statement
+	// description has no fields. The actual fields are only known at execution time.
+	sd, err := pgConn.Prepare(ctx, "ps_fetch", `fetch all in "pipeline_cursor"`, nil)
+	require.NoError(t, err)
+	require.Empty(t, sd.Fields)
+
+	// DECLARE CURSOR requires an explicit transaction block.
+	_, err = pgConn.Exec(ctx, "begin").ReadAll()
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+	pipeline.SendQueryParams(`declare "pipeline_cursor" cursor for select n, n::text from generate_series(1, 3) n`, nil, nil, nil, nil)
+	pipeline.SendQueryStatement(sd, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.FieldDescriptions, 2)
+	require.Equal(t, uint32(pgtype.Int4OID), readResult.FieldDescriptions[0].DataTypeOID)
+	require.Equal(t, uint32(pgtype.TextOID), readResult.FieldDescriptions[1].DataTypeOID)
+	require.Len(t, readResult.Rows, 3)
+	require.Equal(t, "1", string(readResult.Rows[0][0]))
+	require.Equal(t, "3", string(readResult.Rows[2][1]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	_, err = pgConn.Exec(ctx, "rollback").ReadAll()
 	require.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
