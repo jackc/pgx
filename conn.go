@@ -1309,7 +1309,7 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 
 	switch typtype {
 	case "b": // array
-		elementOID, err := c.getArrayElementOID(ctx, oid)
+		elementOID, delimiter, err := c.getArrayElementOIDAndDelimiter(ctx, oid)
 		if err != nil {
 			return nil, err
 		}
@@ -1319,7 +1319,7 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 			return nil, errors.New("array element OID not registered")
 		}
 
-		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementType: dt}}, nil
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementType: dt, Delimiter: delimiter}}, nil
 	case "c": // composite
 		fields, err := c.getCompositeFields(ctx, oid)
 		if err != nil {
@@ -1365,15 +1365,16 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 	}
 }
 
-func (c *Conn) getArrayElementOID(ctx context.Context, oid uint32) (uint32, error) {
+func (c *Conn) getArrayElementOIDAndDelimiter(ctx context.Context, oid uint32) (uint32, byte, error) {
 	var typelem uint32
+	var typdelim string
 
-	err := c.QueryRow(ctx, "select typelem from pg_type where oid=$1", oid).Scan(&typelem)
+	err := c.QueryRow(ctx, "select typelem, typdelim::text from pg_type where oid=$1", oid).Scan(&typelem, &typdelim)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	return typelem, nil
+	return typelem, parseTypeDelimiter(typdelim), nil
 }
 
 func (c *Conn) getRangeElementOID(ctx context.Context, oid uint32) (uint32, error) {
