@@ -1917,6 +1917,66 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
 }
 
+func TestConnExecBatchStatementNoRows(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	sdNoRows, err := pgConn.Prepare(ctx, "ps_norows", "select 1::int4 as n where false", nil)
+	require.NoError(t, err)
+	require.Len(t, sdNoRows.Fields, 1)
+
+	sdRows, err := pgConn.Prepare(ctx, "ps_rows", "select 42::int4 as n, 'abc'::text as s", nil)
+	require.NoError(t, err)
+	require.Len(t, sdRows.Fields, 2)
+
+	// An ExecStatement command that returns no rows must not leave its statement description queued. Otherwise all
+	// subsequent ExecStatement results would be misaligned with their statement descriptions.
+	batch := &pgconn.Batch{}
+	batch.ExecStatement(sdNoRows, nil, nil, nil)
+	batch.ExecStatement(sdRows, nil, nil, nil)
+	batch.ExecParams("select 'p'::text", nil, nil, nil, nil)
+
+	mrr := pgConn.ExecBatch(ctx, batch)
+
+	require.True(t, mrr.NextResult())
+	rr := mrr.ResultReader()
+	require.Len(t, rr.FieldDescriptions(), 1)
+	require.Equal(t, "n", rr.FieldDescriptions()[0].Name)
+	result := rr.Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 0)
+	require.Equal(t, "SELECT 0", result.CommandTag.String())
+
+	require.True(t, mrr.NextResult())
+	rr = mrr.ResultReader()
+	require.Len(t, rr.FieldDescriptions(), 2)
+	require.Equal(t, "n", rr.FieldDescriptions()[0].Name)
+	require.Equal(t, "s", rr.FieldDescriptions()[1].Name)
+	result = rr.Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Equal(t, "42", string(result.Rows[0][0]))
+	require.Equal(t, "abc", string(result.Rows[0][1]))
+	require.Equal(t, "SELECT 1", result.CommandTag.String())
+
+	require.True(t, mrr.NextResult())
+	result = mrr.ResultReader().Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Equal(t, "p", string(result.Rows[0][0]))
+
+	require.False(t, mrr.NextResult())
+	require.NoError(t, mrr.Close())
+
+	ensureConnValid(t, pgConn)
+}
+
 type mockConnection struct {
 	net.Conn
 	writeLatency *time.Duration
