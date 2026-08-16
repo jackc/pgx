@@ -16,6 +16,14 @@ import (
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
 const nbase = 10_000
 
+// Numeric's binary representation stores the exponent through a base-10,000
+// weight and an int16 dscale. These are also the largest exponents that can be
+// safely materialized by the text encoders.
+const (
+	minNumericExponent = -math.MaxInt16
+	maxNumericExponent = math.MaxInt16*4 + 3
+)
+
 const (
 	pgNumericNaN     = 0x00000000c0000000
 	pgNumericNaNSign = 0xc000
@@ -164,7 +172,7 @@ func parseScientificNumericString(str string) (n *big.Int, exp int32, err error)
 	}
 
 	combinedExp := int64(mantissaExp) + scientificExp
-	if combinedExp < -1<<31 || combinedExp > 1<<31-1 {
+	if combinedExp < minNumericExponent || combinedExp > maxNumericExponent {
 		return nil, 0, fmt.Errorf("%s exponent out of range", str)
 	}
 

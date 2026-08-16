@@ -87,6 +87,10 @@ func TestNumericScanScientificPreservesPrecision(t *testing.T) {
 			src:  "1.234567890123456789e5",
 			want: pgtype.Numeric{Int: mustParseBigInt(t, "1234567890123456789"), Exp: -13, Valid: true},
 		},
+		{
+			src:  "1e131071",
+			want: pgtype.Numeric{Int: big.NewInt(1), Exp: 131071, Valid: true},
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,6 +118,8 @@ func TestNumericScanScientificErrors(t *testing.T) {
 		{src: "1.2.3", wantErr: "1.2.3 is not a number"},
 		{src: "1e99999999999999999999", wantErr: "1e99999999999999999999 exponent out of range"},
 		{src: "1000e2147483647", wantErr: "1000e2147483647 exponent out of range"},
+		{src: "1e131072", wantErr: "1e131072 exponent out of range"},
+		{src: "1e-32768", wantErr: "1e-32768 exponent out of range"},
 	} {
 		t.Run(tt.src, func(t *testing.T) {
 			var n pgtype.Numeric
