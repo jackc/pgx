@@ -1303,7 +1303,9 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 //
 // This differs from [PgConn.ExecPrepared] in that it takes a [*StatementDescription] instead of the prepared statement name.
 // Because it has the [*StatementDescription] it can avoid the Describe Portal message that [PgConn.ExecPrepared] must send to get
-// the result column descriptions.
+// the result column descriptions. However, if the statement description has no fields then a Describe is still sent, as
+// an empty Fields may mean the results were not knowable at prepare time, e.g. a FETCH from a cursor that did not exist
+// yet.
 //
 // paramValues are the parameter values. It must be encoded in the format given by paramFormats.
 //
@@ -1364,7 +1366,10 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 }
 
 func (pgConn *PgConn) execExtendedSuffix(result *ResultReader, statementDescription *StatementDescription, resultFormats []int16) {
-	if statementDescription == nil {
+	if statementDescription == nil || len(statementDescription.Fields) == 0 {
+		// The cached field descriptions are missing or empty. Empty field descriptions can occur when the statement's
+		// result set was not known at prepare time, e.g. a FETCH from a cursor that did not exist yet. Send a Describe
+		// so the server supplies the actual row description when the statement is executed.
 		pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
 	}
 	pgConn.frontend.SendExecute(&pgproto3.Execute{})
@@ -2523,6 +2528,12 @@ func (p *Pipeline) SendQueryStatement(statementDescription *StatementDescription
 	}
 
 	p.conn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: statementDescription.Name, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+	if len(statementDescription.Fields) == 0 {
+		// The cached field descriptions are empty. This can occur when the statement's result set is
+		// not known at prepare time, e.g. a FETCH from a cursor that did not exist yet. Send a
+		// Describe so the server supplies the actual row description when the statement is executed.
+		p.conn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
+	}
 	p.conn.frontend.SendExecute(&pgproto3.Execute{})
 	p.state.PushBackRequestType(pipelineQueryStatement)
 	p.state.PushBackStatementData(statementDescription, resultFormats)
@@ -2729,12 +2740,36 @@ func (p *Pipeline) getResultsQueryStatement() (*ResultReader, error) {
 		return nil, err
 	}
 
+	sdFields := sd.Fields
+	if len(sdFields) == 0 {
+		// A Describe was sent for this statement (see SendQueryStatement). Read the server-provided
+		// row description which may include fields that were not known at prepare time.
+		msg, err := p.receiveMessage()
+		if err != nil {
+			return nil, err
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			sdFields = make([]FieldDescription, len(msg.Fields))
+			convertRowDescription(sdFields, msg)
+		case *pgproto3.NoData:
+			// Statement returns no rows.
+		case *pgproto3.ErrorResponse:
+			pgErr := ErrorResponseToPgError(msg)
+			p.state.HandleError(pgErr)
+			p.conn.resultReader.closed = true
+			return nil, pgErr
+		default:
+			return nil, p.handleUnexpectedMessage("QueryStatement RowDescription or NoData", msg)
+		}
+	}
+
 	msg, err := p.receiveMessage()
 	if err != nil {
 		return nil, err
 	}
 
-	sdFields := sd.Fields
 	fieldDescriptions := p.conn.getFieldDescriptionSlice(len(sdFields))
 	err = combineFieldDescriptionsAndResultFormats(fieldDescriptions, sdFields, resultFormats)
 	if err != nil {
