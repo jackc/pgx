@@ -178,6 +178,57 @@ func TestConnSendBatchEmptyQuery(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/2626
+func TestConnSendBatchCursorFetch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support cursors in implicit transactions")
+
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		// The FETCH is prepared before the DECLARE has executed, so the cursor does not exist and the server
+		// describes the FETCH result as NoData. The actual fields are only known at execution time.
+		batch := &pgx.Batch{}
+		batch.Queue(`declare test_cursor cursor for select n, n::text as str from generate_series(1, 3) n`)
+		batch.Queue(`fetch all in test_cursor`)
+
+		br := tx.SendBatch(ctx, batch)
+
+		_, err = br.Exec()
+		require.NoError(t, err)
+
+		rows, err := br.Query()
+		require.NoError(t, err)
+
+		fds := rows.FieldDescriptions()
+		require.Len(t, fds, 2)
+		require.Equal(t, "n", fds[0].Name)
+		require.Equal(t, "str", fds[1].Name)
+
+		var ns []int32
+		var strs []string
+		for rows.Next() {
+			var n int32
+			var str string
+			require.NoError(t, rows.Scan(&n, &str))
+			ns = append(ns, n)
+			strs = append(strs, str)
+		}
+		require.NoError(t, rows.Err())
+		require.Equal(t, []int32{1, 2, 3}, ns)
+		require.Equal(t, []string{"1", "2", "3"}, strs)
+
+		err = br.Close()
+		require.NoError(t, err)
+	})
+}
+
 func TestConnSendBatchQueuedQuery(t *testing.T) {
 	t.Parallel()
 
