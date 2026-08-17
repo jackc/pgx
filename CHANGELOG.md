@@ -1,7 +1,57 @@
 # Unreleased
 
+## Changes
+
+* pgconn: connection URIs (`postgres://...`) are now parsed by a new parser designed to exactly match libpq's URI
+  parser behavior instead of `net/url`,
+  making pgx accept and reject exactly the same URIs as libpq (verified by differential fuzzing against libpq itself).
+  Most connection strings are unaffected. Edge-case behavior changes, all matching libpq:
+  * `+` in query values is literal, no longer decoded as a space.
+  * Malformed percent-encoding is a parse error instead of the parameter being silently dropped. `%00` is rejected.
+  * Leading/trailing spaces in URI components are trimmed; interior spaces are a parse error (encode them as `%20`).
+  * `#` is ordinary data, not a fragment delimiter.
+  * The userinfo terminator is the first `@` before any `/` (previously the last `@`).
+  * When a query parameter is repeated, the last occurrence wins (previously the first).
+  * `ssl=true` is accepted as an alias for `sslmode=require` in URIs (JDBC compatibility). A repeated `ssl` key
+    follows the same last-occurrence-wins rule as other repeated parameters, even across the rewrite to `sslmode`. If
+    the final `ssl` value is not `true`, an independent explicit `sslmode` remains in effect.
+  * Multiple hosts with mixed port specs are positionally aligned: `postgres://h1,h2:5433/db` now means h1:5432 and
+    h2:5433 (previously both hosts got port 5433). A port list that is neither a single port nor exactly one port per
+    host is an error (`could not match N port numbers to M hosts`), also for keyword/value connection strings.
+  * An IPv6 address in a URI must be enclosed in brackets. A bare `postgres://::1/db` was previously accepted as host
+    `::1`; it is now read as an empty host followed by port `:1` and fails with an invalid port error. Write it as
+    `postgres://[::1]/db`.
+  * Empty host list elements (e.g. `h1,,h2`) get the default host instead of being dropped. Likewise, an empty host in
+    a keyword/value string (`host=`) now means the default host -- typically the Unix socket directory -- where it
+    previously meant a TCP connection to an empty hostname.
+  * An empty port (`?port=` in a URI or `port=` in a keyword/value string) now means the default port 5432 for the
+    affected hosts; previously it was an invalid port error. Like any connection-string port, a present-but-empty port
+    takes precedence over `PGPORT`.
+  * ASCII control characters (tab, newline, ...) in a URI are ordinary data bytes, as they are to libpq; `net/url`
+    rejected any URI containing one. The exception is a literal NUL byte, which is still rejected, as `net/url` did.
+    (libpq never sees one -- C strings end at the first NUL -- but in Go a raw NUL could otherwise pass through into
+    the NUL-delimited startup message and inject extra parameters.)
+
+  Unlike libpq, unrecognized URI query parameters are still accepted (they become runtime parameters or pgx-specific
+  options). Parse error messages avoid quoting the unredacted connection string and redact recognizable password
+  fields on a best-effort basis. Invalid connection strings can be structurally ambiguous, so password redaction
+  cannot be guaranteed for every malformed input.
+
 ## Fixes
 
+* pgconn: error messages that embed the connection string now also redact `password` and `sslpassword` values supplied
+  as URI query parameters; previously only the userinfo password was redacted. Redaction matches keys the way the
+  parser does -- percent-encoded spellings such as `pass%77ord=` are recognized -- and masks the entire raw value, so
+  a password containing a space cannot leak its tail into the error message. Credentials stranded outside the
+  userinfo by a malformed URI are masked whole, and invalid-port errors no longer embed the offending text (which in
+  a malformed URI can be a mislaid password). Redaction of invalid connection strings is necessarily best effort:
+  their structure may be ambiguous, so some malformed inputs can still expose password text in an error.
+* pgconn: `ParseConfigOptions.ConnStringAllowedKeys` no longer exempts an explicitly supplied empty port (`?port=` in
+  a URI or `port=` in a keyword/value string) from the allow-list. Only the implied all-empty port list of a
+  multi-host URI without ports (`postgres://h1,h2/db`) is exempt. An explicit empty port shadows `PGPORT` even though
+  it is empty, so it must be allowed like any other user-supplied key. The URI-only `ssl=true` alias is accepted when
+  either `ssl` or `sslmode` is allowed, and every `ssl`/`sslmode` spelling written in the URI is validated --
+  including occurrences superseded by later repeated parameters.
 * pgconn: drain socket before close in `asyncClose` so context cancellation produces a TCP FIN instead of RST, avoiding "connection reset by peer" on the server / proxy (Sean Chittenden at CrowdStrike, Inc.)
 
 # 5.10.0 (June 3, 2026)
