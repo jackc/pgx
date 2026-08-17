@@ -10,7 +10,6 @@ import (
 	"maps"
 	"math"
 	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -114,6 +113,11 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// defaultPort is the port used when neither the connection string, the environment, nor the
+// service file supplies one. It is also the per-element fallback for empty entries in a
+// multi-host port list.
+const defaultPort = "5432"
+
 // connStringKeyAliases maps libpq parameter keywords to the canonical key names this package
 // uses internally in the parsed-settings map. Most keywords are already canonical; this map
 // holds only those whose pgx-internal name differs from the libpq spelling.
@@ -142,7 +146,11 @@ type ParseConfigOptions struct {
 	// defaults are not checked: only keys that originate from the connString argument.
 	//
 	// Keys may be given in either their libpq spelling ("dbname") or pgx-internal spelling
-	// ("database"); both are accepted.
+	// ("database"); both are accepted. The URI-only ssl=true alias for sslmode=require is
+	// accepted when either "ssl" or "sslmode" is allowed; an explicit sslmode key or a
+	// non-"true" ssl value only matches its own spelling. Every ssl/sslmode occurrence in
+	// the connection string is validated, including occurrences superseded by a later
+	// repeated parameter.
 	//
 	// A nil slice (the default) applies no restriction and matches libpq behaviour. An empty
 	// non-nil slice rejects every key, i.e. connString must be empty.
@@ -312,6 +320,15 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
 // does not.
 //
+// URL query parameters that libpq does not recognize cause libpq to fail with an "invalid URI query parameter" error.
+// ParseConfig accepts them: they become runtime parameters or pgx-specific options (e.g. pool_max_conns).
+//
+// Error messages from ParseConfig avoid quoting the unredacted connection string and attempt to redact recognizable
+// password fields, while libpq quotes the failing input verbatim. This redaction is best effort. An invalid connection
+// string can be structurally ambiguous, so pgconn cannot guarantee that every password in malformed input will be
+// identified or redacted. Applications should not assume that parse errors are safe to expose when connection strings
+// may contain secrets.
+//
 // In addition, ParseConfig accepts the following options:
 //
 //   - servicefile.
@@ -330,11 +347,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	envSettings := parseEnvSettings()
 
 	connStringSettings := make(map[string]string)
+	var urlMeta parseURLMeta
 	if connString != "" {
 		var err error
 		// connString may be a database URL or in PostgreSQL keyword/value format
 		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, err = parseURLSettings(connString)
+			connStringSettings, urlMeta, err = parseURLSettings(connString)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
 			}
@@ -351,10 +369,53 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		for _, k := range options.ConnStringAllowedKeys {
 			allowed[canonicalConnStringKey(k)] = struct{}{}
 		}
+		notAllowed := func(k string) error {
+			return &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
+		}
+		_, sslAllowed := allowed["ssl"]
+		_, sslmodeAllowed := allowed["sslmode"]
+
+		// Repeated-key handling and the URI ssl=true alias rewrite can remove
+		// ssl/sslmode occurrences from the final settings map, so those two keys
+		// are validated from what the user actually wrote -- every occurrence,
+		// fail closed -- rather than from what survived. The alias itself is
+		// accepted under either spelling, the same way dbname/database are
+		// interchangeable; an explicit sslmode key or a non-"true" ssl value
+		// only matches its own spelling.
+		if urlMeta.sawRawSSLKey && !sslAllowed {
+			return nil, notAllowed("ssl")
+		}
+		if urlMeta.sawExplicitSSLModeKey && !sslmodeAllowed {
+			return nil, notAllowed("sslmode")
+		}
+		if urlMeta.sawSSLTrueAlias && !sslAllowed && !sslmodeAllowed {
+			return nil, notAllowed("ssl")
+		}
+
 		for k := range connStringSettings {
-			if _, ok := allowed[k]; !ok {
-				return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
+			if _, ok := allowed[k]; ok {
+				continue
 			}
+			// A multi-host URI with no explicit ports produces an implied
+			// all-empty port list (e.g. ","), matching libpq. Only that list
+			// -- identified by the parser from the raw syntax, not inferred
+			// from the value -- is exempt from the allow-list: it carries no
+			// user-supplied port text. An explicit empty port (?port= in a
+			// URI or port= in keyword/value form) is user-supplied, and
+			// because a present-but-empty port still shadows PGPORT it must
+			// pass the allow-list like any other key.
+			if k == "port" && urlMeta.impliedEmptyPortList {
+				continue
+			}
+			// A surviving ssl or sslmode entry from a URI was already
+			// validated above against every spelling the user wrote.
+			if k == "ssl" && urlMeta.sawRawSSLKey {
+				continue
+			}
+			if k == "sslmode" && (urlMeta.sawSSLTrueAlias || urlMeta.sawExplicitSSLModeKey) {
+				continue
+			}
+			return nil, notAllowed(k)
 		}
 	}
 
@@ -474,17 +535,41 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	hosts := strings.Split(settings["host"], ",")
 	ports := strings.Split(settings["port"], ",")
 
+	// Like libpq, if exactly one port is given it applies to all hosts;
+	// otherwise there must be exactly one port per host. Empty list elements
+	// mean "use the default".
+	if len(ports) > 1 && len(ports) != len(hosts) {
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("could not match %d port numbers to %d hosts", len(ports), len(hosts))}
+	}
+
+	// defaultHost stats candidate socket directories, so resolve it at most
+	// once even when several host list elements are empty. It never returns "".
+	resolvedDefaultHost := ""
 	for i, host := range hosts {
-		var portStr string
-		if i < len(ports) {
-			portStr = ports[i]
-		} else {
-			portStr = ports[0]
+		if host == "" {
+			if resolvedDefaultHost == "" {
+				resolvedDefaultHost = defaultHost()
+			}
+			host = resolvedDefaultHost
 		}
 
+		portStr := ports[0]
+		if len(ports) > 1 {
+			portStr = ports[i]
+		}
+		if portStr == "" {
+			portStr = defaultPort
+		}
+
+		// The strconv error is deliberately not wrapped: it quotes the
+		// offending text, and in a malformed URI the bytes that land in the
+		// port position can be a mislaid password (postgres://u:sec:ret@h
+		// parses "sec:ret@h" as the port). The best-effort-redacted connection
+		// string in ParseConfigError provides the available context without
+		// deliberately quoting the offending port text again.
 		port, err := parsePort(portStr)
 		if err != nil {
-			return nil, &ParseConfigError{ConnString: connString, msg: "invalid port", err: err}
+			return nil, &ParseConfigError{ConnString: connString, msg: "invalid port"}
 		}
 
 		var tlsConfigs []*tls.Config
@@ -645,71 +730,6 @@ func parseEnvSettings() map[string]string {
 	}
 
 	return settings
-}
-
-func parseURLSettings(connString string) (map[string]string, error) {
-	settings := make(map[string]string)
-
-	parsedURL, err := url.Parse(connString)
-	if err != nil {
-		if urlErr := new(url.Error); errors.As(err, &urlErr) {
-			return nil, urlErr.Err
-		}
-		return nil, err
-	}
-
-	if parsedURL.User != nil {
-		if u := parsedURL.User.Username(); u != "" {
-			settings["user"] = u
-		}
-		if password, present := parsedURL.User.Password(); present {
-			settings["password"] = password
-		}
-	}
-
-	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
-	var hosts []string
-	var ports []string
-	for host := range strings.SplitSeq(parsedURL.Host, ",") {
-		if host == "" {
-			continue
-		}
-		if isIPOnly(host) {
-			hosts = append(hosts, strings.Trim(host, "[]"))
-			continue
-		}
-		h, p, err := net.SplitHostPort(host)
-		if err != nil {
-			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
-		}
-		if h != "" {
-			hosts = append(hosts, h)
-		}
-		if p != "" {
-			ports = append(ports, p)
-		}
-	}
-	if len(hosts) > 0 {
-		settings["host"] = strings.Join(hosts, ",")
-	}
-	if len(ports) > 0 {
-		settings["port"] = strings.Join(ports, ",")
-	}
-
-	database := strings.TrimLeft(parsedURL.Path, "/")
-	if database != "" {
-		settings["database"] = database
-	}
-
-	for k, v := range parsedURL.Query() {
-		settings[canonicalConnStringKey(k)] = v[0]
-	}
-
-	return settings, nil
-}
-
-func isIPOnly(host string) bool {
-	return net.ParseIP(strings.Trim(host, "[]")) != nil || !strings.Contains(host, ":")
 }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}

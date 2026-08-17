@@ -32,7 +32,7 @@ func defaultSettings() map[string]string {
 	settings := make(map[string]string)
 
 	settings["host"] = defaultHost()
-	settings["port"] = "5432"
+	settings["port"] = defaultPort
 	settings["target_session_attrs"] = "any"
 
 	// The home-directory-derived defaults (~/.pgpass, ~/.pg_service.conf,

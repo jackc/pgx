@@ -43,6 +43,46 @@ func TestConfigError(t *testing.T) {
 			err:         pgconn.NewParseConfigError("postgresql://other@host/db", "msg", nil),
 			expectedMsg: "cannot parse `postgresql://other@host/db`: msg",
 		},
+		{
+			name:        "url with slash and query-like text in password",
+			err:         pgconn.NewParseConfigError("postgres://user:pass/word?x=y@host/db", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxxx@host/db`: msg",
+		},
+		{
+			name:        "url with colon inside stranded password",
+			err:         pgconn.NewParseConfigError("postgres://a@user:sec:ret@host/db", "msg", nil),
+			expectedMsg: "cannot parse `postgres://a@user:xxxxxx@host/db`: msg",
+		},
+		{
+			name:        "valid url with at sign in query value and query password",
+			err:         pgconn.NewParseConfigError("postgres://host:5432/db?application_name=me@example.com&password=supersecret&sslmode=bogus", "msg", nil),
+			expectedMsg: "cannot parse `postgres://host:5432/db?application_name=me@example.com&password=xxxxx&sslmode=bogus`: msg",
+		},
+		{
+			name:        "valid url with userinfo password and at sign in query value",
+			err:         pgconn.NewParseConfigError("postgres://user:pw@host:5432/db?options=x@y&password=supersecret", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host:5432/db?options=x@y&password=xxxxx`: msg",
+		},
+		{
+			name:        "valid url with at sign in dbname",
+			err:         pgconn.NewParseConfigError("postgres://host/db@name?password=supersecret", "msg", nil),
+			expectedMsg: "cannot parse `postgres://host/db@name?password=xxxxx`: msg",
+		},
+		{
+			name:        "url with question mark inside ipv6 bracket",
+			err:         pgconn.NewParseConfigError("postgres://[foo?bar]/db?password=supersecret", "msg", nil),
+			expectedMsg: "cannot parse `postgres://[foo?bar]/db?password=xxxxx`: msg",
+		},
+		{
+			name:        "url with percent-encoded password key",
+			err:         pgconn.NewParseConfigError("postgres://host/db?pass%77ord=supersecret", "msg", nil),
+			expectedMsg: "cannot parse `postgres://host/db?pass%77ord=xxxxx`: msg",
+		},
+		{
+			name:        "url with space in query password",
+			err:         pgconn.NewParseConfigError("postgres://host/db?password=super secret&sslmode=disable", "msg", nil),
+			expectedMsg: "cannot parse `postgres://host/db?password=xxxxx&sslmode=disable`: msg",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
