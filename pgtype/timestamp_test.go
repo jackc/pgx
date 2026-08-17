@@ -92,13 +92,53 @@ func TestTimestampTranscodeBigTimeBinary(t *testing.T) {
 	})
 }
 
+func TestTimestampCodecDecodeTextBigTime(t *testing.T) {
+	c := &pgtype.TimestampCodec{}
+
+	for _, tt := range []struct {
+		src  string
+		want time.Time
+	}{
+		{src: `10000-01-02 03:04:05.123456`, want: time.Date(10000, 1, 2, 3, 4, 5, 123456000, time.UTC)},
+		{src: `00000000000010000-01-02 03:04:05.123456`, want: time.Date(10000, 1, 2, 3, 4, 5, 123456000, time.UTC)},
+		{src: `294276-12-31 23:59:59.999999`, want: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC)},
+		{src: `294276-12-31 23:59:59.999999499`, want: time.Date(294276, 12, 31, 23, 59, 59, 999999499, time.UTC)},
+		{src: `4713-02-29 00:00:00 BC`, want: time.Date(-4712, 2, 29, 0, 0, 0, 0, time.UTC)},
+		{src: `4714-11-24 00:00:00 BC`, want: time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)},
+		{src: `4714-11-23 23:59:59.999999500 BC`, want: time.Date(-4713, 11, 23, 23, 59, 59, 999999500, time.UTC)},
+	} {
+		var ts pgtype.Timestamp
+		plan := c.PlanScan(nil, pgtype.TimestampOID, pgtype.TextFormatCode, &ts)
+
+		err := plan.Scan([]byte(tt.src), &ts)
+		require.NoError(t, err)
+		require.True(t, ts.Valid)
+		require.Equal(t, tt.want, ts.Time)
+	}
+}
+
 // https://github.com/jackc/pgtype/issues/74
 func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 	c := &pgtype.TimestampCodec{}
-	var ts pgtype.Timestamp
-	plan := c.PlanScan(nil, pgtype.TimestampOID, pgtype.TextFormatCode, &ts)
-	err := plan.Scan([]byte(`eeeee`), &ts)
-	require.Error(t, err)
+
+	for _, src := range []string{
+		`eeeee`,
+		`0000-01-01 00:00:00`,
+		`10000-02-30 00:00:00`,
+		`10001-02-29 00:00:00`,
+		`294277-01-01 00:00:00`,
+		`294276-12-31 23:59:59.999999500`,
+		`4714-01-01 00:00:00 BC`,
+		`4714-11-23 23:59:59.999999499 BC`,
+		`4712-02-29 00:00:00 BC`,
+		`10000-01-01 00:00:00 BC`,
+		`9223372036854775808-01-01 00:00:00`,
+	} {
+		var ts pgtype.Timestamp
+		plan := c.PlanScan(nil, pgtype.TimestampOID, pgtype.TextFormatCode, &ts)
+		err := plan.Scan([]byte(src), &ts)
+		require.Error(t, err)
+	}
 }
 
 func TestTimestampMarshalJSON(t *testing.T) {

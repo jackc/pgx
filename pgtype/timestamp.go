@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	pgTimestampFormat = "2006-01-02 15:04:05.999999999"
-	jsonISO8601       = "2006-01-02T15:04:05.999999999"
+	pgTimestampFormat  = "2006-01-02 15:04:05.999999999"
+	jsonISO8601        = "2006-01-02T15:04:05.999999999"
+	maxTimestampYear   = 294276
+	maxTimestampBCYear = 4714
 )
 
 type TimestampScanner interface {
@@ -311,14 +313,16 @@ func (plan *scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) e
 			sbuf = sbuf[:len(sbuf)-3]
 			bc = true
 		}
-		tim, err := time.Parse(pgTimestampFormat, sbuf)
+		maxYear := int64(maxTimestampYear)
+		if bc {
+			maxYear = maxTimestampBCYear
+		}
+		tim, err := parseTimestampWithVariableYear(pgTimestampFormat, sbuf, false, maxYear, bc)
 		if err != nil {
 			return err
 		}
-
-		if bc {
-			year := -tim.Year() + 1
-			tim = time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), tim.Location())
+		if timestampOutOfRange(tim) {
+			return fmt.Errorf("timestamp out of range")
 		}
 
 		if plan.location != nil {
@@ -329,6 +333,137 @@ func (plan *scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) e
 	}
 
 	return scanner.ScanTimestamp(ts)
+}
+
+func parseTimestampWithVariableYear(layout, s string, preserveOffset bool, maxYear int64, bc bool) (time.Time, error) {
+	yearEnd, err := timestampYearEnd(s)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if yearEnd == 4 && !bc {
+		if _, err := parseTimestampYear(s[:yearEnd], maxYear); err != nil {
+			return time.Time{}, err
+		}
+		tim, err := time.Parse(layout, s)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if preserveOffset {
+			_, offset := tim.Zone()
+			if offset <= -16*60*60 || offset >= 16*60*60 {
+				return time.Time{}, fmt.Errorf("time zone displacement out of range")
+			}
+		}
+		return tim, nil
+	}
+
+	normalized, year, err := normalizeTimestampYear(s, maxYear, bc)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	tim, err := time.Parse(layout, normalized)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	loc := tim.Location()
+	if preserveOffset {
+		_, offset := tim.Zone()
+		if offset <= -16*60*60 || offset >= 16*60*60 {
+			return time.Time{}, fmt.Errorf("time zone displacement out of range")
+		}
+		loc = time.FixedZone("", offset)
+	}
+
+	if bc {
+		year = 1 - year
+	}
+
+	return time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), loc), nil
+}
+
+func timestampOutOfRange(t time.Time) bool {
+	return t.Before(minTimestampTime().Add(-500*time.Nanosecond)) || !t.Before(maxTimestampTime().Add(500*time.Nanosecond))
+}
+
+func minTimestampTime() time.Time {
+	return time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)
+}
+
+func maxTimestampTime() time.Time {
+	return time.Date(maxTimestampYear, 12, 31, 23, 59, 59, 999999000, time.UTC)
+}
+
+func normalizeTimestampYear(s string, maxYear int64, bc bool) (string, int, error) {
+	yearEnd, err := timestampYearEnd(s)
+	if err != nil {
+		return "", 0, err
+	}
+
+	year64, err := parseTimestampYear(s[:yearEnd], maxYear)
+	if err != nil {
+		return "", 0, err
+	}
+	year := int(year64)
+
+	normalizedYear := "2001"
+	if isTimestampLeapYear(year, bc) {
+		normalizedYear = "2000"
+	}
+
+	return normalizedYear + s[yearEnd:], year, nil
+}
+
+func timestampYearEnd(s string) (int, error) {
+	yearEnd := -1
+	for i := 4; i < len(s); i++ {
+		if s[i] == '-' {
+			yearEnd = i
+			break
+		}
+		if s[i] < '0' || s[i] > '9' {
+			return 0, fmt.Errorf("invalid timestamp format")
+		}
+	}
+	if yearEnd == -1 {
+		return 0, fmt.Errorf("invalid timestamp format")
+	}
+	return yearEnd, nil
+}
+
+func parseTimestampYear(s string, maxYear int64) (int64, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("invalid timestamp format")
+	}
+
+	var n int64
+	for _, c := range []byte(s) {
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("invalid timestamp format")
+		}
+		digit := int64(c - '0')
+		if n > (maxYear-digit)/10 {
+			return 0, fmt.Errorf("timestamp year out of range")
+		}
+		n = n*10 + digit
+	}
+	if n < 1 || n > maxYear {
+		return 0, fmt.Errorf("timestamp year out of range")
+	}
+
+	return n, nil
+}
+
+func isLeapYear(year int) bool {
+	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+}
+
+func isTimestampLeapYear(year int, bc bool) bool {
+	if bc {
+		year = 1 - year
+	}
+	return isLeapYear(year)
 }
 
 func (c *TimestampCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {

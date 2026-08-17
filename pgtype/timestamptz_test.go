@@ -88,13 +88,87 @@ func TestTimestamptzTranscodeBigTimeBinary(t *testing.T) {
 	})
 }
 
+func TestTimestamptzCodecDecodeTextBigTime(t *testing.T) {
+	c := &pgtype.TimestamptzCodec{ScanLocation: time.UTC}
+
+	for _, tt := range []struct {
+		src  string
+		want time.Time
+	}{
+		{src: `10000-01-02 03:04:05.123456+00`, want: time.Date(10000, 1, 2, 3, 4, 5, 123456000, time.UTC)},
+		{src: `00000000000010000-01-02 03:04:05.123456+00`, want: time.Date(10000, 1, 2, 3, 4, 5, 123456000, time.UTC)},
+		{src: `294276-12-31 23:59:59.999999+00`, want: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC)},
+		{src: `294276-12-31 23:59:59.999999499+00`, want: time.Date(294276, 12, 31, 23, 59, 59, 999999499, time.UTC)},
+		{src: `294276-12-31 23:59:59.999999+14`, want: time.Date(294276, 12, 31, 9, 59, 59, 999999000, time.UTC)},
+		{src: `294277-01-01 00:00:00+14`, want: time.Date(294276, 12, 31, 10, 0, 0, 0, time.UTC)},
+		{src: `294277-01-01 15:58:59.999999+15:59`, want: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC)},
+		{src: `4713-02-29 00:00:00+00 BC`, want: time.Date(-4712, 2, 29, 0, 0, 0, 0, time.UTC)},
+		{src: `4714-11-24 00:00:00+00 BC`, want: time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)},
+		{src: `4714-11-23 10:00:00-14 BC`, want: time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)},
+		{src: `4714-11-23 09:59:59.999999500-14 BC`, want: time.Date(-4713, 11, 23, 23, 59, 59, 999999500, time.UTC)},
+	} {
+		var tstz pgtype.Timestamptz
+		plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz)
+
+		err := plan.Scan([]byte(tt.src), &tstz)
+		require.NoError(t, err)
+		require.True(t, tstz.Valid)
+		require.Equal(t, tt.want, tstz.Time)
+	}
+}
+
+func TestTimestamptzCodecDecodeTextBigTimePreservesOffset(t *testing.T) {
+	c := &pgtype.TimestamptzCodec{}
+
+	for _, tt := range []struct {
+		src  string
+		want time.Time
+	}{
+		{src: `10000-01-02 03:04:05.123456+09`, want: time.Date(10000, 1, 2, 3, 4, 5, 123456000, time.FixedZone("", 9*60*60))},
+	} {
+		var tstz pgtype.Timestamptz
+		plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz)
+
+		err := plan.Scan([]byte(tt.src), &tstz)
+		require.NoError(t, err)
+		require.True(t, tstz.Valid)
+
+		_, offset := tstz.Time.Zone()
+		require.Equal(t, 9*60*60, offset)
+		require.Equal(t, tt.want, tstz.Time)
+	}
+}
+
 // https://github.com/jackc/pgtype/issues/74
 func TestTimestamptzDecodeTextInvalid(t *testing.T) {
 	c := &pgtype.TimestamptzCodec{}
-	var tstz pgtype.Timestamptz
-	plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz)
-	err := plan.Scan([]byte(`eeeee`), &tstz)
-	require.Error(t, err)
+
+	for _, src := range []string{
+		`eeeee`,
+		`0000-01-01 00:00:00+00`,
+		`10000-02-30 00:00:00+00`,
+		`10001-02-29 00:00:00+00`,
+		`2024-01-01 00:00:00+16`,
+		`2024-01-01 00:00:00-16`,
+		`294277-01-01 00:00:00+00`,
+		`294277-01-01 15:59:00+15:59`,
+		`294276-12-31 23:59:59.999999500+00`,
+		`4714-01-01 00:00:00+00 BC`,
+		`4714-11-23 23:59:59.999999499+00 BC`,
+		`4714-11-23 09:59:59.999999499-14 BC`,
+		`4714-11-24 00:00:00+14 BC`,
+		`4712-02-29 00:00:00+00 BC`,
+		`10000-01-01 00:00:00+00 BC`,
+		`9223372036854775808-01-01 00:00:00+00`,
+		`10000-01-02 03:04:05.123456+16`,
+		`10000-01-02 03:04:05.123456-16`,
+		`294276-12-31 23:59:59.999999-14`,
+	} {
+		var tstz pgtype.Timestamptz
+		plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz)
+		err := plan.Scan([]byte(src), &tstz)
+		require.Error(t, err)
+	}
 }
 
 func TestTimestamptzMarshalJSON(t *testing.T) {

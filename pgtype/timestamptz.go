@@ -313,14 +313,19 @@ func (plan *scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst an
 			format = pgTimestamptzHourFormat
 		}
 
-		tim, err := time.Parse(format, sbuf)
+		maxYear := int64(maxTimestampYear)
+		if bc {
+			maxYear = maxTimestampBCYear
+		} else {
+			maxYear++
+		}
+		tim, err := parseTimestampWithVariableYear(format, sbuf, true, maxYear, bc)
 		if err != nil {
 			return err
 		}
 
-		if bc {
-			year := -tim.Year() + 1
-			tim = time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), tim.Location())
+		if timestampOutOfRange(tim) {
+			return fmt.Errorf("timestamp out of range")
 		}
 
 		if plan.location != nil {
