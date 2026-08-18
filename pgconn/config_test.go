@@ -1060,6 +1060,41 @@ func TestParseConfigKVTrailingWhitespace(t *testing.T) {
 	}
 }
 
+// A NUL byte in a keyword/value connection string would reach the startup
+// packet, where it delimits parameters instead of being data. The URI parser
+// already rejects NULs; the keyword/value parser must too.
+func TestParseConfigKVRejectsNulByte(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+	}{
+		{
+			name:       "nul in value hijacks user",
+			connString: "host=h user=lowpriv application_name=x\x00user\x00admin",
+		},
+		{
+			name:       "nul in quoted value",
+			connString: "host=h application_name='x\x00user\x00admin'",
+		},
+		{
+			name:       "nul in dbname",
+			connString: "host=h dbname=d\x00options\x00-c search_path=evil",
+		},
+		{
+			name:       "nul in keyword",
+			connString: "host=h db\x00name=d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := pgconn.ParseConfig(tt.connString)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "forbidden NUL byte in connection string")
+		})
+	}
+}
+
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
