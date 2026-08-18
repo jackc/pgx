@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5/internal/pgdatetime"
 )
 
 // Part is either a string or an int. A string is raw SQL. An int is a
@@ -81,8 +83,12 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 			case string:
 				p = QuoteString(buf.AvailableBuffer(), arg)
 			case time.Time:
-				p = arg.Truncate(time.Microsecond).
-					AppendFormat(buf.AvailableBuffer(), "'2006-01-02 15:04:05.999999999Z07:00:00'")
+				// pgtype's timestamptz text encoder writes the same format. Going through
+				// the same code keeps the two from drifting apart, and time.Format cannot
+				// express PostgreSQL's BC era or its variable width year anyway.
+				p = append(buf.AvailableBuffer(), '\'')
+				p = pgdatetime.AppendTimestamp(p, arg.UTC(), "Z")
+				p = append(p, '\'')
 			default:
 				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}

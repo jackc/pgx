@@ -2,12 +2,14 @@ package pgtype_test
 
 import (
 	"context"
+	"encoding/binary"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func isExpectedEqTime(a any) func(any) bool {
@@ -404,5 +406,126 @@ func TestDateScanInfinityRoundTrip(t *testing.T) {
 		if dst != src {
 			t.Errorf("roundtrip failed: src=%+v dst=%+v", src, dst)
 		}
+	}
+}
+
+func TestDateCodecDecodeText(t *testing.T) {
+	c := pgtype.DateCodec{}
+
+	for _, tt := range []struct {
+		src  string
+		want time.Time
+	}{
+		{`2024-01-02`, time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)},
+		{`0001-01-01`, time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{`10000-01-02`, time.Date(10000, 1, 2, 0, 0, 0, 0, time.UTC)},
+
+		// date reaches much further than timestamp does: JULIAN_MAXYEAR is 5874898, so the
+		// last representable date is the end of 5874897.
+		{`5874897-12-31`, time.Date(5874897, 12, 31, 0, 0, 0, 0, time.UTC)},
+
+		{`0001-01-01 BC`, time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{`4713-02-29 BC`, time.Date(-4712, 2, 29, 0, 0, 0, 0, time.UTC)},
+		{`4714-11-24 BC`, time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)},
+	} {
+		var d pgtype.Date
+		plan := c.PlanScan(nil, pgtype.DateOID, pgtype.TextFormatCode, &d)
+
+		err := plan.Scan([]byte(tt.src), &d)
+		require.NoErrorf(t, err, "%s", tt.src)
+		require.Truef(t, d.Valid, "%s", tt.src)
+		require.Equalf(t, tt.want, d.Time, "%s", tt.src)
+	}
+}
+
+func TestDateCodecDecodeTextInvalid(t *testing.T) {
+	c := pgtype.DateCodec{}
+
+	for _, src := range []string{
+		`eeeee`,
+		`0000-01-01`,
+
+		// Impossible dates used to be normalized by time.Date rather than rejected, so
+		// 2024-02-30 came back as 2024-03-01 and 2024-13-01 as 2025-01-01.
+		`2024-02-30`,
+		`2024-13-01`,
+		`2024-00-01`,
+		`2023-02-29`,
+		`4712-02-29 BC`,
+
+		// Outside PostgreSQL's range for date.
+		`5874898-01-01`,
+		`4714-11-23 BC`,
+
+		// A time of day makes it a timestamp, not a date.
+		`2024-01-02 03:04:05`,
+	} {
+		var d pgtype.Date
+		plan := c.PlanScan(nil, pgtype.DateOID, pgtype.TextFormatCode, &d)
+		err := plan.Scan([]byte(src), &d)
+		require.Errorf(t, err, "%s", src)
+	}
+}
+
+func TestDateCodecEncodeText(t *testing.T) {
+	m := pgtype.NewMap()
+
+	for _, tt := range []struct {
+		src  time.Time
+		want string
+	}{
+		{time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC), `2024-01-02`},
+		{time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), `0001-01-01`},
+		{time.Date(10000, 1, 2, 0, 0, 0, 0, time.UTC), `10000-01-02`},
+		{time.Date(5874897, 12, 31, 0, 0, 0, 0, time.UTC), `5874897-12-31`},
+		{time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC), `0001-01-01 BC`},
+		{time.Date(-4712, 2, 29, 0, 0, 0, 0, time.UTC), `4713-02-29 BC`},
+	} {
+		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.src, nil)
+		require.NoErrorf(t, err, "%v", tt.src)
+		require.Equalf(t, tt.want, string(buf), "%v", tt.src)
+	}
+}
+
+// TestDateCodecScanBinaryRange pins the range limits on the binary scan path. PostgreSQL
+// never sends a value outside them, but the text path rejects them, so the binary path has
+// to as well -- otherwise whether a value is accepted would depend on QueryExecMode.
+func TestDateCodecScanBinaryRange(t *testing.T) {
+	c := pgtype.DateCodec{}
+
+	// The day offsets of PostgreSQL's first and last representable dates, counted from
+	// 2000-01-01 the way the binary format does.
+	const (
+		minDayOffset = -2451545   // 4713-11-24 BC
+		maxDayOffset = 2145031948 // 5874897-12-31
+	)
+
+	src := func(dayOffset int32) []byte {
+		return binary.BigEndian.AppendUint32(nil, uint32(dayOffset))
+	}
+
+	for _, tt := range []struct {
+		dayOffset int32
+		want      time.Time
+	}{
+		{0, time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{minDayOffset, time.Date(-4713, 11, 24, 0, 0, 0, 0, time.UTC)},
+		{maxDayOffset, time.Date(5874897, 12, 31, 0, 0, 0, 0, time.UTC)},
+	} {
+		var d pgtype.Date
+		plan := c.PlanScan(nil, pgtype.DateOID, pgtype.BinaryFormatCode, &d)
+
+		require.NoErrorf(t, plan.Scan(src(tt.dayOffset), &d), "%d", tt.dayOffset)
+		require.Truef(t, d.Valid, "%d", tt.dayOffset)
+		require.Equalf(t, tt.want, d.Time, "%d", tt.dayOffset)
+	}
+
+	// The infinities are the int32 extremes and are handled before the range check, so
+	// these stop short of them.
+	for _, dayOffset := range []int32{minDayOffset - 1, maxDayOffset + 1, -2147483000, 2147483000} {
+		var d pgtype.Date
+		plan := c.PlanScan(nil, pgtype.DateOID, pgtype.BinaryFormatCode, &d)
+
+		require.Errorf(t, plan.Scan(src(dayOffset), &d), "%d", dayOffset)
 	}
 }

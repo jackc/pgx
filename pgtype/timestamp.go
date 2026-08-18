@@ -4,15 +4,14 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/pgdatetime"
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 const (
-	pgTimestampFormat = "2006-01-02 15:04:05.999999999"
-	jsonISO8601       = "2006-01-02T15:04:05.999999999"
+	jsonISO8601 = "2006-01-02T15:04:05.999999999"
 )
 
 type TimestampScanner interface {
@@ -200,32 +199,16 @@ func (encodePlanTimestampCodecText) Encode(value any, buf []byte) (newBuf []byte
 		return nil, nil
 	}
 
-	var s string
-
 	switch ts.InfinityModifier {
 	case Finite:
-		t := discardTimeZone(ts.Time)
-
-		// Year 0000 is 1 BC
-		bc := false
-		if year := t.Year(); year <= 0 {
-			year = -year + 1
-			t = time.Date(year, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
-			bc = true
-		}
-
-		s = t.Truncate(time.Microsecond).Format(pgTimestampFormat)
-
-		if bc {
-			s += " BC"
-		}
+		// The fields are read in ts.Time's own location, so there is no zone to discard
+		// and nothing to append after the time.
+		buf = pgdatetime.AppendTimestamp(buf, ts.Time, "")
 	case Infinity:
-		s = "infinity"
+		buf = append(buf, "infinity"...)
 	case NegativeInfinity:
-		s = "-infinity"
+		buf = append(buf, "-infinity"...)
 	}
-
-	buf = append(buf, s...)
 
 	return buf, nil
 }
@@ -280,6 +263,9 @@ func (plan *scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any)
 			microsecFromUnixEpochToY2K/1_000_000+microsecSinceY2K/1_000_000,
 			(microsecFromUnixEpochToY2K%1_000_000*1_000)+(microsecSinceY2K%1_000_000*1000),
 		).UTC()
+		if tim.Before(minDateTime) || !tim.Before(endTimestamp) {
+			return fmt.Errorf("timestamp %d microseconds from 2000-01-01 is out of range", microsecSinceY2K)
+		}
 		if plan.location != nil {
 			tim = time.Date(tim.Year(), tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), plan.location)
 		}
@@ -298,31 +284,28 @@ func (plan *scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) e
 		return scanner.ScanTimestamp(Timestamp{})
 	}
 
+	dt, err := parseTextDateTime(src)
+	if err != nil {
+		return err
+	}
+
 	var ts Timestamp
-	sbuf := string(src)
-	switch sbuf {
-	case "infinity":
-		ts = Timestamp{Valid: true, InfinityModifier: Infinity}
-	case "-infinity":
-		ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
-	default:
-		bc := false
-		if strings.HasSuffix(sbuf, " BC") {
-			sbuf = sbuf[:len(sbuf)-3]
-			bc = true
+	if dt.infinity != Finite {
+		ts = Timestamp{Valid: true, InfinityModifier: dt.infinity}
+	} else {
+		if !dt.hasTime || dt.hasOffset {
+			return badDateTime(src)
 		}
-		tim, err := time.Parse(pgTimestampFormat, sbuf)
+
+		tim, err := dt.toTime(src, "timestamp", endTimestamp)
 		if err != nil {
 			return err
 		}
 
-		if bc {
-			year := -tim.Year() + 1
-			tim = time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), tim.Location())
-		}
-
+		// timestamp has no time zone, so ScanLocation reinterprets the same wall clock
+		// reading rather than converting the instant.
 		if plan.location != nil {
-			tim = time.Date(tim.Year(), tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), plan.location)
+			tim = dt.in(plan.location)
 		}
 
 		ts = Timestamp{Time: tim, Valid: true}
