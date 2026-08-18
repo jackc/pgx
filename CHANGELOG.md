@@ -86,6 +86,14 @@
   either `ssl` or `sslmode` is allowed, and every `ssl`/`sslmode` spelling written in the URI is validated --
   including occurrences superseded by later repeated parameters.
 * pgconn: drain socket before close in `asyncClose` so context cancellation produces a TCP FIN instead of RST, avoiding "connection reset by peer" on the server / proxy (Sean Chittenden at CrowdStrike, Inc.)
+* pgproto3: `StartupMessage.Encode` rejects a NUL byte in any parameter name or value instead of writing it. The
+  startup message body is a run of NUL-delimited strings whose length is data-driven, so a NUL in a value ends that
+  parameter and everything after it is read by the server as further parameters -- an `application_name` of
+  `x\x00user\x00admin` changed the role the connection logged in as. libpq cannot reach this state because its
+  parameters are NUL-terminated C strings. `Connect` now fails with nothing written to the wire, which covers
+  settings that bypass connection string parsing: service files and direct assignment to `Config.RuntimeParams`,
+  `Config.User`, or `Config.Database`.
+* pgconn: keyword/value connection strings containing a NUL byte are rejected by `ParseConfig`, as URIs already were.
 
 # 5.10.0 (June 3, 2026)
 

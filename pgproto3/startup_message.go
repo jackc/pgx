@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -75,6 +76,24 @@ func (src *StartupMessage) Encode(dst []byte) ([]byte, error) {
 
 	dst = pgio.AppendUint32(dst, src.ProtocolVersion)
 	for k, v := range src.Parameters {
+		// The startup message body is a run of NUL-delimited strings whose
+		// length is data-driven: the server keeps reading name/value pairs
+		// until the empty name that terminates the list. Other messages have a
+		// field count fixed by the message type, so a stray NUL there leaves
+		// trailing bytes and the server rejects the message; here it simply
+		// yields more parameters. A libpq caller cannot reach this state
+		// because its parameters are NUL-terminated C strings, but a Go string
+		// can carry a NUL, so an application_name of "x\x00user\x00admin"
+		// would silently change the role the connection logs in as. Refuse to
+		// encode instead.
+		if strings.IndexByte(k, 0) >= 0 {
+			return nil, errors.New("startup message parameter name contains NUL byte")
+		}
+		if strings.IndexByte(v, 0) >= 0 {
+			// Name the parameter but not the value: values can hold secrets.
+			return nil, fmt.Errorf("startup message parameter %q contains NUL byte in value", k)
+		}
+
 		dst = append(dst, k...)
 		dst = append(dst, 0)
 		dst = append(dst, v...)

@@ -149,6 +149,51 @@ func TestConnectTLS(t *testing.T) {
 	})
 }
 
+// A NUL byte reaching Config.RuntimeParams by a route that bypasses connection
+// string parsing (direct assignment here, a service file elsewhere) must still
+// not be sent: the startup message body is NUL-delimited, so the value below
+// would log the connection in as "admin". Connect must fail with nothing
+// written to the wire.
+func TestConnectRejectsNulByteInRuntimeParam(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	serverBytesChan := make(chan []byte, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			serverBytesChan <- nil
+			return
+		}
+		defer conn.Close()
+
+		conn.SetDeadline(time.Now().Add(time.Second * 5))
+		buf, _ := io.ReadAll(conn)
+		serverBytesChan <- buf
+	}()
+
+	host, port, _ := strings.Cut(ln.Addr().String(), ":")
+	config, err := pgconn.ParseConfig(fmt.Sprintf("sslmode=disable host=%s port=%s user=lowpriv", host, port))
+	require.NoError(t, err)
+	config.RuntimeParams["application_name"] = "x\x00user\x00admin"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	_, err = pgconn.ConnectConfig(ctx, config)
+	require.ErrorContains(t, err, `startup message parameter "application_name" contains NUL byte in value`)
+
+	select {
+	case buf := <-serverBytesChan:
+		require.Empty(t, buf, "no bytes should reach the server")
+	case <-time.After(time.Second * 5):
+		t.Fatal("timed out waiting for server")
+	}
+}
+
 func TestConnectChannelBinding(t *testing.T) {
 	t.Parallel()
 

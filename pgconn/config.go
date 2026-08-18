@@ -323,6 +323,12 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // URL query parameters that libpq does not recognize cause libpq to fail with an "invalid URI query parameter" error.
 // ParseConfig accepts them: they become runtime parameters or pgx-specific options (e.g. pool_max_conns).
 //
+// Connection strings containing a NUL byte are rejected, in both URI and keyword/value form. libpq cannot encounter
+// one because its conninfo strings are NUL-terminated C strings, but a Go string can carry a NUL into the startup
+// packet, where it delimits parameters rather than being data. Settings reaching Config by other routes (a service
+// file, or direct assignment to Config.RuntimeParams, User, or Database) are not checked here; a NUL in those is
+// caught when the startup message is encoded, and Connect fails rather than sending it.
+//
 // Error messages from ParseConfig avoid quoting the unredacted connection string and attempt to redact recognizable
 // password fields, while libpq quotes the failing input verbatim. This redaction is best effort. An invalid connection
 // string can be structurally ambiguous, so pgconn cannot guarantee that every password in malformed input will be
@@ -736,6 +742,15 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 func parseKeywordValueSettings(s string) (map[string]string, error) {
 	settings := make(map[string]string)
+
+	// Reject NUL bytes up front, as parseURLSettings does. libpq never sees one
+	// because its conninfo strings are NUL-terminated C strings; a Go string can
+	// carry a NUL through to the startup packet, where it acts as a parameter
+	// delimiter rather than data. StartupMessage.Encode refuses such parameters,
+	// but failing here reports the problem against the input that caused it.
+	if strings.IndexByte(s, 0) >= 0 {
+		return nil, errors.New("forbidden NUL byte in connection string")
+	}
 
 	// Trim any leading whitespace so that the loop exits cleanly when only
 	// spaces remain (e.g. trailing spaces after the last value).
