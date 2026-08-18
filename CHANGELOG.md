@@ -2,6 +2,39 @@
 
 ## Changes
 
+* pgtype: `date`, `timestamp` and `timestamptz` text values are now parsed and written by a hand-written parser and
+  encoder for PostgreSQL's ISO date/time format instead of `time.Parse` and `time.Format`. Go's layout language cannot
+  express a variable-width year or the BC era, which is the root of the bugs below. The text scan path is roughly 2.5x
+  faster for `timestamp` and `timestamptz`. Bug fixes:
+  * `timestamp` and `timestamptz` no longer silently move February 29 of a BC leap year to March 1 when encoding.
+    `time.Date(-4712, 2, 29, ...)` was written as `4713-03-01 BC` and is now written as `4713-02-29 BC`. This
+    affected ordinary four-digit BC years, not only extended-range ones. `date` was never affected.
+  * `timestamp` and `timestamptz` can now scan BC leap days. `4713-02-29 BC` previously failed with
+    `day out of range`. `date` could already scan them.
+  * Years past 9999 can now be scanned. `10000-01-02 03:04:05` previously failed to parse, so `timestamp` and
+    `timestamptz` values at the high end of PostgreSQL's range were unreadable over the simple protocol and in any
+    other text-format result.
+  * Fractional seconds beyond microsecond precision are rounded the way the server rounds them (round half to even,
+    carrying into the rest of the value) instead of being kept at full precision. PostgreSQL never sends more than six
+    fractional digits, so this only affects values from other sources.
+
+  Behavior changes:
+  * `date` now rejects impossible dates instead of normalizing them. `2024-02-30` returned `2024-03-01` and
+    `2024-13-01` returned `2025-01-01`; both are now errors. `timestamp` and `timestamptz` already rejected them.
+  * All three types now reject values outside PostgreSQL's range for that type, in the binary format as well as the
+    text format, and `timestamptz` rejects a time zone displacement beyond PostgreSQL's `MAX_TZDISP_HOUR`.
+    PostgreSQL never sends such values, so this only affects corrupt or hand-built input; it is checked in both
+    formats so that whether a value is accepted does not depend on `QueryExecMode`.
+  * `timestamptz` values scanned from the text format are now returned in `time.Local`, or in `ScanLocation` when it is
+    set, matching what the binary format has always returned. Previously the text path kept whatever location
+    `time.Parse` derived from the offset the server sent, so the same value scanned in the two formats could report a
+    different `Location()` and `Zone()`. The instant is unchanged, but everything that renders the location changes
+    with it: `Timestamptz.MarshalJSON` now writes the client's offset rather than the server's, so a value the server
+    sent as `+05:30` marshals as `2024-01-01T13:34:05-08:00` on a UTC-8 client instead of `2024-01-02T03:04:05+05:30`,
+    and `DecodeDatabaseSQLValue` hands `database/sql` a `time.Time` in that same location. Set the codec's
+    `ScanLocation` to `time.UTC` to pin the location regardless of the client's zone.
+  * Error messages from these paths have changed.
+
 * pgconn: connection URIs (`postgres://...`) are now parsed by a new parser designed to exactly match libpq's URI
   parser behavior instead of `net/url`,
   making pgx accept and reject exactly the same URIs as libpq (verified by differential fuzzing against libpq itself).

@@ -4,9 +4,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/pgdatetime"
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
@@ -188,33 +188,7 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 
 	switch date.InfinityModifier {
 	case Finite:
-		// Year 0000 is 1 BC
-		bc := false
-		year := date.Time.Year()
-		if year <= 0 {
-			year = -year + 1
-			bc = true
-		}
-
-		yearBytes := strconv.AppendInt(make([]byte, 0, 6), int64(year), 10)
-		for i := len(yearBytes); i < 4; i++ {
-			buf = append(buf, '0')
-		}
-		buf = append(buf, yearBytes...)
-		buf = append(buf, '-')
-		if date.Time.Month() < 10 {
-			buf = append(buf, '0')
-		}
-		buf = strconv.AppendInt(buf, int64(date.Time.Month()), 10)
-		buf = append(buf, '-')
-		if date.Time.Day() < 10 {
-			buf = append(buf, '0')
-		}
-		buf = strconv.AppendInt(buf, int64(date.Time.Day()), 10)
-
-		if bc {
-			buf = append(buf, " BC"...)
-		}
+		buf = pgdatetime.AppendDate(buf, date.Time)
 	case Infinity:
 		buf = append(buf, "infinity"...)
 	case NegativeInfinity:
@@ -262,6 +236,10 @@ func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanDate(Date{InfinityModifier: -Infinity, Valid: true})
 	default:
 		t := time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.UTC)
+		if t.Before(minDateTime) || !t.Before(endDate) {
+			return fmt.Errorf("date %d days from 2000-01-01 is out of range", dayOffset)
+		}
+
 		return scanner.ScanDate(Date{Time: t, Valid: true})
 	}
 }
@@ -275,104 +253,25 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanDate(Date{})
 	}
 
-	// Check infinity cases first
-	if len(src) == 8 && string(src) == "infinity" {
-		return scanner.ScanDate(Date{InfinityModifier: Infinity, Valid: true})
-	}
-	if len(src) == 9 && string(src) == "-infinity" {
-		return scanner.ScanDate(Date{InfinityModifier: -Infinity, Valid: true})
-	}
-
-	// Format: YYYY-MM-DD or YYYY...-MM-DD BC
-	// Minimum: 10 chars (2000-01-01), with BC: 13 chars
-	if len(src) < 10 {
-		return fmt.Errorf("invalid date format")
-	}
-
-	// Check for BC suffix
-	bc := false
-	datePart := src
-	if len(src) >= 13 && string(src[len(src)-3:]) == " BC" {
-		bc = true
-		datePart = src[:len(src)-3]
-	}
-
-	// Find year-month separator (first dash after at least 4 digits)
-	yearEnd := -1
-	for i := 4; i < len(datePart); i++ {
-		if datePart[i] == '-' {
-			yearEnd = i
-			break
-		}
-		if datePart[i] < '0' || datePart[i] > '9' {
-			return fmt.Errorf("invalid date format")
-		}
-	}
-	if yearEnd == -1 || yearEnd+6 > len(datePart) {
-		return fmt.Errorf("invalid date format")
-	}
-
-	// Validate: -MM-DD structure after year
-	if datePart[yearEnd+3] != '-' {
-		return fmt.Errorf("invalid date format")
-	}
-
-	// Parse year
-	year, err := parseDigits(datePart[:yearEnd])
+	dt, err := parseTextDateTime(src)
 	if err != nil {
-		return fmt.Errorf("invalid date format")
+		return err
 	}
 
-	// Parse month (2 digits)
-	month, err := parse2Digits(datePart[yearEnd+1 : yearEnd+3])
+	if dt.infinity != Finite {
+		return scanner.ScanDate(Date{InfinityModifier: dt.infinity, Valid: true})
+	}
+
+	if dt.hasTime {
+		return badDateTime(src)
+	}
+
+	t, err := dt.toTime(src, "date", endDate)
 	if err != nil {
-		return fmt.Errorf("invalid date format")
+		return err
 	}
 
-	// Parse day (2 digits)
-	day, err := parse2Digits(datePart[yearEnd+4 : yearEnd+6])
-	if err != nil {
-		return fmt.Errorf("invalid date format")
-	}
-
-	// Ensure nothing extra after day
-	if yearEnd+6 != len(datePart) {
-		return fmt.Errorf("invalid date format")
-	}
-
-	if bc {
-		year = -year + 1
-	}
-
-	t := time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
 	return scanner.ScanDate(Date{Time: t, Valid: true})
-}
-
-// parse2Digits parses exactly 2 ASCII digits.
-func parse2Digits(b []byte) (int64, error) {
-	if len(b) != 2 {
-		return 0, fmt.Errorf("expected 2 digits")
-	}
-	d1, d2 := b[0], b[1]
-	if d1 < '0' || d1 > '9' || d2 < '0' || d2 > '9' {
-		return 0, fmt.Errorf("expected digits")
-	}
-	return int64(d1-'0')*10 + int64(d2-'0'), nil
-}
-
-// parseDigits parses a sequence of ASCII digits.
-func parseDigits(b []byte) (int64, error) {
-	if len(b) == 0 {
-		return 0, fmt.Errorf("empty")
-	}
-	var n int64
-	for _, c := range b {
-		if c < '0' || c > '9' {
-			return 0, fmt.Errorf("non-digit")
-		}
-		n = n*10 + int64(c-'0')
-	}
-	return n, nil
 }
 
 func (c DateCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
