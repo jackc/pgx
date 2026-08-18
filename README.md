@@ -48,6 +48,20 @@ func main() {
 
 See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx) for more information.
 
+## Documentation
+
+* **API reference (pkg.go.dev):** https://pkg.go.dev/github.com/jackc/pgx/v5  
+  Package docs for `pgx`, `pgxpool`, `stdlib` (`database/sql`), and related modules.
+* **Getting started wiki:** https://github.com/jackc/pgx/wiki/Getting-started-with-pgx
+* **Connection strings:** `pgx.Connect` and `pgxpool.New` accept the same URL or
+  keyword/value formats as libpq (for example
+  `postgres://user:pass@host:5432/db?sslmode=verify-full`). Parsing, defaults, and
+  supported `PG*` environment variables are documented on
+  [`pgconn.ParseConfig`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#ParseConfig)
+  and in the PostgreSQL
+  [connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING)
+  documentation.
+
 ## Features
 
 * Support for approximately 70 different PostgreSQL types
