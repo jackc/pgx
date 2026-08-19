@@ -34,6 +34,35 @@ simplify environment variable handling.
 The easiest way to start development is with the included devcontainer. It includes containers for each supported
 PostgreSQL version as well as CockroachDB. `./test.sh all` will run the tests against all database types.
 
+### Using PostgreSQL in Docker (Minimal)
+
+If you prefer not to install PostgreSQL locally, you can run a minimal PostgreSQL instance in Docker and point
+`PGX_TEST_DATABASE` at it. This is enough to run most of the test suite with `go test ./...`.
+
+From the repository root:
+
+```
+docker run --name pgx-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres \
+  -p 5432:5432 -d postgres:18
+
+docker exec -it pgx-pg createdb -U postgres pgx_test
+docker exec -i pgx-pg psql -U postgres -d pgx_test < testsetup/postgresql_setup.sql
+
+export PGX_TEST_DATABASE="host=localhost port=5432 user=postgres password=postgres dbname=pgx_test"
+go test ./...
+```
+
+Notes:
+
+* If tests appear to pass unexpectedly quickly and you see `(cached)`, force a re-run with `go test -count=1 ./...`.
+* Docker PostgreSQL images often default to `TimeZone=UTC` while `time.Local` uses your host timezone. If you see
+  timestamp-with-timezone related test failures (e.g. a `timestamptz` value round-tripping with a different offset),
+  you can run the tests in UTC with:
+
+```
+TZ=UTC go test -count=1 ./...
+```
+
 ### Using an Existing PostgreSQL Cluster Outside of a Devcontainer
 
 If you already have a PostgreSQL development server this is the quickest way to start and run the majority of the pgx
