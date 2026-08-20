@@ -6,6 +6,7 @@
 
 	"containerEnv": {
 		"CLAUDE_CONFIG_DIR":  "/persist/shared/claude",
+    "CODEX_HOME":         "/persist/shared/codex",
 		"ATUIN_CONFIG_DIR":   "/persist/shared/atuin/config",
 		"ATUIN_DATA_DIR":     "/persist/shared/atuin/data",
 		"GOPATH":             "/persist/shared/go",
