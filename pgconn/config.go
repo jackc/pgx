@@ -792,6 +792,9 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					if end == len(s) {
+						return nil, errors.New("unterminated quoted string in connection info string")
+					}
 				}
 			}
 			if end == len(s) {

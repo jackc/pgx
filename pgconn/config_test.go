@@ -1022,6 +1022,34 @@ func TestParseConfigKVTrailingBackslash(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid backslash")
 }
 
+// A backslash as the last byte of an unterminated quoted value must be
+// rejected as an unterminated string, not panic with a slice bounds error.
+// The quoted-string loop advances past a backslash without bounds-checking
+// the resulting index, so `='\` (and `0='\`, reached via the pgxpool path)
+// previously panicked with "slice bounds out of range [:2] with length 1".
+func TestParseConfigKVQuotedTrailingBackslashDoesNotPanic(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+	}{
+		{name: "bare quoted trailing backslash", connString: `='\`},
+		{name: "quoted trailing backslash with key", connString: `0='\`},
+		{name: "quoted trailing backslash after value", connString: `host='a\`},
+		{name: "quoted trailing backslash after escaped pair", connString: `host='a\\b\`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			assert.NotPanics(t, func() {
+				_, err = pgconn.ParseConfig(tt.connString)
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unterminated quoted string in connection info string")
+		})
+	}
+}
+
 // https://github.com/jackc/pgx/issues/2284
 // Multiple trailing spaces and trailing spaces after quoted values must be
 // accepted as valid keyword/value connection strings.
