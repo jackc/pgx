@@ -3,7 +3,7 @@ package pgx_test
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"net"
 	"os"
 	"reflect"
@@ -219,10 +219,16 @@ func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typena
 	if conn.PgConn().ParameterStatus("crdb_version") != "" && typename == "json" {
 		fieldName = "jsonb" // Seems like CockroachDB treats json as jsonb.
 	}
-	expectedMessage := fmt.Sprintf("can't scan into dest[0] (col: %s): json: cannot unmarshal number 234432 into Go value of type int16", fieldName)
-	if err == nil || err.Error() != expectedMessage {
-		t.Errorf("%s: Expected *json.UnmarshalTypeError, but got %v", typename, err)
-	}
+
+	var scanErr pgx.ScanArgError
+	require.ErrorAs(t, err, &scanErr)
+	assert.Equal(t, 0, scanErr.ColumnIndex)
+	assert.Equal(t, fieldName, scanErr.FieldName)
+
+	var jsonErr *json.UnmarshalTypeError
+	require.ErrorAs(t, err, &jsonErr)
+	assert.Equal(t, "number 234432", jsonErr.Value)
+	assert.Equal(t, reflect.TypeFor[int16](), jsonErr.Type)
 }
 
 func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
