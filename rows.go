@@ -54,6 +54,9 @@ type Rows interface {
 	// Scan reads the values from the current row into dest values positionally. dest can include pointers to core types,
 	// values implementing the Scanner interface, and nil. nil will skip the value entirely. It is an error to call Scan
 	// without first calling Next() and checking that it returned true. Rows is automatically closed upon error.
+	//
+	// As a special case, if dest is a single value implementing [RowScanner], the whole row is given to its ScanRow
+	// method instead of being scanned positionally.
 	Scan(dest ...any) error
 
 	// Values returns the decoded row values. As with Scan(), it is an error to
@@ -88,7 +91,21 @@ type Row interface {
 	Scan(dest ...any) error
 }
 
-// RowScanner scans an entire row at a time into the RowScanner.
+// RowScanner scans an entire row at a time into the RowScanner. It is only used when it is the sole destination passed
+// to [Rows.Scan] or [Row.Scan]. When passed alongside other destinations it is scanned as an ordinary single value.
+//
+// ScanRow always takes precedence over the destination's other scanning interfaces, such as
+// [pgtype.CompositeIndexScanner]. A type implementing both must therefore dispatch within ScanRow, because the number of
+// columns is not known until the row arrives:
+//
+//	func (p *Person) ScanRow(rows pgx.Rows) error {
+//		if fds := rows.FieldDescriptions(); len(fds) == 1 {
+//			// Scan the single column via p's pgtype.CompositeIndexScanner implementation. rows.Scan(p) would
+//			// call ScanRow again.
+//			return rows.TypeMap().Scan(fds[0].DataTypeOID, fds[0].Format, rows.RawValues()[0], p)
+//		}
+//		return rows.Scan(&p.Name, &p.Age)
+//	}
 type RowScanner interface {
 	// ScanRows scans the row.
 	ScanRow(rows Rows) error
