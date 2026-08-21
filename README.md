@@ -12,7 +12,15 @@ The toolkit component is a related set of packages that implement PostgreSQL fun
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
 proxies, load balancers, logical replication clients, etc.
 
-## Example Usage
+## Quick Start
+
+### Installation
+
+```bash
+go get github.com/jackc/pgx/v5
+```
+
+### Example Usage
 
 ```go
 package main
@@ -29,7 +37,8 @@ func main() {
 	// urlExample := "postgres://username:password@localhost:5432/database_name"
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v
+", err)
 		os.Exit(1)
 	}
 	defer conn.Close(context.Background())
@@ -38,7 +47,8 @@ func main() {
 	var weight int64
 	err = conn.QueryRow(context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v
+", err)
 		os.Exit(1)
 	}
 
@@ -46,21 +56,18 @@ func main() {
 }
 ```
 
-See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx) for more information.
+### Connection Configuration
+
+`pgx.Connect` and `pgxpool.New` accept PostgreSQL connection URLs (such as `postgres://user:pass@host:5432/db?sslmode=verify-full`) as well as `key=value` strings. See [`pgconn.ParseConfig`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#ParseConfig) and the [PostgreSQL connection string documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) for supported options and environment variables.
+
+For a step-by-step walkthrough, see the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx).
 
 ## Documentation
 
-* **API reference (pkg.go.dev):** https://pkg.go.dev/github.com/jackc/pgx/v5  
-  Package docs for `pgx`, `pgxpool`, `stdlib` (`database/sql`), and related modules.
-* **Getting started wiki:** https://github.com/jackc/pgx/wiki/Getting-started-with-pgx
-* **Connection strings:** `pgx.Connect` and `pgxpool.New` accept the same URL or
-  keyword/value formats as libpq (for example
-  `postgres://user:pass@host:5432/db?sslmode=verify-full`). Parsing, defaults, and
-  supported `PG*` environment variables are documented on
-  [`pgconn.ParseConfig`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#ParseConfig)
-  and in the PostgreSQL
-  [connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING)
-  documentation.
+Package documentation and API reference are available on [pkg.go.dev](https://pkg.go.dev/github.com/jackc/pgx/v5):
+* [`pgx`](https://pkg.go.dev/github.com/jackc/pgx/v5) — base PostgreSQL driver
+* [`pgxpool`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool) — concurrency-safe connection pool
+* [`stdlib`](https://pkg.go.dev/github.com/jackc/pgx/v5/stdlib) — `database/sql` compatibility adapter
 
 ## Features
 
