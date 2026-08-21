@@ -907,3 +907,10 @@ type wrapTx struct {
 func (wtx wrapTx) Commit() error { return wtx.tx.Commit(wtx.ctx) }
 
 func (wtx wrapTx) Rollback() error { return wtx.tx.Rollback(wtx.ctx) }
+
+func GetTxFromDriverTx(driverTx driver.Tx) (pgx.Tx, bool) {
+	if wtx, ok := driverTx.(wrapTx); ok {
+		return wtx.tx, true
+	}
+	return nil, false
+}
