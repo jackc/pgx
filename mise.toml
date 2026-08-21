@@ -1,5 +1,5 @@
 [tools]
-go = '1.26.3'
+go = '1.27.0'
 "go:github.com/go-critic/go-critic/cmd/gocritic" = "latest"
 "go:github.com/gordonklaus/ineffassign" = "latest"
 "go:github.com/mdempsky/unconvert" = "latest"
