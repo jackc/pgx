@@ -125,12 +125,6 @@ func (o *uriRegressOracle) compareKeywordValue(t *testing.T, connString string, 
 		return
 	}
 	if parseErr != nil {
-		// libpq drops a trailing backslash in an unquoted value and accepts
-		// the string; pgx rejects it. See
-		// TestParseKeywordValueSettingsUnquotedTrailingBackslashDivergesFromLibpq.
-		if parseErr.Error() == "invalid backslash" {
-			return
-		}
 		t.Errorf("libpq accepted %q but pgx rejected: %v", connString, parseErr)
 		return
 	}
@@ -138,11 +132,7 @@ func (o *uriRegressOracle) compareKeywordValue(t *testing.T, connString string, 
 	for _, v := range settings {
 		// libpq_uri_regress prints values with no quote escaping, so output
 		// containing a single quote inside a value cannot be parsed reliably.
-		//
-		// A value still holding a backslash is not comparable either: libpq
-		// drops a backslash before any character, while pgx unescapes only
-		// \\ and \'. See TestParseKeywordValueSettingsBackslashDivergesFromLibpq.
-		if strings.ContainsAny(v, `'\`) {
+		if strings.Contains(v, "'") {
 			return
 		}
 	}
@@ -186,35 +176,68 @@ func (o *uriRegressOracle) compareKeywordValue(t *testing.T, connString string, 
 	}
 }
 
-// TestParseKeywordValueSettingsBackslashDivergesFromLibpq pins the first of
-// the two differences the oracle cannot check. libpq's keyword/value parser
-// drops a backslash before any character, so '\n' is the letter n. pgx
-// unescapes only \\ and \', leaving every other backslash in the value. The
-// two agree on \\ and \', which is what connection strings actually use.
-//
-// This is long-standing behavior, not a deliberate design decision, and is
-// recorded here so a future change to it is a conscious one.
-func TestParseKeywordValueSettingsBackslashDivergesFromLibpq(t *testing.T) {
+// TestParseKeywordValueSettingsBackslash covers libpq's backslash rule: a
+// backslash is dropped and whatever follows it is taken literally. pgx used to
+// unescape only \\ and \', leaving every other backslash in the value, so a
+// Windows path written without doubling came through intact. It no longer
+// does, matching libpq: such a path has to be escaped or quoted-and-escaped,
+// exactly as libpq requires.
+func TestParseKeywordValueSettingsBackslash(t *testing.T) {
 	tests := []struct {
+		name       string
 		connString string
+		key        string
 		want       string
-		libpq      string
 	}{
-		{connString: `host='a\nb'`, want: `a\nb`, libpq: "anb"},
-		{connString: `host=a\nb`, want: `a\nb`, libpq: "anb"},
-		{connString: `host='a\\b'`, want: `a\b`, libpq: `a\b`},
-		{connString: `host=a\\b`, want: `a\b`, libpq: `a\b`},
-		{connString: `host='a\'b'`, want: "a'b", libpq: "a'b"},
+		{name: "escaped backslash, quoted", connString: `host='a\\b'`, key: "host", want: `a\b`},
+		{name: "escaped backslash, unquoted", connString: `host=a\\b`, key: "host", want: `a\b`},
+		{name: "escaped quote, quoted", connString: `host='a\'b'`, key: "host", want: "a'b"},
+		{name: "escaped quote, unquoted", connString: `host=a\'b`, key: "host", want: "a'b"},
+
+		// A backslash before an ordinary character is dropped, so these are
+		// the letter n and a literal space rather than an escape sequence.
+		{name: "backslash before letter, quoted", connString: `host='a\nb'`, key: "host", want: "anb"},
+		{name: "backslash before letter, unquoted", connString: `host=a\nb`, key: "host", want: "anb"},
+		{name: "backslash before space", connString: `host=a\ b`, key: "host", want: "a b"},
+
+		// A trailing backslash in an unquoted value escapes the end of the
+		// string: libpq drops it and ends the value there. This used to be
+		// rejected with "invalid backslash" (be69c1c1).
+		{name: "trailing backslash", connString: `host=a\`, key: "host", want: "a"},
+		{name: "trailing backslash, empty value", connString: `host=\`, key: "host", want: ""},
+		{name: "trailing backslash after escaped pair", connString: `host=a\\b\`, key: "host", want: `a\b`},
+
+		// Windows paths now need the same escaping libpq requires.
+		{name: "windows path, escaped", connString: `sslcert=C:\\path\\to\\cert`, key: "sslcert", want: `C:\path\to\cert`},
+		{name: "windows path, unescaped", connString: `sslcert=C:\path\to\cert`, key: "sslcert", want: "C:pathtocert"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.connString, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			settings, err := parseKeywordValueSettings(tt.connString)
 			if err != nil {
 				t.Fatalf("parse %q: %v", tt.connString, err)
 			}
-			if settings["host"] != tt.want {
-				t.Errorf("parse %q: host = %q, want %q (libpq yields %q)", tt.connString, settings["host"], tt.want, tt.libpq)
+			if got := settings[tt.key]; got != tt.want {
+				t.Errorf("parse %q: %s = %q, want %q", tt.connString, tt.key, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseKeywordValueSettingsQuotedTrailingBackslash covers the one place a
+// trailing backslash is still an error. Inside quotes it escapes the string
+// terminator, which leaves the quoted string unterminated -- libpq fails the
+// same way, with the same message.
+func TestParseKeywordValueSettingsQuotedTrailingBackslash(t *testing.T) {
+	for _, connString := range []string{`='\`, `0='\`, `host='a\`, `host='a\\b\`} {
+		t.Run(connString, func(t *testing.T) {
+			_, err := parseKeywordValueSettings(connString)
+			if err == nil {
+				t.Fatalf("parse %q: expected an error", connString)
+			}
+			if want := "unterminated quoted string in connection info string"; err.Error() != want {
+				t.Errorf("parse %q: err = %q, want %q", connString, err, want)
 			}
 		})
 	}
@@ -263,33 +286,5 @@ func TestParseKeywordValueSettingsKeywordSpace(t *testing.T) {
 				t.Errorf("parse %q: host = %q, want %q", connString, got, want)
 			}
 		})
-	}
-}
-
-// TestParseKeywordValueSettingsUnquotedTrailingBackslashDivergesFromLibpq pins
-// the second difference the oracle cannot check, and the reason the quoted
-// branch could not simply copy the unquoted one.
-//
-// libpq treats a backslash at the end of an *unquoted* value as escaping the
-// terminating NUL: it consumes the backslash, copies nothing, and accepts the
-// string. pgx rejects it with "invalid backslash" (be69c1c1, "Fix
-// parseDSNSettings with bad backslash").
-//
-// Inside a *quoted* value libpq really does fail, because the escaped NUL
-// leaves the string unterminated -- so rejecting `host='a\` is not a
-// divergence but a match, and the error text is libpq's own.
-func TestParseKeywordValueSettingsUnquotedTrailingBackslashDivergesFromLibpq(t *testing.T) {
-	// Unquoted: libpq accepts and yields host=a; pgx rejects.
-	if _, err := parseKeywordValueSettings(`host=a\`); err == nil {
-		t.Error(`parse "host=a\\": expected an error`)
-	} else if err.Error() != "invalid backslash" {
-		t.Errorf(`parse "host=a\\": err = %v, want "invalid backslash"`, err)
-	}
-
-	// Quoted: both reject, with the same message.
-	if _, err := parseKeywordValueSettings(`host='a\`); err == nil {
-		t.Error(`parse "host='a\\": expected an error`)
-	} else if err.Error() != "unterminated quoted string in connection info string" {
-		t.Errorf(`parse "host='a\\": err = %v, want libpq's unterminated-quoted-string message`, err)
 	}
 }
