@@ -119,14 +119,6 @@ func (o *uriRegressOracle) compareKeywordValue(t *testing.T, connString string, 
 		if strings.Contains(string(out), "invalid connection option") {
 			return
 		}
-		// libpq scans a keyword as a run of non-space characters and requires
-		// the next non-space character to be '='; pgx takes everything up to
-		// the first '=' and trims only the outer whitespace, so it accepts a
-		// keyword with an embedded space. See
-		// TestParseKeywordValueSettingsKeywordSpaceDivergesFromLibpq.
-		if strings.Contains(string(out), `missing "=" after`) {
-			return
-		}
 		if parseErr == nil {
 			t.Errorf("libpq rejected %q (%s) but pgx accepted with settings %v", connString, strings.TrimSpace(string(out)), settings)
 		}
@@ -195,7 +187,7 @@ func (o *uriRegressOracle) compareKeywordValue(t *testing.T, connString string, 
 }
 
 // TestParseKeywordValueSettingsBackslashDivergesFromLibpq pins the first of
-// the three differences the oracle cannot check. libpq's keyword/value parser
+// the two differences the oracle cannot check. libpq's keyword/value parser
 // drops a backslash before any character, so '\n' is the letter n. pgx
 // unescapes only \\ and \', leaving every other backslash in the value. The
 // two agree on \\ and \', which is what connection strings actually use.
@@ -228,41 +220,54 @@ func TestParseKeywordValueSettingsBackslashDivergesFromLibpq(t *testing.T) {
 	}
 }
 
-// TestParseKeywordValueSettingsKeywordSpaceDivergesFromLibpq pins the second
-// difference the oracle cannot check. libpq reads a keyword as a run of
-// non-space characters and then requires '=', so a space inside a keyword is
-// an error. pgx takes everything before the first '=' and trims only the outer
-// whitespace, so it accepts the space as part of the key. The two agree on
-// whitespace around the '=' itself, which is what libpq documents.
-//
-// The lenient key does not name a real parameter, so it ends up in
-// RuntimeParams and the server rejects it -- a worse error message than
-// libpq's, not a different connection. Recorded so a future change is a
-// conscious one.
-func TestParseKeywordValueSettingsKeywordSpaceDivergesFromLibpq(t *testing.T) {
-	// Accepted by pgx, rejected by libpq with `missing "=" after "us"`.
-	settings, err := parseKeywordValueSettings("us er=jack")
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	if got, want := settings["us er"], "jack"; got != want {
-		t.Errorf(`settings["us er"] = %q, want %q`, got, want)
+// TestParseKeywordValueSettingsKeywordSpace covers libpq's keyword scan: a
+// keyword is a run of non-space characters and the next non-space character
+// must be '=', so whitespace inside a keyword is an error while whitespace
+// around the '=' is not. pgx used to trim the outer whitespace only and accept
+// the space as part of the key, which turned a typo into a bogus RuntimeParam
+// that only the server rejected.
+func TestParseKeywordValueSettingsKeywordSpace(t *testing.T) {
+	rejected := []struct {
+		connString string
+		wantErr    string
+	}{
+		{connString: "us er=jack", wantErr: `missing "=" after "us" in connection info string`},
+		{connString: "0 0=", wantErr: `missing "=" after "0" in connection info string`},
+		{connString: "a b c=d", wantErr: `missing "=" after "a" in connection info string`},
+		{connString: "host=x us\ter=jack", wantErr: `missing "=" after "us" in connection info string`},
+		// An unquoted value containing a space leaves the remainder to be read
+		// as a keyword, which is where this most often shows up in practice.
+		{connString: "application_name=my app host=x", wantErr: `missing "=" after "app" in connection info string`},
 	}
 
-	// Whitespace around '=' is not affected: both accept these.
-	for _, connString := range []string{"host = localhost", "host =localhost", "host= localhost"} {
-		settings, err := parseKeywordValueSettings(connString)
-		if err != nil {
-			t.Fatalf("parse %q: %v", connString, err)
-		}
-		if got, want := settings["host"], "localhost"; got != want {
-			t.Errorf("parse %q: host = %q, want %q", connString, got, want)
-		}
+	for _, tt := range rejected {
+		t.Run(tt.connString, func(t *testing.T) {
+			_, err := parseKeywordValueSettings(tt.connString)
+			if err == nil {
+				t.Fatalf("parse %q: expected an error", tt.connString)
+			}
+			if err.Error() != tt.wantErr {
+				t.Errorf("parse %q: err = %q, want %q", tt.connString, err, tt.wantErr)
+			}
+		})
+	}
+
+	// Whitespace around '=' is not affected: libpq accepts these and so must we.
+	for _, connString := range []string{"host = localhost", "host =localhost", "host= localhost", "  host\t=\tlocalhost  "} {
+		t.Run(connString, func(t *testing.T) {
+			settings, err := parseKeywordValueSettings(connString)
+			if err != nil {
+				t.Fatalf("parse %q: %v", connString, err)
+			}
+			if got, want := settings["host"], "localhost"; got != want {
+				t.Errorf("parse %q: host = %q, want %q", connString, got, want)
+			}
+		})
 	}
 }
 
 // TestParseKeywordValueSettingsUnquotedTrailingBackslashDivergesFromLibpq pins
-// the third difference the oracle cannot check, and the reason the quoted
+// the second difference the oracle cannot check, and the reason the quoted
 // branch could not simply copy the unquoted one.
 //
 // libpq treats a backslash at the end of an *unquoted* value as escaping the

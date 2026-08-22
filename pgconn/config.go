@@ -763,6 +763,15 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
+		// libpq reads a keyword as a run of non-space characters and then
+		// requires the next non-space character to be '=', so whitespace
+		// inside a keyword terminates it and is an error. Trimming alone would
+		// accept the space as part of the key and turn a typo into a bogus
+		// RuntimeParam that only the server rejects. Report it as libpq does,
+		// naming the keyword it had read.
+		if i := strings.IndexAny(key, " \t\n\r\v\f"); i >= 0 {
+			return nil, fmt.Errorf(`missing "=" after %q in connection info string`, key[:i])
+		}
 		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
 		switch {
 		case len(s) == 0:
