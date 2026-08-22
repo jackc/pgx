@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -52,6 +53,14 @@ type TxOptions struct {
 }
 
 var emptyTxOptions TxOptions
+
+// BeginSQL returns the SQL statement that [Conn.BeginTx] would send for
+// txOptions. It is exported so that callers that start a transaction themselves,
+// e.g. by queueing it as the first query of a [Batch] to save a round trip, can
+// use the same statement pgx would.
+func (txOptions TxOptions) BeginSQL() string {
+	return txOptions.beginSQL()
+}
 
 func (txOptions TxOptions) beginSQL() string {
 	if txOptions == emptyTxOptions {
@@ -107,6 +116,31 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 			c.die()
 		}
 		return nil, err
+	}
+
+	return &dbTx{
+		conn:        c,
+		commitQuery: txOptions.CommitQuery,
+	}, nil
+}
+
+// TxFromCurrentTransaction returns a [Tx] for the transaction c is already in,
+// without sending a begin query. It is for callers that begin the transaction
+// themselves in a way that avoids a dedicated round trip, such as queueing
+// [TxOptions.BeginSQL] as the first query of a [Batch] or of a pgconn pipeline.
+//
+// Only [TxOptions.CommitQuery] is read from txOptions. The isolation level,
+// access mode and deferrable mode must already have been established by the
+// begin query the caller sent.
+//
+// It returns an error if c is not currently in a transaction, which includes the
+// case where the caller's begin query has been sent but its results have not been
+// read yet. The returned Tx is otherwise identical to one from [Conn.BeginTx].
+func (c *Conn) TxFromCurrentTransaction(txOptions TxOptions) (Tx, error) {
+	switch status := c.PgConn().TxStatus(); status {
+	case 'T', 'E':
+	default:
+		return nil, fmt.Errorf("connection is not in a transaction (transaction status %q)", status)
 	}
 
 	return &dbTx{
