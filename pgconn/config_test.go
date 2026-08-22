@@ -1016,10 +1016,17 @@ func TestParseConfigKVLeadingEqual(t *testing.T) {
 }
 
 // https://github.com/jackc/pgconn/issues/49
+// A trailing backslash in an unquoted value escapes the end of the string.
+// libpq drops it and accepts the string, so pgx does too; it was rejected with
+// "invalid backslash" from be69c1c1 until the parser was aligned with libpq.
+// The original report was that this input must not panic.
 func TestParseConfigKVTrailingBackslash(t *testing.T) {
-	_, err := pgconn.ParseConfig(`x=x\`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid backslash")
+	config, err := pgconn.ParseConfig(`host=x\`)
+	require.NoError(t, err)
+	assert.Equal(t, "x", config.Host)
+
+	_, err = pgconn.ParseConfig(`x=x\`)
+	require.NoError(t, err)
 }
 
 // A backslash as the last byte of an unterminated quoted value must be

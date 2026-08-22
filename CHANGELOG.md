@@ -70,8 +70,31 @@
   fields on a best-effort basis. Invalid connection strings can be structurally ambiguous, so password redaction
   cannot be guaranteed for every malformed input.
 
+* pgconn: keyword/value connection strings (`host=... user=...`) now match libpq's parser exactly, the same treatment
+  the URI parser received above and verified the same way, by differential fuzzing against libpq itself. Most
+  connection strings are unaffected. Behavior changes, all matching libpq:
+  * A backslash escapes whatever character follows it and is dropped, where previously only `\\` and `\'` were
+    unescaped and every other backslash was kept. A value containing a backslash must now escape it, as libpq
+    requires: `sslcert=C:\path\to\cert` reads as `C:pathtocert` and has to be written `sslcert=C:\\path\\to\\cert`.
+    This mainly affects Windows certificate and key paths, which previously came through intact without doubling.
+  * A trailing backslash in an unquoted value escapes the end of the string, so it is dropped and the value ends
+    there; it was previously rejected with `invalid backslash`. Inside a quoted value the escaped terminator leaves
+    the string unterminated, which is still an error.
+  * Whitespace inside a keyword is an error (`missing "=" after "us" in connection info string`) instead of becoming
+    part of the key. Whitespace around the `=` is unaffected. This most often shows up with an unquoted value
+    containing a space: `application_name=my app host=x` previously set neither parameter and sent `app host` to the
+    server as a runtime parameter, and now fails to parse.
+
+  As with URIs, unrecognized keywords are still accepted where libpq rejects them, and an empty `user=` is still
+  dropped so that `PGUSER` and the OS user still apply.
+
 ## Fixes
 
+* pgconn: a backslash as the last byte of a quoted value in a keyword/value connection string no longer panics with
+  `slice bounds out of range`. `host='a\` -- and the shorter `='\`, reachable through `pgx.ParseConfig` and
+  `pgxpool.ParseConfig` -- now return `unterminated quoted string in connection info string`, libpq's own message for
+  the same input. The unquoted branch has been guarded since be69c1c1; the quoted branch carried the same unguarded
+  increment since the parser was ported from pgx v3. Found by fuzzing (Maxim Korotkov)
 * pgconn: error messages that embed the connection string now also redact `password` and `sslpassword` values supplied
   as URI query parameters; previously only the userinfo password was redacted. Redaction matches keys the way the
   parser does -- percent-encoded spellings such as `pass%77ord=` are recognized -- and masks the entire raw value, so

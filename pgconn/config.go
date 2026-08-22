@@ -740,6 +740,32 @@ func parseEnvSettings() map[string]string {
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
+// unescapeKeywordValue applies libpq's backslash rule to the raw text of a
+// keyword/value value: a backslash is dropped and whatever follows it is taken
+// literally, whatever that character is. A backslash at the very end escapes
+// the end of the string, so it is dropped and contributes nothing -- which is
+// how libpq accepts `host=a\`. Only the unquoted branch can reach that case;
+// inside quotes the escaped terminator leaves the string unterminated and the
+// caller has already rejected it.
+func unescapeKeywordValue(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' {
+			i++
+			if i == len(s) {
+				break
+			}
+		}
+		sb.WriteByte(s[i])
+	}
+	return sb.String()
+}
+
 func parseKeywordValueSettings(s string) (map[string]string, error) {
 	settings := make(map[string]string)
 
@@ -783,12 +809,15 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					// A trailing backslash escapes the end of the string.
+					// libpq drops it and ends the value there. Break rather
+					// than let the loop's post-increment push end past len(s).
 					if end == len(s) {
-						return nil, errors.New("invalid backslash")
+						break
 					}
 				}
 			}
-			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
+			val = unescapeKeywordValue(s[:end])
 			// Consume the value and trim any subsequent whitespace so that
 			// multiple trailing spaces don't cause a spurious parse failure.
 			s = strings.TrimLeft(s[end:], " \t\n\r\v\f")
@@ -809,7 +838,7 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 			if end == len(s) {
 				return nil, errors.New("unterminated quoted string in connection info string")
 			}
-			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
+			val = unescapeKeywordValue(s[:end])
 			// Consume the closing quote and any subsequent whitespace.
 			s = strings.TrimLeft(s[end+1:], " \t\n\r\v\f")
 		}
