@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -406,5 +407,31 @@ func BenchmarkHstoreScan(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func TestHstoreScanGarbageDoesNotPreallocateFromSeparatorCount(t *testing.T) {
+	var h pgtype.Hstore
+	err := h.Scan(strings.Repeat(">", 200000))
+	if err == nil {
+		t.Fatal("expected error scanning invalid hstore text")
+	}
+}
+
+func TestHstoreScanMorePairsThanEstimateClamp(t *testing.T) {
+	const n = 2000
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, `"k%d"=>"v%d"`, i, i)
+	}
+	var h pgtype.Hstore
+	if err := h.Scan(b.String()); err != nil {
+		t.Fatal(err)
+	}
+	if len(h) != n {
+		t.Fatalf("len(h) = %d, want %d", len(h), n)
 	}
 }
