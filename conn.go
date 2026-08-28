@@ -360,7 +360,10 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	if err != nil {
 		var pErr *pgconn.PrepareError
 		if errors.As(err, &pErr) {
-			c.failedDescribeStatement = psKey
+			// The server-side statement was created under psName — the name sent in
+			// Parse. In the name == sql case psKey is the SQL text, and deallocating
+			// by it would close a nonexistent statement while leaking the real one.
+			c.failedDescribeStatement = psName
 		}
 		return nil, err
 	}
