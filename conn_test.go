@@ -532,6 +532,66 @@ func TestPrepareHandlesTimeoutBetweenParseAndDescribe(t *testing.T) {
 	require.NotNil(t, psd)
 }
 
+// https://github.com/jackc/pgx/issues/2640
+func TestPrepareDigestedNameDeallocatesFailedDescribe(t *testing.T) {
+	// Not parallel because it is a timing sensitive test.
+	//
+	// stdlib/database/sql calls Prepare(ctx, sql, sql), so the server-side
+	// name is stmt_<digest> while the client cache key is the SQL text.
+	// Cleanup after a Describe-phase failure must Close the digest name.
+
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var faultyConn *faultyconn.Conn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		faultyConn = faultyconn.New(conn)
+		return faultyConn, nil
+	}
+
+	ctx := context.Background()
+	conn, err := pgx.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+	require.NotNil(t, faultyConn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Induced error does not occur on CockroachDB")
+
+	_, err = conn.Exec(ctx, "set statement_timeout = '100ms'")
+	require.NoError(t, err)
+
+	faultyConn.HandleFrontendMessage = func(backendWriter io.Writer, msg pgproto3.FrontendMessage) error {
+		if _, ok := msg.(*pgproto3.Describe); ok {
+			time.Sleep(200 * time.Millisecond)
+		}
+		buf, err := msg.Encode(nil)
+		if err != nil {
+			return err
+		}
+		_, err = backendWriter.Write(buf)
+		return err
+	}
+
+	sql := "select $1::varchar"
+	psd, err := conn.Prepare(ctx, sql, sql)
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "57014", pgErr.Code)
+	require.Nil(t, psd)
+
+	faultyConn.HandleFrontendMessage = nil
+
+	_, err = conn.Exec(ctx, "set statement_timeout = default")
+	require.NoError(t, err)
+
+	// Re-preparing the same SQL must deallocate the leaked stmt_<digest>
+	// and succeed. Before the fix this returned 42P05 for the connection's
+	// remaining lifetime.
+	psd, err = conn.Prepare(ctx, sql, sql)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+}
+
 func TestPrepareBadSQLFailure(t *testing.T) {
 	t.Parallel()
 

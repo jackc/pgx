@@ -360,7 +360,8 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	if err != nil {
 		var pErr *pgconn.PrepareError
 		if errors.As(err, &pErr) {
-			c.failedDescribeStatement = psKey
+			// psName is the identifier sent in Parse; psKey may be the SQL text.
+			c.failedDescribeStatement = psName
 		}
 		return nil, err
 	}
