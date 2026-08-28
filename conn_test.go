@@ -608,6 +608,55 @@ func TestPrepareWithDigestedNameHandlesTimeoutBetweenParseAndDescribe(t *testing
 	require.NotNil(t, psd)
 }
 
+// https://github.com/jackc/pgx/issues/2640
+func TestPrepareFailedParseSchedulesNoCleanup(t *testing.T) {
+	t.Parallel()
+
+	// A Prepare that fails before Parse completes leaves no statement on the server, so the next Prepare must not
+	// spend a round trip deallocating anything.
+
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var faultyConn *faultyconn.Conn
+	config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+		faultyConn = faultyconn.New(conn)
+		return faultyConn, nil
+	}
+
+	ctx := context.Background()
+	conn, err := pgx.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+	require.NotNil(t, faultyConn)
+
+	sql := "select foo"
+	psd, err := conn.Prepare(ctx, sql, sql)
+	require.Error(t, err)
+	require.Nil(t, psd)
+	var pErr *pgconn.PrepareError
+	require.ErrorAs(t, err, &pErr)
+	require.False(t, pErr.ParseComplete)
+
+	var sentClose bool
+	faultyConn.HandleFrontendMessage = func(backendWriter io.Writer, msg pgproto3.FrontendMessage) error {
+		if _, ok := msg.(*pgproto3.Close); ok {
+			sentClose = true
+		}
+		buf, err := msg.Encode(nil)
+		if err != nil {
+			return err
+		}
+		_, err = backendWriter.Write(buf)
+		return err
+	}
+
+	psd, err = conn.Prepare(ctx, "select 1", "select 1")
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	require.False(t, sentClose)
+}
+
 func TestPrepareBadSQLFailure(t *testing.T) {
 	t.Parallel()
 

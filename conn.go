@@ -359,10 +359,12 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	sd, err = c.pgConn.Prepare(ctx, psName, sql, nil)
 	if err != nil {
 		var pErr *pgconn.PrepareError
-		if errors.As(err, &pErr) {
+		if errors.As(err, &pErr) && pErr.ParseComplete {
 			// The server-side statement was created under psName — the name sent in
 			// Parse. In the name == sql case psKey is the SQL text, and deallocating
 			// by it would close a nonexistent statement while leaking the real one.
+			// When Parse never completed no statement was created at all, so there
+			// is nothing to clean up.
 			c.failedDescribeStatement = psName
 		}
 		return nil, err
