@@ -101,9 +101,21 @@ The pgx interface is recommended when:
 
 It is also possible to use the `database/sql` interface and convert a connection to the lower-level pgx interface as needed.
 
-## Testing
+## Development and Testing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
+Each checkout runs its own PostgreSQL 14-18 clusters and a CockroachDB node, so the whole test
+matrix is available locally on macOS, on Linux, or in the included devcontainer:
+
+```sh
+mise install && mise run dev:init
+mise run dev        # start the databases (leave running)
+./test.sh           # the suite against PostgreSQL 18
+./test.sh all       # every target
+```
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full setup, and
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute — including how to run the tests against
+a PostgreSQL server you already have, without any of the above.
 
 ## Architecture
 

@@ -13,3 +13,8 @@ if [ -x "/persist/shared/.scratch" ]; then
     ln -s /persist/shared/.scratch
   fi
 fi
+
+# Everything that sets up the project itself lives in the same task a native checkout runs:
+# allocate this checkout's ports and decode its client certificates. The container keeps no
+# project setup logic of its own. `mise run dev` then starts the databases.
+mise run dev:init
