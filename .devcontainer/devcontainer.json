@@ -5,6 +5,17 @@
 	"workspaceFolder": "/workspaces/pgx",
 
 	"containerEnv": {
+		// Where this checkout's PostgreSQL clusters, CockroachDB store and shared Unix socket
+		// directory live inside the container (scripts/lib/dev_paths.rb). Everything else in .dev/
+		// stays in the checkout; these three cannot.
+		//
+		// .dev/ is inside the /workspaces/pgx bind mount, and Docker Desktop's macOS/Windows file
+		// sharing rejects the ownership and permission changes initdb makes and is unreliable for
+		// Unix sockets. The per-version PostgreSQL containers this replaced used named volumes for
+		// exactly these two things (postgres-1x-data and pg-sockets); /persist/local is this
+		// instance's named volume and is their equivalent.
+		"PGX_DEV_RUNTIME_DIR": "/persist/local/dev",
+
 		"CLAUDE_CONFIG_DIR":  "/persist/shared/claude",
     "CODEX_HOME":         "/persist/shared/codex",
 		"ATUIN_CONFIG_DIR":   "/persist/shared/atuin/config",
@@ -19,7 +30,9 @@
 
 	"initializeCommand": "docker volume create devstate-shared-pgx >/dev/null",
 	"onCreateCommand": ".devcontainer/on-create.bash",
-	"postStartCommand": "base64 -d testsetup/certs/ca.pem.b64 > /tmp/ca.pem && base64 -d testsetup/certs/pgx_sslcert.crt.b64 > /tmp/pgx_sslcert.crt && base64 -d testsetup/certs/pgx_sslcert.key.b64 > /tmp/pgx_sslcert.key && chmod 600 /tmp/pgx_sslcert.key",
+
+	// No postStartCommand: the client certificates the TLS tests use are decoded per checkout into
+	// .dev/certs by scripts/devenv.rb, rather than into this container's /tmp on every start.
 	"postCreateCommand": ".devcontainer/post-create.bash",
   "waitFor": "postCreateCommand",
 

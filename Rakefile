@@ -18,6 +18,78 @@ generated_code_files = [
 desc "Generate code"
 task generate: generated_code_files
 
+# dev -- per-checkout development state. A git worktree is the native equivalent of a second
+# devcontainer instance: same machine, same network stack, so the five PostgreSQL servers and
+# CockroachDB that each owned a well-known port in their own container namespace now need distinct
+# ones. `dev:ports:*` drives port-tamer (port-tamer.toml declares the names; the allocation lands
+# in the gitignored .dev/ports.env) and writes the values derived from it -- scripts/devenv.rb.
+namespace :dev do
+  namespace :ports do
+    desc "Allocate this checkout's TCP ports if it has none (idempotent)"
+    task :ensure do
+      sh RbConfig.ruby, "scripts/devenv.rb", "ensure"
+    end
+
+    desc "Move this checkout to a different port group (stop its services first)"
+    task :overwrite do
+      sh RbConfig.ruby, "scripts/devenv.rb", "overwrite"
+    end
+
+    desc "Print this checkout's port allocation and where each server's data lives"
+    task :show do
+      sh RbConfig.ruby, "scripts/devenv.rb", "show"
+    end
+  end
+end
+
+# db -- this checkout's own PostgreSQL clusters, one per major (scripts/devdb.rb). Clusters per
+# checkout rather than databases inside shared servers: destructive resets stay local, two
+# checkouts run at once, and the layout matches the per-instance devcontainer model it replaces.
+# The SERVERS run in the foreground under process-compose (process-compose.yaml); these are the
+# one-shot half. Each task takes an optional major, defaulting to all of them.
+#
+#   rake db:init            initialize every cluster
+#   rake db:init[16]        just PostgreSQL 16
+#   rake db:psql[16]        psql against PostgreSQL 16 (default: the newest major)
+#
+# The mise wrappers (`mise run db:init 16`) call scripts/devdb.rb directly rather than routing
+# through these tasks — mise APPENDS its arguments, and `rake db:init 16` means "run task db:init,
+# then run task 16", not "run db:init with the argument 16".
+namespace :db do
+  # A bare major on the command line is the natural thing to type and the one rake cannot mean:
+  # it becomes a second TASK name, so `rake db:reset 16` runs db:reset with no major — every
+  # cluster — and only then fails on the unknown task, after the data is gone. Catch it first.
+  def db_major(task, args)
+    stray = Rake.application.top_level_tasks.find { |t| t =~ /\A\d+\z/ }
+    if stray
+      abort "rake: `#{stray}` is being read as a task name, not an argument. " \
+            "Write `rake #{task.name}[#{stray}]` (or `mise run #{task.name} #{stray}`)."
+    end
+
+    Array(args[:major])
+  end
+
+  desc "Create this checkout's PostgreSQL clusters under .dev (idempotent). Optional: rake db:init[16]"
+  task :init, [:major] do |task, args|
+    sh RbConfig.ruby, "scripts/devdb.rb", "init", *db_major(task, args)
+  end
+
+  desc "psql against one of this checkout's clusters. Optional: rake db:psql[16]"
+  task :psql, [:major] do |task, args|
+    sh RbConfig.ruby, "scripts/devdb.rb", "psql", *db_major(task, args)
+  end
+
+  desc "Create the pgx_test database and roles in a running cluster (idempotent)"
+  task :setup, [:major] do |task, args|
+    sh RbConfig.ruby, "scripts/devdb.rb", "setup", *db_major(task, args)
+  end
+
+  desc "Destroy this checkout's clusters and re-initialize (destructive; CONFIRM=yes)"
+  task :reset, [:major] do |task, args|
+    sh RbConfig.ruby, "scripts/devdb.rb", "reset", *db_major(task, args)
+  end
+end
+
 # references:* — provision local, read-only checkouts of reference material used
 # when building pgx (currently the PostgreSQL source tree).
 #
@@ -41,9 +113,25 @@ REFERENCE_REPOS = [
   { name: "postgres", url: "https://github.com/postgres/postgres.git", ref: "REL_18_STABLE", license: "PostgreSQL License" },
 ].freeze
 
-# Canonical mirrors live on the shared persist volume by default; overridable
-# for use outside the devcontainer.
-MIRROR_ROOT   = ENV.fetch("REFERENCES_MIRROR_DIR", "/persist/shared/references")
+# Where the canonical bare mirrors live. They are machine-level state, not checkout-level:
+# multiple GB, read-only, and identical for every checkout -- so they belong outside the tree, and
+# every checkout on the machine shares one copy.
+#
+#   * devcontainer -- the shared persist volume, so every container for this project reuses one
+#     download and a rebuild costs nothing.
+#   * native -- an XDG data directory under $HOME, where git worktrees of this repo share it the
+#     same way containers share the volume.
+#
+# REFERENCES_MIRROR_DIR overrides both (a second disk, a scratch location, a test).
+def default_mirror_root
+  return "/persist/shared/references" if File.directory?("/persist/shared")
+
+  xdg = ENV["XDG_DATA_HOME"]
+  base = xdg.nil? || xdg.empty? ? File.join(Dir.home, ".local", "share") : xdg
+  File.join(base, "pgx", "references")
+end
+
+MIRROR_ROOT   = ENV.fetch("REFERENCES_MIRROR_DIR") { default_mirror_root }
 CHECKOUT_ROOT = File.join(__dir__, "references")
 
 def mirror_path(repo)   = File.expand_path(File.join(MIRROR_ROOT, "#{repo[:name]}.git"))

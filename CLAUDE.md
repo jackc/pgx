@@ -8,45 +8,52 @@ pgx is a PostgreSQL driver and toolkit for Go (`github.com/jackc/pgx/v5`). It pr
 
 ## Build & Test Commands
 
+Every checkout runs its own databases: PostgreSQL 14-18 and CockroachDB, supervised by
+process-compose. `mise run dev` is the only launcher; the test commands connect to that running
+stack and never start services. See DEVELOPMENT.md.
+
 ```bash
-# Run all tests (requires PGX_TEST_DATABASE to be set)
-go test ./...
+mise run dev                        # start this checkout's databases (leave running)
+mise run dev -- -D                  # ... detached; then `mise run dev:wait`, and
+                                    # `mise run dev:down` when finished. Agents must do this.
 
-# Run a specific test
-go test -run TestFunctionName ./...
+./test.sh                           # Full suite against PostgreSQL 18 (the default target)
+./test.sh pg16                      # Against PostgreSQL 16
+./test.sh crdb                      # Against CockroachDB
+./test.sh all                       # Every target (pg14-18 + crdb)
+./test.sh pg16 -run TestConnect     # Trailing arguments are passed to `go test`
 
-# Run tests for a specific package
-go test ./pgconn/...
+go test ./...                       # Also works: mise loads the default target's PGX_TEST_*
+go test -race ./...                 # With the race detector
 
-# Run tests with race detector
-go test -race ./...
+goimports -w .                      # Format (always run after making changes)
+golangci-lint run ./...             # Lint
 
-# DevContainer: run tests against specific PostgreSQL versions
-./test.sh pg18                      # Default: PostgreSQL 18
-./test.sh pg16 -run TestConnect     # Specific test against PG16
-./test.sh crdb                      # CockroachDB
-./test.sh all                       # All targets (pg14-18 + crdb)
-
-# Format (always run after making changes)
-goimports -w .
-
-# Lint
-golangci-lint run ./...
+mise run dev:ports                  # This checkout's ports and where each server's data lives
+mise run db:psql                    # psql against PostgreSQL 18; `mise run db:psql 16` for another
+process-compose process logs pg16   # One server's output
 ```
+
+Do not hardcode database ports. They are allocated per checkout by port-tamer and read from the
+environment (`PGPORT`, `PGPORT_16`, `CRDB_PORT`) or `.dev/ports.env`; 5432 and 26257 mean nothing
+here.
+
+The `PGX_TEST_*` connection strings have one definition, `scripts/lib/test_targets.rb`. Add or
+change a target there, never in a second copy.
 
 ## Test Database Setup
 
-Tests require `PGX_TEST_DATABASE` environment variable. In the devcontainer, `test.sh` handles this. For local development:
+`mise run dev` handles it: each server initializes its cluster on first start and creates
+`pgx_test` with the extensions and the auth roles from `testsetup/postgresql_setup.sql`. Nothing
+needs to be set up by hand.
 
-```bash
-export PGX_TEST_DATABASE="host=localhost user=postgres password=postgres dbname=pgx_test"
-```
-
-The test database needs extensions: `hstore`, `ltree`, and a `uint64` domain. See `testsetup/postgresql_setup.sql` for full setup. Many tests are skipped unless additional `PGX_TEST_*` env vars are set (for TLS, SCRAM, MD5, unix socket, PgBouncer testing).
+Contributors who would rather point pgx at a PostgreSQL server they already have can set
+`PGX_TEST_DATABASE` themselves; see CONTRIBUTING.md. Many tests are skipped unless additional
+`PGX_TEST_*` variables are set (for TLS, SCRAM, MD5, unix socket, PgBouncer testing).
 
 ## Reference Material
 
-`references/` holds read-only reference checkouts used when building pgx — currently the PostgreSQL source tree pinned to `REL_18_STABLE`. It is gitignored and provisioned on demand: bare mirrors are cached on the devcontainer's shared persist volume (`/persist/shared/references`) and lightweight local checkouts are created in `references/` with `rake references:setup`. Each checkout has per-instance Git metadata while borrowing the shared mirror's object store. Related tasks: `rake references:update`, `rake references:status`, `rake references:clean`.
+`references/` holds read-only reference checkouts used when building pgx — currently the PostgreSQL source tree pinned to `REL_18_STABLE`. It is gitignored and provisioned on demand: bare mirrors are cached at a machine-level path (`/persist/shared/references` in a devcontainer, `~/.local/share/pgx/references` natively; `REFERENCES_MIRROR_DIR` overrides) and lightweight local checkouts are created in `references/` with `rake references:setup`. Each checkout has per-instance Git metadata while borrowing the shared mirror's object store. Related tasks: `rake references:update`, `rake references:status`, `rake references:clean`.
 
 - Do not automatically provision or update `references/`.
 - Never run `rake references:setup`, `rake references:update`, or any large download on your own initiative.

@@ -1,0 +1,70 @@
+# port-tamer — this project's TCP port allocation (https://github.com/jackc/port-tamer).
+#
+# WHY. pgx's test matrix is five PostgreSQL majors plus CockroachDB running at once. In the
+# devcontainer every database service sat in the app container's network namespace, so each could
+# own a well-known port (5414..5417, 5432, 26257) and a second devcontainer instance was simply a
+# second namespace. Natively there is one network stack, and a git worktree is the equivalent of
+# that second instance — two checkouts would collide on all six.
+#
+# port-tamer assigns each checkout one consecutive group of free ports and writes it to a dotenv
+# file (.dev/ports.env — gitignored, per-checkout state). mise loads that file, which is how a
+# plain shell, process-compose, and ./test.sh all see the same numbers. THIS file is the committed
+# declaration of which ports a checkout needs; the allocation itself is not committed.
+#
+# The devcontainer uses it too. It has its own network namespace and so does not NEED distinct
+# ports, but it runs the same per-checkout clusters, so the allocation is the single description
+# of where this checkout's servers are, on either platform.
+#
+#   mise run dev:ports              show the allocation and whether each port is listening
+#   mise run dev:ports:ensure       allocate on first use; idempotent afterwards
+#   mise run dev:ports:overwrite    deliberately move to a different group (stop services first)
+#
+# A listening port does NOT move an existing allocation — it may well belong to this checkout's
+# own running services. Moving is always the explicit `--overwrite` above.
+#
+# APPEND new entries at the END. Ports are assigned consecutively in the order below, so inserting
+# or reordering renumbers the existing ones — which invalidates every saved allocation and forces
+# each checkout to overwrite. Appending is compatible and costs nothing.
+
+version = 1
+
+# The default range (10000..44999) overlaps the ephemeral ports Linux hands out for client sockets
+# (32768..60999), so the kernel could occupy a port inside an allocated group while its service is
+# down and then break the restart. This range clears both platforms' ephemeral ranges (macOS
+# starts at 49152).
+[allocation]
+minimum = 16000
+maximum = 31000
+bind_address = "127.0.0.1"
+
+# One PostgreSQL cluster per major (scripts/devdb.rb). All five share one Unix socket directory —
+# sockets are named .s.PGSQL.<port>, so the port is what distinguishes them, exactly as the
+# devcontainer's shared /var/run/postgresql volume worked.
+[[ports]]
+name = "PGPORT_14"
+
+[[ports]]
+name = "PGPORT_15"
+
+[[ports]]
+name = "PGPORT_16"
+
+[[ports]]
+name = "PGPORT_17"
+
+[[ports]]
+name = "PGPORT_18"
+
+# CockroachDB (scripts/devcrdb.rb): SQL and the admin HTTP UI. The HTTP port must be allocated
+# even though no test uses it — cockroach binds it unconditionally, and letting it pick its own
+# default (8080) would collide between checkouts.
+[[ports]]
+name = "CRDB_PORT"
+
+[[ports]]
+name = "CRDB_HTTP_PORT"
+
+# process-compose control API. The name is process-compose's own: every `process-compose ...`
+# command in this checkout then targets THIS checkout's stack with no flags.
+[[ports]]
+name = "PC_PORT_NUM"
