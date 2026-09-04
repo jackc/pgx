@@ -27,6 +27,7 @@
 # namespace that two checkouts running at once would fight over.
 
 require "fileutils"
+require "socket"
 require_relative "lib/dev_paths"
 require_relative "lib/test_targets"
 
@@ -45,8 +46,35 @@ def port_tamer(*args)
   ok
 end
 
+# Replacing the allocation also replaces PC_PORT_NUM, the only address the ordinary lifecycle
+# commands retain for the supervisor. Doing that while it is listening would strand every process
+# on the old port: the next `dev:down` would look only at the new one. Check the saved value
+# directly rather than through DevPaths.port so `--overwrite` can still repair an incomplete or
+# otherwise incompatible state file.
+def refuse_live_overwrite!
+  return unless File.exist?(DevPaths::PORTS_ENV)
+
+  port = File.read(DevPaths::PORTS_ENV)[/^PC_PORT_NUM=(\d+)$/, 1]
+  return unless port
+
+  Socket.tcp("127.0.0.1", port.to_i, connect_timeout: 0.25) do
+    abort <<~MSG
+      devenv: refusing to replace the port allocation while this checkout's supervisor is
+      listening on 127.0.0.1:#{port}. Stop it first:
+          mise run dev:down
+      Then re-run `mise run dev:ports:overwrite`.
+    MSG
+  end
+rescue Errno::ECONNREFUSED
+  nil
+rescue SystemCallError, SocketError => e
+  abort "devenv: could not verify whether 127.0.0.1:#{port} is in use (#{e.message}); " \
+        "refusing to replace the allocation."
+end
+
 def allocate(overwrite:)
   FileUtils.mkdir_p(DevPaths::DEV_DIR) # port-tamer writes its state file, it does not create dirs
+  refuse_live_overwrite! if overwrite
 
   argv = ["allocate", "--state-file", DevPaths::PORTS_ENV, PORT_TAMER_CONFIG]
   argv.insert(1, "--overwrite") if overwrite
