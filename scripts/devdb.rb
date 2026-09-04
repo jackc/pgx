@@ -291,7 +291,8 @@ when "reset"
       devdb: #{live.map { |m| "pg#{m}" }.join(', ')} #{live.one? ? 'is' : 'are'} still running on #{DevPaths.socket_dir}.
       A reset removes the data directory, which corrupts a server that is using it. Stop the stack
       first:
-          mise run dev:down
+          mise run db:stop #{live.map { |m| "pg#{m}" }.join(' ')}
+      Or stop the entire supervisor with `mise run dev:down`.
     MSG
   end
 
@@ -300,7 +301,7 @@ when "reset"
     FileUtils.rm_rf(File.dirname(DevPaths.pgdata(major)))
     init(major)
   end
-  puts "  next `mise run dev` will recreate pgx_test and its roles."
+  puts "  the next `db:start` or test run will recreate pgx_test and its roles."
 else
   abort("usage: devdb.rb init|serve|ready|setup|testready|info|psql|reset [major] [args...]")
 end

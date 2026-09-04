@@ -103,14 +103,15 @@ It is also possible to use the `database/sql` interface and convert a connection
 
 ## Development and Testing
 
-Each checkout runs its own PostgreSQL 14-18 clusters and a CockroachDB node, so the whole test
-matrix is available locally on macOS, on Linux, or in the included devcontainer:
+Each checkout has its own PostgreSQL 14-18 clusters and CockroachDB node, so the whole test matrix
+is available locally on macOS, on Linux, or in the included devcontainer. Only PostgreSQL 18 stays
+running by default; other targets start and stop around their tests:
 
 ```sh
 mise install && mise run dev:init
-mise run dev        # start the databases (leave running)
+mise run dev        # start PostgreSQL 18 and the on-demand database supervisor
 ./test.sh           # the suite against PostgreSQL 18
-./test.sh all       # every target
+./test.sh all       # every target, starting and stopping each server as needed
 ```
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full setup, and

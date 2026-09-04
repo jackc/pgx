@@ -86,8 +86,12 @@ description = "Bootstrap this checkout: allocate its ports, decode its certifica
 run = "ruby scripts/devenv.rb ensure"
 
 [tasks.dev]
-description = "Start this checkout's databases (PostgreSQL 14-18 + CockroachDB) under process-compose"
+description = "Start PostgreSQL 18 and this checkout's on-demand database supervisor"
 run = "ruby scripts/dev.rb"
+
+[tasks."dev:all"]
+description = "Start PostgreSQL 14-18 and CockroachDB eagerly under process-compose"
+run = "ruby scripts/dev.rb all"
 
 [tasks."dev:down"]
 description = "Stop this checkout's development stack"
@@ -115,6 +119,14 @@ description = "Move this checkout to a different port group (stop its services f
 run = "rake dev:ports:overwrite"
 
 # --- Databases -----------------------------------------------------------------------------------
+
+[tasks."db:start"]
+description = "Prewarm database targets (default: pg18); e.g. mise run db:start pg16 crdb"
+run = "ruby scripts/dev_services.rb start"
+
+[tasks."db:stop"]
+description = "Stop database targets (default: pg18); e.g. mise run db:stop pg16 crdb"
+run = "ruby scripts/dev_services.rb stop"
 
 # These call scripts/devdb.rb rather than the equivalent rake tasks. mise APPENDS a task's
 # arguments to its `run` line, and `rake db:reset 16` does not mean "db:reset with the argument

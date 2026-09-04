@@ -16,5 +16,5 @@ fi
 
 # Everything that sets up the project itself lives in the same task a native checkout runs:
 # allocate this checkout's ports and decode its client certificates. The container keeps no
-# project setup logic of its own. `mise run dev` then starts the databases.
+# project setup logic of its own. `mise run dev` then starts PostgreSQL 18 and the supervisor.
 mise run dev:init

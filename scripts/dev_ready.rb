@@ -6,10 +6,9 @@
 #   dev_ready.rb            fail immediately if the stack is not up and ready
 #   dev_ready.rb --wait     block until it is (for a detached stack: CI, agents)
 #
-# A PRECONDITION only: it never starts services. `mise run dev` is the single launcher, which is
-# what keeps a stray `go test` from leaving five postmasters running that nothing owns. The payoff
-# is the error message — "start it with mise run dev" instead of a wall of connection refusals
-# from whichever test happened to connect first.
+# A PRECONDITION only: it never starts the supervisor or any service. `mise run dev` owns the
+# supervisor and PostgreSQL 18; scripts/runtests.rb may start a selected non-default target once
+# that supervisor exists. A bare `go test` therefore never leaves background processes behind.
 
 require "rbconfig"
 require_relative "lib/dev_paths"
@@ -45,9 +44,8 @@ TARGETS = DevPaths::PG_MAJORS.map { |m| ["devdb.rb", [m.to_s]] } + [["devcrdb.rb
 # `mise run dev -- -D && mise run dev:wait` returns while pgx_test is still being created and the
 # `go test` that follows fails on `database "pgx_test" does not exist`.
 #
-# Only servers that are actually ANSWERING are waited for. A major that is not installed (disabled
-# by scripts/dev.rb) or one deliberately stopped with `process-compose process stop pg14` must not
-# hold this up.
+# Only servers that are actually ANSWERING are waited for. An on-demand or unavailable target is
+# disabled by scripts/dev.rb and must not hold this up.
 def await_bootstrap(wait)
   pending = TARGETS.select { |script, args| probe(script, "ready", *args) }
   deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + BOOTSTRAP_TIMEOUT

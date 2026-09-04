@@ -15,23 +15,23 @@
 # resolved once inside scripts/devdb.rb, so a server and its readiness probe cannot disagree; and
 # one-shot work (initdb, creating pgx_test) stays in scripts this file merely sequences.
 #
-# Two environment variables ARE read here, both set by scripts/dev.rb and both with a default that
-# makes a direct `process-compose up` behave sensibly:
+# Two kinds of environment variable ARE read here, both set by scripts/dev.rb and both with a
+# default that makes a direct `process-compose up` start only PostgreSQL 18:
 #
-#   PGX_LOGS_DIR    DevPaths::LOGS_DIR — the layout belongs to that module, not to ten literals
-#   PGX_SKIP_PG<n>  "true" when this machine has no PostgreSQL <n> server binaries, which DISABLES
-#                   that major instead of leaving a process to fail and a readiness probe that
-#                   never passes (which would hang `mise run dev:wait` forever)
+#   PGX_LOGS_DIR       DevPaths::LOGS_DIR — the layout belongs to that module, not to ten literals
+#   PGX_DISABLE_*      "true" for an on-demand target, or for a PostgreSQL major whose binaries are
+#                      missing. Disabled processes remain available for `db:start` and lazy tests.
 #
 # The five servers are identical apart from their major, so pg14 carries the YAML anchors and the
 # rest alias them. Anchors are resolved by the YAML parser before process-compose sees the
 # document, so a probe threshold or a shutdown signal is now one edit rather than five that can
 # drift apart.
 #
-#   mise run dev                             start the stack
+#   mise run dev                             start PostgreSQL 18 and the supervisor
+#   mise run dev:all                         start every database
+#   mise run db:start pg16 crdb              prewarm selected targets
 #   process-compose process list             status, scriptable
 #   process-compose process logs pg16        logs for one server
-#   process-compose process stop pg14        drop one major you are not using
 #   process-compose down                     stop this checkout's stack only
 #
 # Each checkout runs its own instance on its own control port (PC_PORT_NUM, from this checkout's
@@ -50,7 +50,7 @@ processes:
   # `mise run dev` with no documented prerequisite step, and process-compose supervises the real
   # postmaster.
   pg14: &pg
-    disabled: ${PGX_SKIP_PG14:-false}
+    disabled: ${PGX_DISABLE_PG14:-true}
     command: ruby scripts/devdb.rb serve 14
     readiness_probe: &pg-probe
       exec:
@@ -74,12 +74,11 @@ processes:
   # Creates pgx_test with its extensions and its md5/scram/password/cert roles once the server is
   # up, then exits. A no-op when the database already exists, so restarting the stack is free.
   #
-  # This is a one-shot, and process-compose does not re-run one when its dependency restarts —
-  # which is why `rake db:reset` refuses to run while a server is up (the re-initdb'd cluster would
-  # never be bootstrapped) and why CockroachDB, whose store is in memory, does its own database
-  # creation from its readiness probe instead of having a step here.
+  # This is a one-shot, and process-compose does not re-run one when its dependency restarts.
+  # On-demand starts therefore run the same idempotent setup through scripts/dev_services.rb.
+  # CockroachDB, whose store is in memory, creates its database from its readiness probe instead.
   pg14-setup: &pg-setup
-    disabled: ${PGX_SKIP_PG14:-false}
+    disabled: ${PGX_DISABLE_PG14:-true}
     command: ruby scripts/devdb.rb setup 14
     depends_on:
       pg14:
@@ -90,7 +89,7 @@ processes:
 
   pg15:
     <<: *pg
-    disabled: ${PGX_SKIP_PG15:-false}
+    disabled: ${PGX_DISABLE_PG15:-true}
     command: ruby scripts/devdb.rb serve 15
     readiness_probe:
       <<: *pg-probe
@@ -100,7 +99,7 @@ processes:
 
   pg15-setup:
     <<: *pg-setup
-    disabled: ${PGX_SKIP_PG15:-false}
+    disabled: ${PGX_DISABLE_PG15:-true}
     command: ruby scripts/devdb.rb setup 15
     depends_on:
       pg15:
@@ -109,7 +108,7 @@ processes:
 
   pg16:
     <<: *pg
-    disabled: ${PGX_SKIP_PG16:-false}
+    disabled: ${PGX_DISABLE_PG16:-true}
     command: ruby scripts/devdb.rb serve 16
     readiness_probe:
       <<: *pg-probe
@@ -119,7 +118,7 @@ processes:
 
   pg16-setup:
     <<: *pg-setup
-    disabled: ${PGX_SKIP_PG16:-false}
+    disabled: ${PGX_DISABLE_PG16:-true}
     command: ruby scripts/devdb.rb setup 16
     depends_on:
       pg16:
@@ -128,7 +127,7 @@ processes:
 
   pg17:
     <<: *pg
-    disabled: ${PGX_SKIP_PG17:-false}
+    disabled: ${PGX_DISABLE_PG17:-true}
     command: ruby scripts/devdb.rb serve 17
     readiness_probe:
       <<: *pg-probe
@@ -138,7 +137,7 @@ processes:
 
   pg17-setup:
     <<: *pg-setup
-    disabled: ${PGX_SKIP_PG17:-false}
+    disabled: ${PGX_DISABLE_PG17:-true}
     command: ruby scripts/devdb.rb setup 17
     depends_on:
       pg17:
@@ -147,7 +146,7 @@ processes:
 
   pg18:
     <<: *pg
-    disabled: ${PGX_SKIP_PG18:-false}
+    disabled: ${PGX_DISABLE_PG18:-false}
     command: ruby scripts/devdb.rb serve 18
     readiness_probe:
       <<: *pg-probe
@@ -157,7 +156,7 @@ processes:
 
   pg18-setup:
     <<: *pg-setup
-    disabled: ${PGX_SKIP_PG18:-false}
+    disabled: ${PGX_DISABLE_PG18:-false}
     command: ruby scripts/devdb.rb setup 18
     depends_on:
       pg18:
@@ -173,6 +172,7 @@ processes:
   # test. `devcrdb.rb ready` therefore creates the database itself, which makes the probe true on
   # the first start and on every restart alike.
   crdb:
+    disabled: ${PGX_DISABLE_CRDB:-true}
     command: ruby scripts/devcrdb.rb serve
     readiness_probe:
       exec:

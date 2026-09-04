@@ -8,12 +8,13 @@ pgx is a PostgreSQL driver and toolkit for Go (`github.com/jackc/pgx/v5`). It pr
 
 ## Build & Test Commands
 
-Every checkout runs its own databases: PostgreSQL 14-18 and CockroachDB, supervised by
-process-compose. `mise run dev` is the only launcher; the test commands connect to that running
-stack and never start services. See DEVELOPMENT.md.
+Every checkout has its own PostgreSQL 14-18 and CockroachDB instances, supervised by
+process-compose. `mise run dev` starts PostgreSQL 18; tests start other targets on demand and stop
+them afterwards unless they were explicitly prewarmed. See DEVELOPMENT.md.
 
 ```bash
-mise run dev                        # start this checkout's databases (leave running)
+mise run dev                        # start PostgreSQL 18 and the database supervisor
+mise run dev:all                    # eagerly start every available database
 mise run dev -- -D                  # ... detached; then `mise run dev:wait`, and
                                     # `mise run dev:down` when finished. Agents must do this.
 
@@ -30,6 +31,8 @@ goimports -w .                      # Format (always run after making changes)
 golangci-lint run ./...             # Lint
 
 mise run dev:ports                  # This checkout's ports and where each server's data lives
+mise run db:start pg16 crdb         # Prewarm targets; tests then leave them running
+mise run db:stop pg16 crdb          # Stop prewarmed targets
 mise run db:psql                    # psql against PostgreSQL 18; `mise run db:psql 16` for another
 process-compose process logs pg16   # One server's output
 ```
@@ -43,9 +46,9 @@ change a target there, never in a second copy.
 
 ## Test Database Setup
 
-`mise run dev` handles it: each server initializes its cluster on first start and creates
-`pgx_test` with the extensions and the auth roles from `testsetup/postgresql_setup.sql`. Nothing
-needs to be set up by hand.
+The lifecycle scripts handle setup: a PostgreSQL server initializes its cluster on first start and
+creates `pgx_test` with the extensions and auth roles from `testsetup/postgresql_setup.sql`.
+CockroachDB recreates `pgx_test` after each in-memory restart. Nothing needs to be set up by hand.
 
 Contributors who would rather point pgx at a PostgreSQL server they already have can set
 `PGX_TEST_DATABASE` themselves; see CONTRIBUTING.md. Many tests are skipped unless additional

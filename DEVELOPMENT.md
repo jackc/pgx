@@ -8,9 +8,9 @@ prerequisites in §1.
 ```sh
 mise install        # tool versions from mise.toml
 mise run dev:init   # this checkout's ports and certificates
-mise run dev        # start its databases: PostgreSQL 14-18 and CockroachDB
+mise run dev        # start PostgreSQL 18 and the on-demand database supervisor
 ./test.sh           # the suite against PostgreSQL 18
-./test.sh all       # every target
+./test.sh all       # every target; non-default servers start and stop around their tests
 ```
 
 ---
@@ -37,10 +37,9 @@ apt-get install postgresql-{14,15,16,17,18} postgresql-contrib-{14,15,16,17,18} 
   install. `mise.toml` adds PostgreSQL 18's `bin` to `PATH` for this project — one client serves
   every server, since libpq is backward compatible.
 - Only the majors you actually test against need to be installed. `mise run dev` looks for each
-  one's server binaries and **disables** the majors it cannot find, naming them and how to install
-  them; the rest of the stack starts normally and `mise run dev:wait` still returns. `./test.sh
-  pg15` against a disabled major says so plainly. `PGBIN_16` and friends override the search for a
-  major built or installed somewhere unusual.
+  one's server binaries and names any that are missing; `./test.sh pg15` reports a direct install
+  hint rather than trying to launch a missing server. `PGBIN_16` and friends override the search
+  for a major built or installed somewhere unusual.
 - Clusters are created with the `en_US.UTF-8` locale where the system has it (matching CI and the
   container images this replaced), falling back to `C.UTF-8` and then `C`. A stock Debian or Ubuntu
   has only `C.UTF-8` unless you have run `locale-gen en_US.UTF-8`.
@@ -103,16 +102,19 @@ automatically.
 
 ## 3. The databases
 
-`mise run dev` starts six servers under
-[process-compose](https://github.com/F1bonacc1/process-compose): PostgreSQL 14, 15, 16, 17 and 18,
-plus a single-node in-memory CockroachDB. These are the same services the devcontainer used to run
-as containers; they are now ordinary processes against this checkout's own clusters.
+`mise run dev` starts PostgreSQL 18 under
+[process-compose](https://github.com/F1bonacc1/process-compose). PostgreSQL 14-17 and a single-node
+in-memory CockroachDB are registered with the same supervisor but disabled initially, ready to be
+started by a test or an explicit `db:start`. `mise run dev:all` eagerly starts every available
+server. These are the same services the devcontainer used to run as containers; they are now
+ordinary processes against this checkout's own clusters.
 
-Each server initializes its cluster on first start — `initdb`, this project's `pg_hba.conf`, the
-TLS certificates — and a follow-on `pgN-setup` process creates `pgx_test` with its extensions and
-its `pgx_md5` / `pgx_scram` / `pgx_pw` / `pgx_ssl` / `pgx_sslcert` roles. Restarting the stack is
-free; both steps are no-ops once done. If the setup SQL fails partway it drops the half-built
-database so the next start retries rather than reporting it as already present.
+Each PostgreSQL server initializes its cluster on first start — `initdb`, this project's
+`pg_hba.conf`, and the TLS certificates — then creates `pgx_test` with its extensions and its
+`pgx_md5` / `pgx_scram` / `pgx_pw` / `pgx_ssl` / `pgx_sslcert` roles. The default server uses its
+follow-on `pg18-setup` process; the lazy lifecycle performs the same idempotent setup directly for
+an on-demand target. Restarts are free once the cluster exists. If setup fails partway it drops the
+half-built database so the next start retries rather than reporting it as present.
 
 CockroachDB has no separate setup process: its store is in memory, so every restart is an empty
 cluster and its readiness probe creates `pgx_test` itself.
@@ -120,9 +122,12 @@ cluster and its readiness probe creates `pgx_test` itself.
 ```sh
 process-compose process list             # status, scriptable
 process-compose process logs pg16        # one server's output
-process-compose process stop pg14        # drop a major you are not using
+mise run db:start pg16 crdb               # prewarm one or more targets
+mise run db:stop pg16 crdb                # stop them again
+mise run db:start all                     # prewarm every target
 process-compose down                     # stop this checkout's stack only
-mise run db:psql                         # psql against PostgreSQL 18
+mise run db:psql                         # psql against the already-running PostgreSQL 18
+mise run db:start pg16                   # prewarm PostgreSQL 16 before interactive use
 mise run db:psql 16                      # psql against PostgreSQL 16
 mise run db:psql 16 -c 'select 1'        # arguments after the major go to psql
 ```
@@ -134,18 +139,19 @@ environment, so they never reach another checkout's stack.
 `rake db:psql 16` is rake asking for a *task* named `16`, not an argument, so the `db:*` tasks
 reject it rather than quietly acting on every cluster.
 
-`mise run db:reset` destroys and re-creates clusters and refuses to run while their servers are
-up: removing a data directory under a live postmaster corrupts it, and the re-created cluster
-would have no `pgx_test` until the whole stack is restarted anyway. Stop it first with
-`mise run dev:down`.
+`mise run db:reset` destroys and re-creates clusters and refuses to run while the selected servers
+are up: removing a data directory under a live postmaster corrupts it. Stop selected targets with
+`mise run db:stop`, or stop the whole supervisor with `mise run dev:down`.
 
 All five PostgreSQL servers share **one** Unix socket directory. Sockets are named
 `.s.PGSQL.<port>`, so the port picks the server — which is what lets a single
 `PGX_TEST_UNIX_SOCKET_CONN_STRING` work for every major, exactly as the container's shared
 `/var/run/postgresql` volume did.
 
-Running five postmasters and CockroachDB costs real memory, and it multiplies per worktree. Stop
-the majors you are not using with `process-compose process stop pg14`.
+Tests preserve explicit choices: if `db:start` prewarmed a target, tests leave it running. If a
+test had to start the target, it stops it in an `ensure` block whether the suite passes, fails, or
+is interrupted. A per-target lock prevents concurrent test commands from stopping a server the
+other is using.
 
 ---
 
@@ -160,7 +166,9 @@ the majors you are not using with `process-compose process stop pg14`.
 ```
 
 `mise run test` and `mise run test:all` are equivalent. All of them require the stack to be
-running and say so plainly when it is not.
+running, but only their selected database target needs to be up. A stopped target is started,
+bootstrapped, and stopped automatically. `./test.sh all` does this sequentially, so at most the
+default PostgreSQL 18 plus one additional database is normally resident.
 
 A bare `go test ./...` also works: mise loads `.dev/derived.env`, which carries the default
 target's full `PGX_TEST_*` set, so an activated shell is already pointed at PostgreSQL 18.
@@ -179,13 +187,15 @@ tests, which are CI-only or manual.
 
 | Command | What it does |
 |---|---|
-| `mise run dev` | start this checkout's databases |
-| `mise run dev -- -D` | ... detached, for CI and agents |
+| `mise run dev` | start PostgreSQL 18 and the on-demand database supervisor |
+| `mise run dev:all` | eagerly start every available database |
+| `mise run dev -- -D` | start the default stack detached, for CI and agents |
 | `mise run dev:wait` / `dev:down` | wait for a detached stack / stop it |
 | `mise run dev:init` | allocate this checkout's ports, decode its certificates |
 | `mise run dev:ports` | the allocation, and where each server's data lives |
 | `mise run test [target]` | the suite against one target |
 | `mise run test:all` | every target |
+| `mise run db:start [targets...]` / `db:stop` | prewarm or stop targets (`pg16`, `crdb`, or `all`) |
 | `mise run db:init [major]` / `db:psql [major]` / `db:reset [major]` | create / open / rebuild the clusters |
 | `mise run fmt` | `goimports -w .` |
 | `mise run generate` | regenerate the ERB-templated sources |
