@@ -12,6 +12,8 @@
 
 require "rbconfig"
 require_relative "lib/dev_paths"
+require_relative "lib/dev_services"
+require_relative "lib/test_targets"
 
 NOT_READY = <<~MSG
   The pgx development stack is not running.
@@ -38,9 +40,48 @@ end
 
 TARGETS = DevPaths::PG_MAJORS.map { |m| ["devdb.rb", [m.to_s]] } + [["devcrdb.rb", []]]
 
-# `process-compose project is-ready` reports on readiness PROBES, and the database bootstrap has
-# none: the pgN-setup processes are one-shots, and process-compose stops probing a process once it
-# completes — so giving them one would not work either. Without this second phase,
+# `project is-ready` cannot represent the on-demand lifecycle. A disabled process becomes
+# Completed (with health Unknown) after it is started and deliberately stopped, and the project
+# command then treats it as permanently unready. Read the process state instead. The default
+# PostgreSQL is required unless this machine does not have it installed (Disabled); other servers
+# are required only when this invocation finds them active, as with `dev:all`.
+def required_servers(states)
+  states.filter_map do |state|
+    name = state.fetch("name")
+    next unless TestTargets.valid?(name)
+
+    status = state.fetch("status")
+    next if status == "Disabled"
+    next if name != TestTargets.default && status == "Completed"
+
+    name
+  end
+end
+
+def servers_ready?(states, required)
+  required.all? do |name|
+    state = states.find { |process| process.fetch("name") == name }
+    state && state.fetch("is_running") && state.fetch("is_ready") == "Ready"
+  end
+end
+
+def await_servers(wait)
+  deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + BOOTSTRAP_TIMEOUT
+  states = DevServices.states
+  required = required_servers(states)
+
+  loop do
+    return true if servers_ready?(states, required)
+    return false unless wait && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+
+    sleep 0.5
+    states = DevServices.states
+  end
+end
+
+# Process readiness does not cover the database bootstrap: the pgN-setup processes are one-shots,
+# and process-compose stops probing a process once it completes — so giving them a probe would not
+# work either. Without this second phase,
 # `mise run dev -- -D && mise run dev:wait` returns while pgx_test is still being created and the
 # `go test` that follows fails on `database "pgx_test" does not exist`.
 #
@@ -66,18 +107,12 @@ end
 
 abort NOT_READY unless File.exist?(DevPaths::PORTS_ENV)
 
-# process-compose reads PC_PORT_NUM and PC_ADDRESS from the environment, so this reaches THIS
-# checkout's supervisor with no flags. `project is-ready` reports on every process's readiness
-# probe at once, which is exactly the condition the test tasks care about.
-args = ["process-compose", "project", "is-ready"]
-args << "--wait" if wait
-
-ok = system(*args, out: File::NULL, err: File::NULL)
-abort <<~MSG if ok.nil?
-  dev: process-compose not found. It is a project tool, pinned in mise.toml:
-    mise install
-MSG
-
-abort NOT_READY unless ok
+# DevServices.states invokes the process-compose client, which reads PC_PORT_NUM and PC_ADDRESS
+# from the environment and therefore reaches this checkout's supervisor without explicit flags.
+begin
+  abort NOT_READY unless await_servers(wait)
+rescue DevServices::Error => e
+  abort(e.message.start_with?("process-compose is not installed") ? "dev: #{e.message}" : NOT_READY)
+end
 
 abort BOOTSTRAP_FAILED unless await_bootstrap(wait)

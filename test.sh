@@ -18,15 +18,15 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 runtests="$root/scripts/runtests.rb"
 
-# Which ruby. This is the project's documented entry point, so it has to survive the state a new
-# contributor is actually in after `mise install`: mise present but not yet activated in this
-# shell, where a bare `ruby` is the system interpreter. macOS ships 2.6, and runtests.rb uses
-# endless method definitions (3.0+) — so that path died with a wall of syntax errors naming
-# nothing. Prefer a ruby new enough to run it; otherwise go through mise, which has the pinned one.
-if ruby -e 'exit(RUBY_VERSION.split(".")[0].to_i >= 3 ? 0 : 1)' > /dev/null 2>&1; then
-  exec ruby "$runtests" "$@"
-elif command -v mise > /dev/null 2>&1; then
+# `mise exec` is not only how this wrapper gets the pinned Ruby. It also puts process-compose, Go,
+# and CockroachDB on PATH and loads this checkout's .dev/*.env files. Prefer it whenever it is
+# available, including when the shell has a new-enough system Ruby but mise has not been activated.
+# Invoking it from `mise run test` is harmless: this execs Ruby directly, so there is no task
+# recursion.
+if command -v mise > /dev/null 2>&1; then
   exec mise exec -- ruby "$runtests" "$@"
+elif ruby -e 'exit(RUBY_VERSION.split(".")[0].to_i >= 3 ? 0 : 1)' > /dev/null 2>&1; then
+  exec ruby "$runtests" "$@"
 else
   echo "test.sh: needs Ruby 3.0 or newer (mise.toml pins one)." >&2
   echo "  Install mise (https://mise.jdx.dev), then: mise install" >&2
