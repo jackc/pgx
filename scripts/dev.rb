@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# scripts/dev.rb — the launcher behind `mise run dev`.
+# scripts/dev.rb — the launcher behind `mise run dev` and `mise run dev:all`.
 #
 # Deliberately thin, and in this exact order:
 #
@@ -70,6 +70,12 @@ if ARGV.first == "down"
   exec("process-compose", "down", *ARGV[1..])
 end
 
+# The ordinary development loop needs only the default PostgreSQL. `all` is consumed here rather
+# than passed to process-compose as a process name; it opts into eagerly starting every available
+# server while leaving all other process-compose flags untouched.
+start_all = ARGV.first == "all"
+ARGV.shift if start_all
+
 system(RbConfig.ruby, File.join(__dir__, "devenv.rb"), "ensure") or
   abort("dev: port allocation failed")
 
@@ -100,18 +106,18 @@ if ENV["PGHOST"] != db_socket || ENV["PGPORT"] != db_port
   MSG
 end
 
-# Which majors this machine can actually serve. A major whose server binaries are missing is
-# DISABLED in process-compose rather than left to fail: process-compose expands environment
-# variables in its config before parsing it, so `disabled: ${PGX_SKIP_PG14}` is decided here.
+# Which majors this machine can actually serve. PostgreSQL 18 is enabled by default; every other
+# target is disabled until a test or `db:start` starts it manually. `dev:all` enables everything
+# whose binaries exist. process-compose expands these values before parsing its config.
 #
-# The alternative is worse than it looks. Such a process fails, retries its five times, and stops
-# — but its readiness probe never passes, and `process-compose project is-ready --wait` waits for
-# every probe. `mise run dev -- -D && mise run dev:wait`, the flow CLAUDE.md and DEVELOPMENT.md
-# give to CI and agents, would then block forever rather than proceed with the majors that are up.
-# DEVELOPMENT.md promises only the majors you test against need installing; this is what makes
-# that true.
+# A missing major must also be disabled: otherwise it fails, retries five times, and leaves
+# `process-compose project is-ready --wait` waiting on a probe that can never pass.
 skipped = DevPaths::PG_MAJORS.reject { |major| PgBin.dir(major) }
-DevPaths::PG_MAJORS.each { |major| ENV["PGX_SKIP_PG#{major}"] = skipped.include?(major).to_s }
+DevPaths::PG_MAJORS.each do |major|
+  enabled = !skipped.include?(major) && (start_all || major == DevPaths::DEFAULT_PG_MAJOR)
+  ENV["PGX_DISABLE_PG#{major}"] = (!enabled).to_s
+end
+ENV["PGX_DISABLE_CRDB"] = (!start_all).to_s
 
 # process-compose.yaml names this rather than repeating .dev/logs ten times; DevPaths owns the
 # layout, and process-compose expands the variable when it reads its config.
@@ -125,12 +131,15 @@ DevPaths::PG_MAJORS.each do |major|
       "  (not installed — skipped)"
     elsif major == DevPaths::DEFAULT_PG_MAJOR
       "  (default target)"
+    elsif !start_all
+      "  (on demand)"
     else
       ""
     end
   puts format("  pg%-7s 127.0.0.1:%s%s", major, DevPaths.pgport(major), note)
 end
-puts "  crdb      127.0.0.1:#{DevPaths.port('CRDB_PORT')}"
+crdb_note = start_all ? "" : "  (on demand)"
+puts "  crdb      127.0.0.1:#{DevPaths.port('CRDB_PORT')}#{crdb_note}"
 puts "  control   127.0.0.1:#{ENV['PC_PORT_NUM']}"
 puts
 unless skipped.empty?
@@ -138,7 +147,7 @@ unless skipped.empty?
   skipped.each { |major| puts format("    pg%-5s %s", major, PgBin.install_hint(major)) }
   puts
 end
-puts "  ./test.sh [pg14..pg18|crdb|all]     process-compose process list"
+puts "  ./test.sh [pg14..pg18|crdb|all]     mise run db:start [target|all]"
 puts
 
 # exec replaces the process image WITHOUT running Ruby's at_exit or flushing its buffers. When

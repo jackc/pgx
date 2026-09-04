@@ -7,8 +7,8 @@
 #   ./test.sh all                    every target, sequentially
 #   ./test.sh pg16 -run TestConnect  trailing arguments are passed to `go test`
 #
-# The targets are served by this checkout's own database clusters; start them with `mise run dev`.
-# See DEVELOPMENT.md.
+# `mise run dev` starts PostgreSQL 18 and the supervisor. Other targets start for a test and stop
+# afterwards unless they were explicitly prewarmed with `mise run db:start`. See DEVELOPMENT.md.
 #
 # The logic lives in scripts/runtests.rb, which builds each target's PGX_TEST_* environment from
 # scripts/lib/test_targets.rb — the one place those connection strings are defined. This wrapper

@@ -31,9 +31,10 @@ a URL or key-value pairs. In addition, the standard `PG*` environment variables 
 ### The full environment
 
 [DEVELOPMENT.md](DEVELOPMENT.md) describes the maintained setup: [mise](https://mise.jdx.dev)
-installs the toolchain, and each checkout runs its own PostgreSQL 14-18 clusters and a CockroachDB
-node, so the whole test matrix is available locally. It works natively on macOS and Linux, and in
-the included devcontainer.
+installs the toolchain, and each checkout has its own PostgreSQL 14-18 clusters and CockroachDB
+node, so the whole test matrix is available locally. PostgreSQL 18 stays running; other servers
+start and stop around their tests. It works natively on macOS and Linux, and in the included
+devcontainer.
 
 ```
 mise install
