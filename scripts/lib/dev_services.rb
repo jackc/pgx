@@ -48,7 +48,7 @@ module DevServices
   end
 
   def states
-    out, status = Open3.capture2e("process-compose", "process", "list", "--output", "json")
+    out, _stderr, status = Open3.capture3("process-compose", "process", "list", "--output", "json")
     unless status.success?
       raise Error, <<~MSG.chomp
         the development supervisor is not running.
