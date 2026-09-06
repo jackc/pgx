@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -192,6 +193,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
 
+		boundStart := len(buf)
 		buf, err = lowerPlan.Encode(lower, buf)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", lower, err)
@@ -199,6 +201,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 		if buf == nil {
 			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
 		}
+		buf = append(buf[:boundStart], quoteRangeBoundIfNeeded(string(buf[boundStart:]))...)
 	}
 
 	buf = append(buf, ',')
@@ -213,6 +216,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
 
+		boundStart := len(buf)
 		buf, err = upperPlan.Encode(upper, buf)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode %v as element of range: %w", upper, err)
@@ -220,6 +224,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 		if buf == nil {
 			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
 		}
+		buf = append(buf[:boundStart], quoteRangeBoundIfNeeded(string(buf[boundStart:]))...)
 	}
 
 	switch upperType {
@@ -232,6 +237,13 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 	}
 
 	return buf, nil
+}
+
+func quoteRangeBoundIfNeeded(src string) string {
+	if src == "" || strings.ContainsAny(src, "\"\\,()[]") {
+		return quoteArrayElement(src)
+	}
+	return src
 }
 
 func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
