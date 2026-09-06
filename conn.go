@@ -360,7 +360,11 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	if err != nil {
 		var pErr *pgconn.PrepareError
 		if errors.As(err, &pErr) {
-			c.failedDescribeStatement = psKey
+			// The statement may have been created on the server under psName. Store psName (not psKey) so the
+			// deferred Deallocate sends the Close for the name the server actually knows. With psKey, the digest
+			// name==sql path would deallocate the SQL text, leak the statement, and permanently poison this
+			// connection with 42P05 on any retry of the same sql. See https://github.com/jackc/pgx/issues/2640.
+			c.failedDescribeStatement = psName
 		}
 		return nil, err
 	}
