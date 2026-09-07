@@ -862,6 +862,13 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 
 	if normalize {
 		field = strings.ReplaceAll(field, "_", "")
+	} else {
+		// Explicit db tags can distinguish quoted identifiers that differ only by case.
+		for i, desc := range fldDescs {
+			if desc.Name == field {
+				return i
+			}
+		}
 	}
 	for i, desc := range fldDescs {
 		if normalize {
