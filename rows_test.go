@@ -667,6 +667,76 @@ func TestRowToStructByName(t *testing.T) {
 	})
 }
 
+func TestRowToStructByNameDoublePointer(t *testing.T) {
+	type person struct {
+		Last      string
+		First     **string
+		Age       int32
+		AccountID string
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Equal(t, "John", **slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+	})
+}
+
+func TestRowToStructByNameTriplePointer(t *testing.T) {
+	type person struct {
+		Last      string
+		First     ***string
+		Age       int32
+		AccountID string
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Equal(t, "John", ***slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+
+		rows, _ = conn.Query(ctx, `select NULL as first, 'Smith' as last, n as age, 'd5e49d3f' as account_id from generate_series(0, 9) n`)
+		slice, err = pgx.CollectRows(rows, pgx.RowToStructByName[person])
+		assert.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Smith", slice[i].Last)
+			assert.Nil(t, slice[i].First)
+			assert.EqualValues(t, i, slice[i].Age)
+			assert.Equal(t, "d5e49d3f", slice[i].AccountID)
+		}
+	})
+}
+
 func TestRowToStructByNameDbTags(t *testing.T) {
 	type person struct {
 		Last             string `db:"last_name"`
@@ -699,6 +769,24 @@ func TestRowToStructByNameDbTags(t *testing.T) {
 		rows, _ = conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age, 'd5e49d3f' as account_id, '5e49d321' as account__id, null as ignore from generate_series(0, 9) n`)
 		_, err = pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[person])
 		assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
+	})
+}
+
+// A db tag must match its column case-insensitively. PostgreSQL folds unquoted
+// identifiers to lower case, so a column aliased `as Region` comes back as
+// "region" and has to match a `db:"Region"` tag. See
+// https://github.com/jackc/pgx/issues/2296.
+func TestRowToStructByNameDbTagsCaseInsensitive(t *testing.T) {
+	type record struct {
+		Region string `db:"Region"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'east' as Region`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByName[record])
+		require.NoError(t, err)
+		require.Len(t, slice, 1)
+		assert.Equal(t, "east", slice[0].Region)
 	})
 }
 
@@ -992,4 +1080,36 @@ insert into products (name, price) values
 	// Cheeseburger: $10
 	// Fries: $5
 	// Soft Drink: $3
+}
+
+// Rows.TypeMap is available even when Rows.Conn is nil, so a caller can decode raw values itself.
+func TestRowsTypeMapWithoutConn(t *testing.T) {
+	t.Parallel()
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support pipeline mode")
+
+		pipeline := conn.PgConn().StartPipeline(ctx)
+		pipeline.SendQueryParams(`select 'Adam'::text`, nil, nil, nil, nil)
+		require.NoError(t, pipeline.Sync())
+
+		results, err := pipeline.GetResults()
+		require.NoError(t, err)
+		rr, ok := results.(*pgconn.ResultReader)
+		require.True(t, ok)
+
+		rows := pgx.RowsFromResultReader(conn.TypeMap(), rr)
+		require.Nil(t, rows.Conn(), "this Rows has no Conn, which is what makes TypeMap necessary")
+		require.Same(t, conn.TypeMap(), rows.TypeMap())
+
+		require.True(t, rows.Next())
+		fd := rows.FieldDescriptions()[0]
+		var name string
+		require.NoError(t, rows.TypeMap().Scan(fd.DataTypeOID, fd.Format, rows.RawValues()[0], &name))
+		require.Equal(t, "Adam", name)
+
+		rows.Close()
+		require.NoError(t, rows.Err())
+		require.NoError(t, pipeline.Close())
+	})
 }

@@ -72,6 +72,53 @@ func TestConnQueryRowsFieldDescriptionsBeforeNext(t *testing.T) {
 	assert.Equal(t, "msg", rows.FieldDescriptions()[0].Name)
 }
 
+// https://github.com/jackc/pgx/issues/2626
+func TestConnQueryPreparedCursorFetch(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support cursors in implicit transactions")
+
+	// Prepare the FETCH before the cursor exists. The server describes the result as NoData so the statement
+	// description has no fields. The actual fields are only known at execution time.
+	sd, err := conn.Prepare(ctx, "fetch_cursor", `fetch all in "query_cursor"`)
+	require.NoError(t, err)
+	require.Empty(t, sd.Fields)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `declare "query_cursor" cursor for select n, n::text as str from generate_series(1, 3) n`)
+	require.NoError(t, err)
+
+	rows, err := tx.Query(ctx, "fetch_cursor")
+	require.NoError(t, err)
+
+	fds := rows.FieldDescriptions()
+	require.Len(t, fds, 2)
+	require.Equal(t, "n", fds[0].Name)
+	require.Equal(t, "str", fds[1].Name)
+
+	var ns []int32
+	var strs []string
+	for rows.Next() {
+		var n int32
+		var str string
+		require.NoError(t, rows.Scan(&n, &str))
+		ns = append(ns, n)
+		strs = append(strs, str)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []int32{1, 2, 3}, ns)
+	require.Equal(t, []string{"1", "2", "3"}, strs)
+}
+
 func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {
 	t.Parallel()
 
@@ -92,20 +139,21 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	defer closeConn(t, conn)
 
 	columnCount := 1000
-	sql := "select "
+	var sql strings.Builder
+	sql.WriteString("select ")
 	for i := range columnCount {
 		if i > 0 {
-			sql += ","
+			sql.WriteString(",")
 		}
-		sql += fmt.Sprintf(" %d", i)
+		sql.WriteString(fmt.Sprintf(" %d", i))
 	}
-	sql += " from generate_series(1,5)"
+	sql.WriteString(" from generate_series(1,5)")
 
 	dest := make([]int, columnCount)
 
 	var rowCount int
 
-	rows, err := conn.Query(context.Background(), sql)
+	rows, err := conn.Query(context.Background(), sql.String())
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -2255,6 +2303,7 @@ func TestQueryWithProcedureParametersInAndOut(t *testing.T) {
 
 func TestConnQuerySanitizeSQLWithDollarQuotesStrings(t *testing.T) {
 	t.Parallel()
+	skipCockroachDB(t, "CockroachDB auto commits DDL by default")
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)

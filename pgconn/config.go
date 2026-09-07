@@ -10,7 +10,6 @@ import (
 	"maps"
 	"math"
 	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -114,6 +113,11 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// defaultPort is the port used when neither the connection string, the environment, nor the
+// service file supplies one. It is also the per-element fallback for empty entries in a
+// multi-host port list.
+const defaultPort = "5432"
+
 // connStringKeyAliases maps libpq parameter keywords to the canonical key names this package
 // uses internally in the parsed-settings map. Most keywords are already canonical; this map
 // holds only those whose pgx-internal name differs from the libpq spelling.
@@ -142,7 +146,11 @@ type ParseConfigOptions struct {
 	// defaults are not checked: only keys that originate from the connString argument.
 	//
 	// Keys may be given in either their libpq spelling ("dbname") or pgx-internal spelling
-	// ("database"); both are accepted.
+	// ("database"); both are accepted. The URI-only ssl=true alias for sslmode=require is
+	// accepted when either "ssl" or "sslmode" is allowed; an explicit sslmode key or a
+	// non-"true" ssl value only matches its own spelling. Every ssl/sslmode occurrence in
+	// the connection string is validated, including occurrences superseded by a later
+	// repeated parameter.
 	//
 	// A nil slice (the default) applies no restriction and matches libpq behaviour. An empty
 	// non-nil slice rejects every key, i.e. connString must be empty.
@@ -237,10 +245,10 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // to only read from the environment. If a password is not supplied it will attempt to read the .pgpass file.
 //
 //	# Example Keyword/Value
-//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca
+//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-full
 //
 //	# Example URL
-//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca
+//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-full
 //
 // The returned *Config may be modified. However, it is strongly recommended that any configuration that can be done
 // through the connection string be done there. In particular the fields Host, Port, TLSConfig, and Fallbacks can be
@@ -312,6 +320,21 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
 // does not.
 //
+// URL query parameters that libpq does not recognize cause libpq to fail with an "invalid URI query parameter" error.
+// ParseConfig accepts them: they become runtime parameters or pgx-specific options (e.g. pool_max_conns).
+//
+// Connection strings containing a NUL byte are rejected, in both URI and keyword/value form. libpq cannot encounter
+// one because its conninfo strings are NUL-terminated C strings, but a Go string can carry a NUL into the startup
+// packet, where it delimits parameters rather than being data. Settings reaching Config by other routes (a service
+// file, or direct assignment to Config.RuntimeParams, User, or Database) are not checked here; a NUL in those is
+// caught when the startup message is encoded, and Connect fails rather than sending it.
+//
+// Error messages from ParseConfig avoid quoting the unredacted connection string and attempt to redact recognizable
+// password fields, while libpq quotes the failing input verbatim. This redaction is best effort. An invalid connection
+// string can be structurally ambiguous, so pgconn cannot guarantee that every password in malformed input will be
+// identified or redacted. Applications should not assume that parse errors are safe to expose when connection strings
+// may contain secrets.
+//
 // In addition, ParseConfig accepts the following options:
 //
 //   - servicefile.
@@ -330,11 +353,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	envSettings := parseEnvSettings()
 
 	connStringSettings := make(map[string]string)
+	var urlMeta parseURLMeta
 	if connString != "" {
 		var err error
 		// connString may be a database URL or in PostgreSQL keyword/value format
 		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, err = parseURLSettings(connString)
+			connStringSettings, urlMeta, err = parseURLSettings(connString)
 			if err != nil {
 				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
 			}
@@ -351,14 +375,77 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		for _, k := range options.ConnStringAllowedKeys {
 			allowed[canonicalConnStringKey(k)] = struct{}{}
 		}
+		notAllowed := func(k string) error {
+			return &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
+		}
+		_, sslAllowed := allowed["ssl"]
+		_, sslmodeAllowed := allowed["sslmode"]
+
+		// Repeated-key handling and the URI ssl=true alias rewrite can remove
+		// ssl/sslmode occurrences from the final settings map, so those two keys
+		// are validated from what the user actually wrote -- every occurrence,
+		// fail closed -- rather than from what survived. The alias itself is
+		// accepted under either spelling, the same way dbname/database are
+		// interchangeable; an explicit sslmode key or a non-"true" ssl value
+		// only matches its own spelling.
+		if urlMeta.sawRawSSLKey && !sslAllowed {
+			return nil, notAllowed("ssl")
+		}
+		if urlMeta.sawExplicitSSLModeKey && !sslmodeAllowed {
+			return nil, notAllowed("sslmode")
+		}
+		if urlMeta.sawSSLTrueAlias && !sslAllowed && !sslmodeAllowed {
+			return nil, notAllowed("ssl")
+		}
+
 		for k := range connStringSettings {
-			if _, ok := allowed[k]; !ok {
-				return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
+			if _, ok := allowed[k]; ok {
+				continue
 			}
+			// A multi-host URI with no explicit ports produces an implied
+			// all-empty port list (e.g. ","), matching libpq. Only that list
+			// -- identified by the parser from the raw syntax, not inferred
+			// from the value -- is exempt from the allow-list: it carries no
+			// user-supplied port text. An explicit empty port (?port= in a
+			// URI or port= in keyword/value form) is user-supplied, and
+			// because a present-but-empty port still shadows PGPORT it must
+			// pass the allow-list like any other key.
+			if k == "port" && urlMeta.impliedEmptyPortList {
+				continue
+			}
+			// A surviving ssl or sslmode entry from a URI was already
+			// validated above against every spelling the user wrote.
+			if k == "ssl" && urlMeta.sawRawSSLKey {
+				continue
+			}
+			if k == "sslmode" && (urlMeta.sawSSLTrueAlias || urlMeta.sawExplicitSSLModeKey) {
+				continue
+			}
+			return nil, notAllowed(k)
 		}
 	}
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
+
+	// The home-directory-derived defaults (passfile, servicefile, sslcert,
+	// sslkey, sslrootcert) are already present in settings at this point:
+	// defaultSettings resolves them via the user's home directory, which is
+	// safe and cheap to look up (see defaults.go / defaults_windows.go).
+	//
+	// The default PostgreSQL user name is different: resolving it requires
+	// looking up the OS user account, which can be slow or, in some
+	// restricted container environments, crash the process. So that lookup
+	// is memoized and only performed lazily below, the first time it is
+	// actually needed -- i.e. only when a connection string or environment
+	// does not already supply a user.
+	var cachedOSUserSettings map[string]string
+	lazyOSUserSettings := func() map[string]string {
+		if cachedOSUserSettings == nil {
+			cachedOSUserSettings = osUserSettings()
+		}
+		return cachedOSUserSettings
+	}
+
 	if service, present := settings["service"]; present {
 		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
 		if err != nil {
@@ -366,6 +453,13 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		}
 
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
+	}
+
+	// Only fall back to the OS user account for the default PostgreSQL user
+	// name when it was not already supplied by the connection string,
+	// environment, or service file.
+	if settings["user"] == "" {
+		settings = mergeSettings(lazyOSUserSettings(), settings)
 	}
 
 	config := &Config{
@@ -447,17 +541,41 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	hosts := strings.Split(settings["host"], ",")
 	ports := strings.Split(settings["port"], ",")
 
+	// Like libpq, if exactly one port is given it applies to all hosts;
+	// otherwise there must be exactly one port per host. Empty list elements
+	// mean "use the default".
+	if len(ports) > 1 && len(ports) != len(hosts) {
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("could not match %d port numbers to %d hosts", len(ports), len(hosts))}
+	}
+
+	// defaultHost stats candidate socket directories, so resolve it at most
+	// once even when several host list elements are empty. It never returns "".
+	resolvedDefaultHost := ""
 	for i, host := range hosts {
-		var portStr string
-		if i < len(ports) {
-			portStr = ports[i]
-		} else {
-			portStr = ports[0]
+		if host == "" {
+			if resolvedDefaultHost == "" {
+				resolvedDefaultHost = defaultHost()
+			}
+			host = resolvedDefaultHost
 		}
 
+		portStr := ports[0]
+		if len(ports) > 1 {
+			portStr = ports[i]
+		}
+		if portStr == "" {
+			portStr = defaultPort
+		}
+
+		// The strconv error is deliberately not wrapped: it quotes the
+		// offending text, and in a malformed URI the bytes that land in the
+		// port position can be a mislaid password (postgres://u:sec:ret@h
+		// parses "sec:ret@h" as the port). The best-effort-redacted connection
+		// string in ParseConfigError provides the available context without
+		// deliberately quoting the offending port text again.
 		port, err := parsePort(portStr)
 		if err != nil {
-			return nil, &ParseConfigError{ConnString: connString, msg: "invalid port", err: err}
+			return nil, &ParseConfigError{ConnString: connString, msg: "invalid port"}
 		}
 
 		var tlsConfigs []*tls.Config
@@ -620,75 +738,45 @@ func parseEnvSettings() map[string]string {
 	return settings
 }
 
-func parseURLSettings(connString string) (map[string]string, error) {
-	settings := make(map[string]string)
-
-	parsedURL, err := url.Parse(connString)
-	if err != nil {
-		if urlErr := new(url.Error); errors.As(err, &urlErr) {
-			return nil, urlErr.Err
-		}
-		return nil, err
-	}
-
-	if parsedURL.User != nil {
-		if u := parsedURL.User.Username(); u != "" {
-			settings["user"] = u
-		}
-		if password, present := parsedURL.User.Password(); present {
-			settings["password"] = password
-		}
-	}
-
-	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
-	var hosts []string
-	var ports []string
-	for host := range strings.SplitSeq(parsedURL.Host, ",") {
-		if host == "" {
-			continue
-		}
-		if isIPOnly(host) {
-			hosts = append(hosts, strings.Trim(host, "[]"))
-			continue
-		}
-		h, p, err := net.SplitHostPort(host)
-		if err != nil {
-			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
-		}
-		if h != "" {
-			hosts = append(hosts, h)
-		}
-		if p != "" {
-			ports = append(ports, p)
-		}
-	}
-	if len(hosts) > 0 {
-		settings["host"] = strings.Join(hosts, ",")
-	}
-	if len(ports) > 0 {
-		settings["port"] = strings.Join(ports, ",")
-	}
-
-	database := strings.TrimLeft(parsedURL.Path, "/")
-	if database != "" {
-		settings["database"] = database
-	}
-
-	for k, v := range parsedURL.Query() {
-		settings[canonicalConnStringKey(k)] = v[0]
-	}
-
-	return settings, nil
-}
-
-func isIPOnly(host string) bool {
-	return net.ParseIP(strings.Trim(host, "[]")) != nil || !strings.Contains(host, ":")
-}
-
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+
+// unescapeKeywordValue applies libpq's backslash rule to the raw text of a
+// keyword/value value: a backslash is dropped and whatever follows it is taken
+// literally, whatever that character is. A backslash at the very end escapes
+// the end of the string, so it is dropped and contributes nothing -- which is
+// how libpq accepts `host=a\`. Only the unquoted branch can reach that case;
+// inside quotes the escaped terminator leaves the string unterminated and the
+// caller has already rejected it.
+func unescapeKeywordValue(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' {
+			i++
+			if i == len(s) {
+				break
+			}
+		}
+		sb.WriteByte(s[i])
+	}
+	return sb.String()
+}
 
 func parseKeywordValueSettings(s string) (map[string]string, error) {
 	settings := make(map[string]string)
+
+	// Reject NUL bytes up front, as parseURLSettings does. libpq never sees one
+	// because its conninfo strings are NUL-terminated C strings; a Go string can
+	// carry a NUL through to the startup packet, where it acts as a parameter
+	// delimiter rather than data. StartupMessage.Encode refuses such parameters,
+	// but failing here reports the problem against the input that caused it.
+	if strings.IndexByte(s, 0) >= 0 {
+		return nil, errors.New("forbidden NUL byte in connection string")
+	}
 
 	// Trim any leading whitespace so that the loop exits cleanly when only
 	// spaces remain (e.g. trailing spaces after the last value).
@@ -701,6 +789,15 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
+		// libpq reads a keyword as a run of non-space characters and then
+		// requires the next non-space character to be '=', so whitespace
+		// inside a keyword terminates it and is an error. Trimming alone would
+		// accept the space as part of the key and turn a typo into a bogus
+		// RuntimeParam that only the server rejects. Report it as libpq does,
+		// naming the keyword it had read.
+		if i := strings.IndexAny(key, " \t\n\r\v\f"); i >= 0 {
+			return nil, fmt.Errorf(`missing "=" after %q in connection info string`, key[:i])
+		}
 		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
 		switch {
 		case len(s) == 0:
@@ -712,12 +809,15 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					// A trailing backslash escapes the end of the string.
+					// libpq drops it and ends the value there. Break rather
+					// than let the loop's post-increment push end past len(s).
 					if end == len(s) {
-						return nil, errors.New("invalid backslash")
+						break
 					}
 				}
 			}
-			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
+			val = unescapeKeywordValue(s[:end])
 			// Consume the value and trim any subsequent whitespace so that
 			// multiple trailing spaces don't cause a spurious parse failure.
 			s = strings.TrimLeft(s[end:], " \t\n\r\v\f")
@@ -730,12 +830,15 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					if end == len(s) {
+						return nil, errors.New("unterminated quoted string in connection info string")
+					}
 				}
 			}
 			if end == len(s) {
 				return nil, errors.New("unterminated quoted string in connection info string")
 			}
-			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
+			val = unescapeKeywordValue(s[:end])
 			// Consume the closing quote and any subsequent whitespace.
 			s = strings.TrimLeft(s[end+1:], " \t\n\r\v\f")
 		}
@@ -1005,6 +1108,17 @@ func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 	return d.DialContext
 }
 
+var (
+	// ErrReadOnlyConnection is returned when a read-write connection is required but the connection is read-only.
+	ErrReadOnlyConnection = errors.New("read only connection")
+	// ErrReadWriteConnection is returned when a read-only connection is required but the connection is read-write.
+	ErrReadWriteConnection = errors.New("connection is not read only")
+	// ErrPrimaryConnection is returned when a standby connection is required but the server is primary.
+	ErrPrimaryConnection = errors.New("server is not in hot standby mode")
+	// ErrStandbyConnection is returned when a primary connection is required but the server is in standby mode.
+	ErrStandbyConnection = errors.New("server is in standby mode")
+)
+
 // ValidateConnectTargetSessionAttrsReadWrite is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
 func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
@@ -1014,7 +1128,7 @@ func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgC
 	}
 
 	if string(result[0].Rows[0][0]) == "on" {
-		return errors.New("read only connection")
+		return ErrReadOnlyConnection
 	}
 
 	return nil
@@ -1029,7 +1143,7 @@ func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgCo
 	}
 
 	if string(result[0].Rows[0][0]) != "on" {
-		return errors.New("connection is not read only")
+		return ErrReadWriteConnection
 	}
 
 	return nil
@@ -1044,7 +1158,7 @@ func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgCon
 	}
 
 	if string(result[0].Rows[0][0]) != "t" {
-		return errors.New("server is not in hot standby mode")
+		return ErrPrimaryConnection
 	}
 
 	return nil
@@ -1059,7 +1173,7 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 	}
 
 	if string(result[0].Rows[0][0]) == "t" {
-		return errors.New("server is in standby mode")
+		return ErrStandbyConnection
 	}
 
 	return nil
@@ -1074,7 +1188,7 @@ func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn 
 	}
 
 	if string(result[0].Rows[0][0]) != "t" {
-		return &NotPreferredError{err: errors.New("server is not in hot standby mode")}
+		return &NotPreferredError{err: ErrPrimaryConnection}
 	}
 
 	return nil

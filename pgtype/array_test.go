@@ -108,7 +108,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		r, err := parseUntypedTextArray(tt.source)
+		r, err := parseUntypedTextArray(tt.source, ',')
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
@@ -117,5 +117,22 @@ func TestParseUntypedTextArray(t *testing.T) {
 		if !reflect.DeepEqual(*r, tt.result) {
 			t.Errorf("%d: expected %+v to be parsed to %+v, but it was %+v", i, tt.source, tt.result, *r)
 		}
+	}
+}
+
+func TestParseUntypedTextArrayWithCustomDelimiter(t *testing.T) {
+	r, err := parseUntypedTextArray(`{(2,2),(1,1);(4,4),(3,3)}`, ';')
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := untypedTextArray{
+		Elements:   []string{"(2,2),(1,1)", "(4,4),(3,3)"},
+		Quoted:     []bool{false, false},
+		Dimensions: []ArrayDimension{{Length: 2, LowerBound: 1}},
+	}
+
+	if !reflect.DeepEqual(*r, expected) {
+		t.Errorf("expected %+v, got %+v", expected, *r)
 	}
 }

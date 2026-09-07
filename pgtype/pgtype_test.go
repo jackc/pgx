@@ -330,6 +330,89 @@ func TestPointerPointerStructScan(t *testing.T) {
 	require.Equal(t, 1, c.ID)
 }
 
+func TestPointerDoublePointerStructScan(t *testing.T) {
+	m := pgtype.NewMap()
+	type composite struct {
+		ID **int
+	}
+
+	int4Type, _ := m.TypeForOID(pgtype.Int4OID)
+	pgt := &pgtype.Type{
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{
+					Name: "id",
+					Type: int4Type,
+				},
+			},
+		},
+		Name: "composite",
+		OID:  215333,
+	}
+	m.RegisterType(pgt)
+
+	var c *composite
+	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
+	err := plan.Scan([]byte("(1)"), &c)
+	require.NoError(t, err)
+	require.Equal(t, 1, **c.ID)
+}
+
+func TestPointerDoublePointerStructScannerScan(t *testing.T) {
+	m := pgtype.NewMap()
+	type composite struct {
+		ID **sql.NullInt64
+	}
+
+	int4Type, _ := m.TypeForOID(pgtype.Int4OID)
+	pgt := &pgtype.Type{
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{
+					Name: "id",
+					Type: int4Type,
+				},
+			},
+		},
+		Name: "composite",
+		OID:  215333,
+	}
+	m.RegisterType(pgt)
+
+	var c *composite
+	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
+	err := plan.Scan([]byte("(1)"), &c)
+	require.NoError(t, err)
+	require.Equal(t, sql.NullInt64{
+		Int64: 1,
+		Valid: true,
+	}, **c.ID)
+}
+
+func TestPointerPointerScanNilDestination(t *testing.T) {
+	m := pgtype.NewMap()
+
+	var nilDst **string
+	err := m.Scan(pgtype.TextOID, pgtype.TextFormatCode, []byte("hello"), nilDst)
+	require.Error(t, err)
+
+	err = m.Scan(pgtype.TextOID, pgtype.TextFormatCode, nil, nilDst)
+	require.Error(t, err)
+
+	// A plan built for a non-nil destination may be reused for a nil destination of the same type. e.g. Rows.Scan
+	// caches scan plans by reflect.Type.
+	s := "hello"
+	ps := &s
+	plan := m.PlanScan(pgtype.TextOID, pgtype.TextFormatCode, &ps)
+	require.NoError(t, plan.Scan([]byte("hello"), &ps))
+	require.Error(t, plan.Scan([]byte("hello"), nilDst))
+}
+
+func TestTryPointerPointerScanPlanNil(t *testing.T) {
+	_, _, ok := pgtype.TryPointerPointerScanPlan(nil)
+	require.False(t, ok)
+}
+
 // https://github.com/jackc/pgx/issues/1263
 func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	m := pgtype.NewMap()

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Install host prerequisites only. Project tools and checkout initialization
+# remain explicit, separate steps documented in README.md.
+set -euo pipefail
+cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
+case "$(uname -s)" in
+    Darwin) scripts/setup-host-macos ;;
+    Linux) scripts/setup-host-ubuntu ;;
+    *)
+        echo "setup-host: unsupported operating system: $(uname -s)" >&2
+        exit 1
+        ;;
+esac
+
+if command -v mise >/dev/null 2>&1; then
+    mise_bin="$(command -v mise)"
+else
+    echo "==> installing mise"
+    curl -fsSL https://mise.run | sh
+    mise_bin="$HOME/.local/bin/mise"
+    if [ ! -x "$mise_bin" ]; then
+        echo "setup-host: mise installer did not create $mise_bin" >&2
+        exit 1
+    fi
+fi
+
+echo
+echo "Host setup complete. No project tools or checkout state were initialized."
+echo "mise executable: $mise_bin"

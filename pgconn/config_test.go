@@ -247,13 +247,26 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "database url missing port",
+			name:       "database url explicit port",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
 				Password:      "secret",
 				Host:          "localhost",
 				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url missing port",
+			connString: "postgres://jack:secret@localhost/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -479,6 +492,51 @@ func TestParseConfig(t *testing.T) {
 					{
 						Host:      "baz",
 						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "URL multiple hosts with some ports omitted",
+			connString: "postgres://jack:secret@foo,bar:5433/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          defaultPort,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      5433,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "URL multiple hosts with empty middle host",
+			connString: "postgres://jack:secret@foo,,baz/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          defaultPort,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					{
+						Host:      defaultHost,
+						Port:      defaultPort,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 				},
@@ -781,6 +839,171 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseConfigHostPortCountMismatch(t *testing.T) {
+	t.Parallel()
+
+	// Like libpq, a single port applies to every host, but any other port
+	// count must match the host count exactly.
+	tests := []string{
+		"host=h1,h2,h3 port=1,2",
+		"host=h1 port=1,2",
+		"postgres://h1,h2,h3/mydb?port=1,2",
+	}
+	for _, connString := range tests {
+		_, err := pgconn.ParseConfig(connString)
+		require.Error(t, err, connString)
+		assert.Contains(t, err.Error(), "could not match 2 port numbers to", connString)
+	}
+}
+
+func TestParseConfigErrorsRedactQueryCredentials(t *testing.T) {
+	t.Parallel()
+
+	// Passwords can be supplied as URI query parameters. The best-effort
+	// redactor should recognize these particular URI shapes just as it does
+	// userinfo passwords. It has to see keys the way the parser does:
+	// percent-decoded (so encoded spellings like pass%77ord are still password
+	// keys) and with the whole raw value masked (so a value with a space does
+	// not leak its tail). Arbitrary invalid connection strings are not covered
+	// by a guarantee because their component boundaries can be ambiguous.
+	tests := []struct {
+		connString   string
+		wantRedacted string
+	}{
+		{"postgres://host/db?password=supersecret&zzz", "password=xxxxx"},
+		{"postgres://host/db?sslpassword=supersecret&zzz", "sslpassword=xxxxx"},
+		{"postgres://host/db?password=supersecret&sslmode=invalid", "password=xxxxx"},
+		{"postgres://host/db?pass%77ord=supersecret&sslmode=invalid", "pass%77ord=xxxxx"},
+		{"postgres://host/db?%70assword=supersecret&zzz", "%70assword=xxxxx"},
+		{"postgres://host/db?sslpass%77ord=supersecret&zzz", "sslpass%77ord=xxxxx"},
+		{"postgres://host/db?password=super secretpart", "password=xxxxx"},
+		// A literal '?' inside an IPv6 bracket is host data (bracket contents
+		// are unvalidated); it must not be mistaken for the query start.
+		{"postgres://[foo?bar]/db?password=supersecret&sslmode=invalid", "password=xxxxx"},
+		// A valid URI with an ordinary '@' in a query value before the
+		// password parameter: the stranded-credential heuristic must not run
+		// on a string that parses cleanly, or its greedy ':...@' mask would
+		// swallow the '/' and '?' delimiters and leave the query -- password
+		// included -- unredacted.
+		{"postgres://host:5432/db?application_name=me@example.com&password=supersecret&sslmode=invalid", "password=xxxxx"},
+		{"postgres://host/db?options=-cfoo@bar&password=supersecret&sslmode=invalid", "password=xxxxx"},
+		{"postgres://user:supersecret@host:5432/db?tag=x@y&password=secretpart&sslmode=invalid", "password=xxxxx"},
+		// For this malformed shape, the best-effort heuristic should mask a
+		// stranded password containing ':' whole rather than split at its colons.
+		{"postgres://a@user:supersecret:secretpart@host/db", ":xxxxxx@"},
+	}
+	for _, tt := range tests {
+		_, err := pgconn.ParseConfig(tt.connString)
+		require.Error(t, err, tt.connString)
+		assert.NotContains(t, err.Error(), "supersecret", tt.connString)
+		assert.NotContains(t, err.Error(), "secretpart", tt.connString)
+		assert.Contains(t, err.Error(), tt.wantRedacted, tt.connString)
+	}
+}
+
+func TestParseConfigMultiHostURLShadowsPGPORT(t *testing.T) {
+	// Like libpq, a multi-host URI without explicit ports produces an
+	// (all-empty) port list that takes precedence over PGPORT, so every host
+	// uses the default port rather than PGPORT causing a count mismatch.
+	t.Setenv("PGPORT", "1,2")
+
+	config, err := pgconn.ParseConfig("postgres://foo,bar,baz/mydb?sslmode=disable")
+	require.NoError(t, err)
+	assert.EqualValues(t, 5432, config.Port)
+	require.Len(t, config.Fallbacks, 2)
+	assert.EqualValues(t, 5432, config.Fallbacks[0].Port)
+	assert.EqualValues(t, 5432, config.Fallbacks[1].Port)
+}
+
+func TestParseConfigAllowedKeysMultiHostImplicitPort(t *testing.T) {
+	t.Parallel()
+
+	// The implicit all-empty port list generated for a multi-host URI carries
+	// no user-supplied value and must not trip ConnStringAllowedKeys.
+	opts := pgconn.ParseConfigOptions{ConnStringAllowedKeys: []string{"host", "dbname", "sslmode"}}
+	_, err := pgconn.ParseConfigWithOptions("postgres://foo,bar/mydb?sslmode=disable", opts)
+	require.NoError(t, err)
+
+	// An explicit port is still checked -- including an explicitly supplied
+	// empty port (?port= or keyword/value port=), which is user-supplied port
+	// text and, present but empty, still shadows PGPORT.
+	for _, connString := range []string{
+		"postgres://foo,bar:5433/mydb?sslmode=disable",
+		"postgres://foo,bar/mydb?port=&sslmode=disable",
+		"postgres://foo: /mydb?sslmode=disable", // port of spaces decodes to empty but is supplied port text
+		"host=foo sslmode=disable port=",
+		"host=foo,bar sslmode=disable port=,,",
+	} {
+		_, err = pgconn.ParseConfigWithOptions(connString, opts)
+		require.Error(t, err, connString)
+		require.ErrorContains(t, err, `connection string key "port" is not in ConnStringAllowedKeys`, connString)
+	}
+}
+
+func TestParseConfigAllowedKeysSSLAlias(t *testing.T) {
+	t.Parallel()
+
+	// ?ssl=true is the URI-only JDBC alias for sslmode=require. The allow-list
+	// accepts it under either spelling: "ssl" (the key the user wrote) or
+	// "sslmode" (the key it means), like the dbname/database pair.
+	sslOpts := pgconn.ParseConfigOptions{ConnStringAllowedKeys: []string{"host", "dbname", "ssl"}}
+	sslmodeOpts := pgconn.ParseConfigOptions{ConnStringAllowedKeys: []string{"host", "dbname", "sslmode"}}
+	neitherOpts := pgconn.ParseConfigOptions{ConnStringAllowedKeys: []string{"host", "dbname"}}
+
+	_, err := pgconn.ParseConfigWithOptions("postgres://h/db?ssl=true", sslOpts)
+	require.NoError(t, err)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=true", sslmodeOpts)
+	require.NoError(t, err)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=true", neitherOpts)
+	require.ErrorContains(t, err, "is not in ConnStringAllowedKeys")
+
+	// A non-"true" ssl value is not the alias; it stays under its own key.
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=false", sslOpts)
+	require.NoError(t, err)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=false", sslmodeOpts)
+	require.ErrorContains(t, err, `connection string key "ssl" is not in ConnStringAllowedKeys`)
+
+	// Allowing "ssl" does not allow an explicit sslmode key, even when an
+	// earlier ssl=true rewrite was later superseded by it.
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?sslmode=require", sslOpts)
+	require.ErrorContains(t, err, `connection string key "sslmode" is not in ConnStringAllowedKeys`)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=true&sslmode=require", sslOpts)
+	require.ErrorContains(t, err, `connection string key "sslmode" is not in ConnStringAllowedKeys`)
+
+	// Superseded occurrences still count: every spelling the user wrote must
+	// be allowed, even when a later parameter overwrote or deleted it under
+	// last-occurrence-wins.
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?sslmode=disable&ssl=true", sslOpts)
+	require.ErrorContains(t, err, `connection string key "sslmode" is not in ConnStringAllowedKeys`)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?ssl=false&ssl=true", sslmodeOpts)
+	require.ErrorContains(t, err, `connection string key "ssl" is not in ConnStringAllowedKeys`)
+	_, err = pgconn.ParseConfigWithOptions("postgres://h/db?sslmode=disable&ssl=true", sslmodeOpts)
+	require.NoError(t, err)
+}
+
+func TestParseConfigURLErrors(t *testing.T) {
+	t.Parallel()
+
+	// URL parse failures mirror libpq's error cases. See
+	// parse_url_test.go for the full corpus; these just confirm the errors
+	// surface through ParseConfig wrapped as ParseConfigError.
+	tests := []struct {
+		connString string
+		errText    string
+	}{
+		{"postgres://[::1", `end of string reached when looking for matching "]" in IPv6 host address in URI`},
+		{"postgres://host?sslmode=%zz", `invalid percent-encoded token: "%zz"`},
+		{"postgres://host?zzz", `missing key/value separator "=" in URI query parameter: "zzz"`},
+		{"postgres://host?key=key=value", `extra key/value separator "=" in URI query parameter: "key"`},
+	}
+	for _, tt := range tests {
+		_, err := pgconn.ParseConfig(tt.connString)
+		require.Error(t, err, tt.connString)
+		assert.Contains(t, err.Error(), "failed to parse as URL", tt.connString)
+		assert.Contains(t, err.Error(), tt.errText, tt.connString)
+	}
+}
+
 // https://github.com/jackc/pgconn/issues/47
 func TestParseConfigKVWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
 	_, err := pgconn.ParseConfig("host= user= password= port= database=")
@@ -793,10 +1016,45 @@ func TestParseConfigKVLeadingEqual(t *testing.T) {
 }
 
 // https://github.com/jackc/pgconn/issues/49
+// A trailing backslash in an unquoted value escapes the end of the string.
+// libpq drops it and accepts the string, so pgx does too; it was rejected with
+// "invalid backslash" from be69c1c1 until the parser was aligned with libpq.
+// The original report was that this input must not panic.
 func TestParseConfigKVTrailingBackslash(t *testing.T) {
-	_, err := pgconn.ParseConfig(`x=x\`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid backslash")
+	config, err := pgconn.ParseConfig(`host=x\`)
+	require.NoError(t, err)
+	assert.Equal(t, "x", config.Host)
+
+	_, err = pgconn.ParseConfig(`x=x\`)
+	require.NoError(t, err)
+}
+
+// A backslash as the last byte of an unterminated quoted value must be
+// rejected as an unterminated string, not panic with a slice bounds error.
+// The quoted-string loop advances past a backslash without bounds-checking
+// the resulting index, so `='\` (and `0='\`, reached via the pgxpool path)
+// previously panicked with "slice bounds out of range [:2] with length 1".
+func TestParseConfigKVQuotedTrailingBackslashDoesNotPanic(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+	}{
+		{name: "bare quoted trailing backslash", connString: `='\`},
+		{name: "quoted trailing backslash with key", connString: `0='\`},
+		{name: "quoted trailing backslash after value", connString: `host='a\`},
+		{name: "quoted trailing backslash after escaped pair", connString: `host='a\\b\`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			assert.NotPanics(t, func() {
+				_, err = pgconn.ParseConfig(tt.connString)
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unterminated quoted string in connection info string")
+		})
+	}
 }
 
 // https://github.com/jackc/pgx/issues/2284
@@ -833,6 +1091,41 @@ func TestParseConfigKVTrailingWhitespace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pgconn.ParseConfig(tt.connString)
 			require.NoErrorf(t, err, "conn string %q should not produce an error", tt.connString)
+		})
+	}
+}
+
+// A NUL byte in a keyword/value connection string would reach the startup
+// packet, where it delimits parameters instead of being data. The URI parser
+// already rejects NULs; the keyword/value parser must too.
+func TestParseConfigKVRejectsNulByte(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+	}{
+		{
+			name:       "nul in value hijacks user",
+			connString: "host=h user=lowpriv application_name=x\x00user\x00admin",
+		},
+		{
+			name:       "nul in quoted value",
+			connString: "host=h application_name='x\x00user\x00admin'",
+		},
+		{
+			name:       "nul in dbname",
+			connString: "host=h dbname=d\x00options\x00-c search_path=evil",
+		},
+		{
+			name:       "nul in keyword",
+			connString: "host=h db\x00name=d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := pgconn.ParseConfig(tt.connString)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "forbidden NUL byte in connection string")
 		})
 	}
 }

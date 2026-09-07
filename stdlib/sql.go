@@ -739,7 +739,9 @@ func (r *Rows) Close() error {
 	return r.rows.Err()
 }
 
-func (r *Rows) Next(dest []driver.Value) error {
+// initValueFuncs prepares the database/sql representation of each column. Both
+// Next and ScanColumn use these conversions so their driver.Values agree.
+func (r *Rows) initValueFuncs() {
 	m := r.conn.conn.TypeMap()
 	fieldDescriptions := r.rows.FieldDescriptions()
 
@@ -870,6 +872,10 @@ func (r *Rows) Next(dest []driver.Value) error {
 			}
 		}
 	}
+}
+
+func (r *Rows) Next(dest []driver.Value) error {
+	r.initValueFuncs()
 
 	var more bool
 	if r.skipNext {

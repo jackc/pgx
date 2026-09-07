@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -158,13 +157,18 @@ func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanTID(TID{})
 	}
 
-	if len(src) != 6 {
-		return fmt.Errorf("invalid length for tid: %v", len(src))
+	r := pgio.NewReader(src)
+
+	blockNumber := r.Uint32()
+	offsetNumber := r.Uint16()
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("tid: %w", err)
 	}
 
 	return scanner.ScanTID(TID{
-		BlockNumber:  binary.BigEndian.Uint32(src),
-		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
+		BlockNumber:  blockNumber,
+		OffsetNumber: offsetNumber,
 		Valid:        true,
 	})
 }
@@ -178,12 +182,14 @@ func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanText(Text{})
 	}
 
-	if len(src) != 6 {
-		return fmt.Errorf("invalid length for tid: %v", len(src))
-	}
+	r := pgio.NewReader(src)
 
-	blockNumber := binary.BigEndian.Uint32(src)
-	offsetNumber := binary.BigEndian.Uint16(src[4:])
+	blockNumber := r.Uint32()
+	offsetNumber := r.Uint16()
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("tid: %w", err)
+	}
 
 	return scanner.ScanText(Text{
 		String: fmt.Sprintf(`(%d,%d)`, blockNumber, offsetNumber),

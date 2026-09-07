@@ -12,8 +12,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
+      # A failure in one matrix job says nothing about the others, and cancelled jobs report a confusing "exit code
+      # 143" instead of the actual failure. Let every job run so a single failure gives complete information.
+      fail-fast: false
       matrix:
-        go-version: ["1.25", "1.26"]
+        go-version: ["1.25", "1.26", "1.27"]
         pg-version: [14, 15, 16, 17, 18, cockroachdb]
         include:
           - pg-version: 14
@@ -112,8 +115,11 @@ jobs:
           git diff --exit-code
 
       - name: Test
-        # parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
-        run: go test -parallel=1 -race ./...
+        # Parallel testing used to kill the runner. The cause was the pgproto3 tests that encode a maximum size (~1GB)
+        # message: with the race detector's shadow memory they peaked at 27GB of RSS when run in parallel, well past the
+        # 16GB a runner has. Those tests no longer run under the race detector, and the whole suite now peaks around 1GB
+        # either way, so parallel testing is enabled again. It cuts this step from ~72s to ~26s.
+        run: go test -race ./...
         env:
           PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
           PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
@@ -128,12 +134,40 @@ jobs:
           PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
           PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
 
+  test-pgbouncer:
+    name: Test PgBouncer with PostgreSQL 18
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
+
+      - name: Set up Go 1.26
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up PostgreSQL 18
+        run: ci/setup_test.bash
+        env:
+          PGVERSION: "18"
+
+      - name: Set up PgBouncer
+        run: ci/setup_pgbouncer.bash
+
+      - name: Test PgBouncer
+        run: go test -parallel=1 -race -count=1 -run 'TestPgbouncer|TestConnContextCanceledCancelsRunningQueryOnServer' ./...
+        env:
+          PGX_TEST_DATABASE: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
+          PGX_TEST_PGBOUNCER_CONN_STRING: "host=127.0.0.1 port=6432 user=pgx_md5 password=secret dbname=pgx_test"
+
   test-windows:
     name: Test Windows
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
-        go-version: ["1.25", "1.26"]
+        go-version: ["1.25", "1.26", "1.27"]
 
     steps:
       - name: Setup PostgreSQL
@@ -158,7 +192,9 @@ jobs:
         shell: bash
 
       - name: Test
-        # Parallel testing is disabled because somehow parallel testing causes Github Actions to kill the runner.
+        # Parallel testing stays disabled here even though the Linux jobs enable it. This is the slower runner and every
+        # timing sensitive test failure so far has come from it, so leave it serial until the Linux jobs have proven the
+        # change.
         # Disabling CGO because that is not working on the Windows runner. Apparently, we could install MingW and set up
         # CGO to work, but disabling CGO takes less CI time. Without CGO, we also must not use the race detector.
         run: go test -parallel=1 ./...

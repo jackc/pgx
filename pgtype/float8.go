@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -246,11 +245,12 @@ func (scanPlanBinaryFloat8ToFloat64) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for float8: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("float8: %w", err)
 	}
 
-	n := int64(binary.BigEndian.Uint64(src))
+	n := int64(raw)
 	f := (dst).(*float64)
 	*f = math.Float64frombits(uint64(n))
 
@@ -266,11 +266,12 @@ func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(src []byte, dst any) error {
 		return s.ScanFloat64(Float8{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for float8: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("float8: %w", err)
 	}
 
-	n := int64(binary.BigEndian.Uint64(src))
+	n := int64(raw)
 	return s.ScanFloat64(Float8{Float64: math.Float64frombits(uint64(n)), Valid: true})
 }
 
@@ -283,11 +284,12 @@ func (scanPlanBinaryFloat8ToInt64Scanner) Scan(src []byte, dst any) error {
 		return s.ScanInt64(Int8{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for float8: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("float8: %w", err)
 	}
 
-	ui64 := int64(binary.BigEndian.Uint64(src))
+	ui64 := int64(raw)
 	f64 := math.Float64frombits(uint64(ui64))
 	i64 := int64(f64)
 	if f64 != float64(i64) {
@@ -306,11 +308,12 @@ func (scanPlanBinaryFloat8ToTextScanner) Scan(src []byte, dst any) error {
 		return s.ScanText(Text{})
 	}
 
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for float8: %v", len(src))
+	raw, err := pgio.Uint64Exact(src)
+	if err != nil {
+		return fmt.Errorf("float8: %w", err)
 	}
 
-	ui64 := int64(binary.BigEndian.Uint64(src))
+	ui64 := int64(raw)
 	f64 := math.Float64frombits(uint64(ui64))
 
 	return s.ScanText(Text{String: strconv.FormatFloat(f64, 'f', -1, 64), Valid: true})

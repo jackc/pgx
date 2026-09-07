@@ -965,7 +965,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(int64(0)),
+				ScanType: reflect.TypeFor[int64](),
 			}, {
 				Name:     "bar",
 				TypeName: "TEXT",
@@ -985,7 +985,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(""),
+				ScanType: reflect.TypeFor[string](),
 			}, {
 				Name:     "dec",
 				TypeName: "NUMERIC",
@@ -1005,7 +1005,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     2,
 					OK:        true,
 				},
-				ScanType: reflect.TypeOf(float64(0)),
+				ScanType: reflect.TypeFor[float64](),
 			}, {
 				Name:     "d",
 				TypeName: "1266",
@@ -1025,7 +1025,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(""),
+				ScanType: reflect.TypeFor[string](),
 			},
 		}
 
@@ -1189,7 +1189,7 @@ func TestConnQueryRowConstraintErrors(t *testing.T) {
 		_, err = db.Exec(`create function test_trigger() returns trigger language plpgsql as $$
 		begin
 		if new.n = 4 then
-			raise exception 'n cant be 4!';
+			raise exception 'n can''t be 4!';
 		end if;
 		return new;
 	end$$`)
@@ -1328,9 +1328,12 @@ func TestCheckIdleConn(t *testing.T) {
 	require.EqualValues(t, 3, db.Stats().OpenConnections)
 
 	var pids []uint32
+	var originalConns []*pgx.Conn
 	for _, c := range conns {
 		err := c.Raw(func(driverConn any) error {
-			pids = append(pids, driverConn.(*stdlib.Conn).Conn().PgConn().PID())
+			pgxConn := driverConn.(*stdlib.Conn).Conn()
+			pids = append(pids, pgxConn.PgConn().PID())
+			originalConns = append(originalConns, pgxConn)
 			return nil
 		})
 		require.NoError(t, err)
@@ -1359,16 +1362,20 @@ func TestCheckIdleConn(t *testing.T) {
 	c, err := db.Conn(context.Background())
 	require.NoError(t, err)
 
-	var cPID uint32
+	var newConn *pgx.Conn
 	err = c.Raw(func(driverConn any) error {
-		cPID = driverConn.(*stdlib.Conn).Conn().PgConn().PID()
+		newConn = driverConn.(*stdlib.Conn).Conn()
 		return nil
 	})
 	require.NoError(t, err)
 	err = c.Close()
 	require.NoError(t, err)
 
-	require.NotContains(t, pids, cPID)
+	// Compare connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's PID to a
+	// new backend, which made the equivalent pgxpool test flaky in CI.
+	for _, originalConn := range originalConns {
+		require.NotSame(t, originalConn, newConn)
+	}
 }
 
 func TestOptionShouldPing_HookCalledOnReuse(t *testing.T) {
