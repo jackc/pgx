@@ -15,7 +15,7 @@ import (
 //	date   = year "-" 2DIGIT "-" 2DIGIT
 //	year   = 4*DIGIT     ; zero-padded to exactly 4, never wider than necessary
 //	time   = 2DIGIT ":" 2DIGIT ":" 2DIGIT [ "." 1*6DIGIT ]
-//	offset = ("+" / "-") 2DIGIT [ ":" 2DIGIT [ ":" 2DIGIT ] ]
+//	offset = ("+" / "-") 2*DIGIT [ ":" 2DIGIT [ ":" 2DIGIT ] ]
 //
 // " BC" is always last, after any offset. Fractional seconds are omitted entirely when
 // zero and never carry trailing zeros. This is only the shape the server emits under the
@@ -25,9 +25,6 @@ import (
 // simple protocol's query sanitizer shares.
 
 const (
-	// maxTZDisplacementHour is PostgreSQL's MAX_TZDISP_HOUR.
-	maxTZDisplacementHour = 15
-
 	secondsPerHour = 60 * 60
 
 	// maxDateTimeYearDigits is the width of the largest year PostgreSQL can represent,
@@ -297,6 +294,16 @@ func parseOffset(s []byte, i int) (offset, next int, ok bool) {
 	if hour, i, ok = parse2Digits(s, i); !ok {
 		return 0, i, false
 	}
+	// PostgreSQL's MAX_TZDISP_HOUR limits numeric input, not output from named
+	// or POSIX time zones. These can emit offsets with more than two hour digits.
+	// Bound by the server's int32 seconds representation instead.
+	for i < len(s) && isDigit(s[i]) {
+		hour = hour*10 + int(s[i]-'0')
+		i++
+		if hour > math.MaxInt32/secondsPerHour {
+			return 0, i, false
+		}
+	}
 	if i, ok = expect(s, i, ':'); ok {
 		if min, i, ok = parse2Digits(s, i); !ok {
 			return 0, i, false
@@ -308,16 +315,19 @@ func parseOffset(s []byte, i int) (offset, next int, ok bool) {
 		}
 	}
 
-	if hour > maxTZDisplacementHour || min > 59 || sec > 59 {
+	if min > 59 || sec > 59 {
 		return 0, i, false
 	}
 
-	offset = hour*secondsPerHour + min*60 + sec
+	seconds := int64(hour)*secondsPerHour + int64(min*60+sec)
 	if neg {
-		offset = -offset
+		seconds = -seconds
+	}
+	if seconds < math.MinInt32 || seconds > math.MaxInt32 {
+		return 0, i, false
 	}
 
-	return offset, i, true
+	return int(seconds), i, true
 }
 
 func parse2Digits(s []byte, i int) (v, next int, ok bool) {
