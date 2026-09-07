@@ -1108,6 +1108,17 @@ func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 	return d.DialContext
 }
 
+var (
+	// ErrReadOnlyConnection is returned when a read-write connection is required but the connection is read-only.
+	ErrReadOnlyConnection = errors.New("read only connection")
+	// ErrReadWriteConnection is returned when a read-only connection is required but the connection is read-write.
+	ErrReadWriteConnection = errors.New("connection is not read only")
+	// ErrPrimaryConnection is returned when a standby connection is required but the server is primary.
+	ErrPrimaryConnection = errors.New("server is not in hot standby mode")
+	// ErrStandbyConnection is returned when a primary connection is required but the server is in standby mode.
+	ErrStandbyConnection = errors.New("server is in standby mode")
+)
+
 // ValidateConnectTargetSessionAttrsReadWrite is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
 func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
@@ -1117,7 +1128,7 @@ func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgC
 	}
 
 	if string(result[0].Rows[0][0]) == "on" {
-		return errors.New("read only connection")
+		return ErrReadOnlyConnection
 	}
 
 	return nil
@@ -1132,7 +1143,7 @@ func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgCo
 	}
 
 	if string(result[0].Rows[0][0]) != "on" {
-		return errors.New("connection is not read only")
+		return ErrReadWriteConnection
 	}
 
 	return nil
@@ -1147,7 +1158,7 @@ func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgCon
 	}
 
 	if string(result[0].Rows[0][0]) != "t" {
-		return errors.New("server is not in hot standby mode")
+		return ErrPrimaryConnection
 	}
 
 	return nil
@@ -1162,7 +1173,7 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 	}
 
 	if string(result[0].Rows[0][0]) == "t" {
-		return errors.New("server is in standby mode")
+		return ErrStandbyConnection
 	}
 
 	return nil
@@ -1177,7 +1188,7 @@ func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn 
 	}
 
 	if string(result[0].Rows[0][0]) != "t" {
-		return &NotPreferredError{err: errors.New("server is not in hot standby mode")}
+		return &NotPreferredError{err: ErrPrimaryConnection}
 	}
 
 	return nil
