@@ -277,6 +277,35 @@ func TestNumericBinaryEncodeExponentOutOfRange(t *testing.T) {
 	}
 }
 
+func TestNumericBinaryEncodeLargeDigitCount(t *testing.T) {
+	skipCockroachDB(t, "Server does not support the full PostgreSQL numeric range")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for _, want := range []string{
+			strings.Repeat("9", 131068),                                    // 32767 base-10000 digits
+			strings.Repeat("9", 131069),                                    // 32768 base-10000 digits
+			strings.Repeat("9", 131072) + "." + strings.Repeat("9", 16383), // full PostgreSQL range
+		} {
+			var n pgtype.Numeric
+			err := conn.QueryRow(ctx, "select $1::text::numeric", want).Scan(&n)
+			require.NoError(t, err)
+
+			// Encode explicitly: Conn.Query can fall back to text if binary encoding fails.
+			plan := conn.TypeMap().PlanEncode(pgtype.NumericOID, pgtype.BinaryFormatCode, n)
+			require.NotNil(t, plan)
+			buf, err := plan.Encode(n, nil)
+			require.NoError(t, err)
+
+			result := conn.PgConn().ExecParams(ctx, "select $1::numeric::text",
+				[][]byte{buf}, []uint32{pgtype.NumericOID},
+				[]int16{pgtype.BinaryFormatCode}, []int16{pgtype.TextFormatCode}).Read()
+			require.NoError(t, result.Err)
+			require.Len(t, result.Rows, 1)
+			require.Equal(t, want, string(result.Rows[0][0]))
+		}
+	})
+}
+
 func TestNumericFloat64Valuer(t *testing.T) {
 	for i, tt := range []struct {
 		n pgtype.Numeric
