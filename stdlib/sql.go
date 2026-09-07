@@ -57,12 +57,25 @@
 //
 // # PostgreSQL Specific Data Types
 //
-// The pgtype package provides support for PostgreSQL specific types. *pgtype.Map.SQLScanner is an adapter that makes
-// these types usable as a sql.Scanner.
+// As of Go 1.27, database/sql allows drivers to implement their own scanning logic by implementing the
+// driver.RowsColumnScanner interface. This allows PostgreSQL types such as arrays to be scanned directly into Go
+// values such as slices.
+//
+//	var a []int64
+//	err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(&a)
+//
+// In older versions of Go, *pgtype.Map.SQLScanner can be used as an adapter that makes these types usable as a
+// sql.Scanner.
 //
 //	m := pgtype.NewMap()
 //	var a []int64
 //	err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+//
+// The pgtype package provides support for PostgreSQL specific types. These types can be used directly in Go 1.27 and
+// with *pgtype.Map.SQLScanner in older Go versions.
+//
+//	var r pgtype.Range[pgtype.Int4]
+//	err := db.QueryRow("select int4range(1, 5)").Scan(&r)
 package stdlib
 
 import (
@@ -726,7 +739,9 @@ func (r *Rows) Close() error {
 	return r.rows.Err()
 }
 
-func (r *Rows) Next(dest []driver.Value) error {
+// initValueFuncs prepares the database/sql representation of each column. Both
+// Next and ScanColumn use these conversions so their driver.Values agree.
+func (r *Rows) initValueFuncs() {
 	m := r.conn.conn.TypeMap()
 	fieldDescriptions := r.rows.FieldDescriptions()
 
@@ -857,6 +872,10 @@ func (r *Rows) Next(dest []driver.Value) error {
 			}
 		}
 	}
+}
+
+func (r *Rows) Next(dest []driver.Value) error {
+	r.initValueFuncs()
 
 	var more bool
 	if r.skipNext {
