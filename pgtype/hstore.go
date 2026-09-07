@@ -431,8 +431,13 @@ func parseHstore(s string) (Hstore, error) {
 	p := newHSP(s)
 
 	// This is an over-estimate of the number of key/value pairs. Use '>' because I am guessing it
-	// is less likely to occur in keys/values than '=' or ','.
+	// is less likely to occur in keys/values than '=' or ','. Clamp so an unvalidated
+	// separator count cannot pre-size a huge map from garbage input.
+	const maxHstorePairsEstimate = 1024
 	numPairsEstimate := strings.Count(s, ">")
+	if numPairsEstimate > maxHstorePairsEstimate {
+		numPairsEstimate = maxHstorePairsEstimate
+	}
 	// makes one allocation of strings for the entire Hstore, rather than one allocation per value.
 	valueStrings := make([]string, 0, numPairsEstimate)
 	result := make(Hstore, numPairsEstimate)
