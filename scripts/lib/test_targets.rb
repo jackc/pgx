@@ -32,6 +32,12 @@ module TestTargets
   def client_crt = File.join(DevPaths::CERTS_DIR, "pgx_sslcert.crt")
   def client_key = File.join(DevPaths::CERTS_DIR, "pgx_sslcert.key")
 
+  # Keyword/value connection strings need their own quoting, even when passed via environment
+  # variables: paths can contain whitespace, single quotes, or backslashes.
+  def conninfo_value(value)
+    "'" + value.gsub(/[\\']/) { |char| "\\#{char}" } + "'"
+  end
+
   # "pg14".."pg18", "crdb" — the order ./test.sh all runs them in.
   def names = DevPaths::PG_MAJORS.map { |m| "pg#{m}" } + ["crdb"]
 
@@ -99,7 +105,7 @@ module TestTargets
       # `\set whoami` block. The socket directory is shared by all five majors — the port picks
       # the server.
       "PGX_TEST_UNIX_SOCKET_CONN_STRING" =>
-        "host=#{socket} port=#{port} dbname=pgx_test",
+        "host=#{conninfo_value(socket)} port=#{port} dbname=pgx_test",
 
       "PGX_TEST_TCP_CONN_STRING" =>
         "host=127.0.0.1 port=#{port} user=pgx_md5 password=secret dbname=pgx_test",
@@ -118,15 +124,16 @@ module TestTargets
       # the server certificate, whose common name is localhost (testsetup/generate_certs.go).
       "PGX_TEST_SCRAM_PLUS_CONN_STRING" =>
         "host=localhost port=#{port} user=pgx_ssl password=secret sslmode=verify-full " \
-        "sslrootcert=#{ca_pem} dbname=pgx_test channel_binding=require",
+        "sslrootcert=#{conninfo_value(ca_pem)} dbname=pgx_test channel_binding=require",
 
       "PGX_TEST_TLS_CONN_STRING" =>
         "host=localhost port=#{port} user=pgx_ssl password=secret sslmode=verify-full " \
-        "sslrootcert=#{ca_pem} dbname=pgx_test channel_binding=disable",
+        "sslrootcert=#{conninfo_value(ca_pem)} dbname=pgx_test channel_binding=disable",
 
       "PGX_TEST_TLS_CLIENT_CONN_STRING" =>
         "host=localhost port=#{port} user=pgx_sslcert sslmode=verify-full " \
-        "sslrootcert=#{ca_pem} sslcert=#{client_crt} sslkey=#{client_key} dbname=pgx_test",
+        "sslrootcert=#{conninfo_value(ca_pem)} sslcert=#{conninfo_value(client_crt)} " \
+        "sslkey=#{conninfo_value(client_key)} dbname=pgx_test",
 
       # The passphrase on the checked-in client key. Without it TestConnectTLSClientCert skips
       # rather than fails, which is why a missing value here is invisible.
