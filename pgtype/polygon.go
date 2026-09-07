@@ -156,7 +156,7 @@ func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 type scanPlanBinaryPolygonToPolygonScanner struct{}
 
 func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PolygonScanner)
+	scanner := dst.(PolygonScanner)
 
 	if src == nil {
 		return scanner.ScanPolygon(Polygon{})
@@ -190,7 +190,7 @@ func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToPolygonScanner struct{}
 
 func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PolygonScanner)
+	scanner := dst.(PolygonScanner)
 
 	if src == nil {
 		return scanner.ScanPolygon(Polygon{})

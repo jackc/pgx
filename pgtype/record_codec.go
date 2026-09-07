@@ -40,7 +40,7 @@ type scanPlanBinaryRecordToCompositeIndexScanner struct {
 }
 
 func (plan *scanPlanBinaryRecordToCompositeIndexScanner) Scan(src []byte, target any) error {
-	targetScanner := (target).(CompositeIndexScanner)
+	targetScanner := target.(CompositeIndexScanner)
 
 	if src == nil {
 		return targetScanner.ScanNull()

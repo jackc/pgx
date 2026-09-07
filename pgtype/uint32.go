@@ -284,7 +284,7 @@ func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst any) error {
 		return fmt.Errorf("uint32: %w", err)
 	}
 
-	p := (dst).(*uint32)
+	p := dst.(*uint32)
 	*p = raw
 
 	return nil
@@ -293,7 +293,7 @@ func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst any) error {
 type scanPlanBinaryUint32ToUint32Scanner struct{}
 
 func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst any) error {
-	s, ok := (dst).(Uint32Scanner)
+	s, ok := dst.(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
 	}
@@ -313,7 +313,7 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryUint32ToTextScanner struct{}
 
 func (scanPlanBinaryUint32ToTextScanner) Scan(src []byte, dst any) error {
-	s, ok := (dst).(TextScanner)
+	s, ok := dst.(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
 	}
@@ -334,7 +334,7 @@ func (scanPlanBinaryUint32ToTextScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToUint32Scanner struct{}
 
 func (scanPlanTextAnyToUint32Scanner) Scan(src []byte, dst any) error {
-	s, ok := (dst).(Uint32Scanner)
+	s, ok := dst.(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
 	}

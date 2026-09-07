@@ -151,7 +151,7 @@ func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan 
 type scanPlanBinaryTIDToTIDScanner struct{}
 
 func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TIDScanner)
+	scanner := dst.(TIDScanner)
 
 	if src == nil {
 		return scanner.ScanTID(TID{})
@@ -176,7 +176,7 @@ func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryTIDToTextScanner struct{}
 
 func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TextScanner)
+	scanner := dst.(TextScanner)
 
 	if src == nil {
 		return scanner.ScanText(Text{})
@@ -200,7 +200,7 @@ func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToTIDScanner struct{}
 
 func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TIDScanner)
+	scanner := dst.(TIDScanner)
 
 	if src == nil {
 		return scanner.ScanTID(TID{})

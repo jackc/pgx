@@ -160,7 +160,7 @@ func (c CircleCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 type scanPlanBinaryCircleToCircleScanner struct{}
 
 func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(CircleScanner)
+	scanner := dst.(CircleScanner)
 
 	if src == nil {
 		return scanner.ScanCircle(Circle{})
@@ -186,7 +186,7 @@ func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToCircleScanner struct{}
 
 func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(CircleScanner)
+	scanner := dst.(CircleScanner)
 
 	if src == nil {
 		return scanner.ScanCircle(Circle{})

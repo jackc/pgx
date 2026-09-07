@@ -599,7 +599,7 @@ func (w *netipAddrWrapper) ScanNetipPrefix(v netip.Prefix) error {
 }
 
 func (w netipAddrWrapper) NetipPrefixValue() (netip.Prefix, error) {
-	addr := (netip.Addr)(w)
+	addr := netip.Addr(w)
 	if !addr.IsValid() {
 		return netip.Prefix{}, nil
 	}

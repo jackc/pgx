@@ -146,7 +146,7 @@ func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 type scanPlanBinaryInetToNetipPrefixScanner struct{}
 
 func (scanPlanBinaryInetToNetipPrefixScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(NetipPrefixScanner)
+	scanner := dst.(NetipPrefixScanner)
 
 	if src == nil {
 		return scanner.ScanNetipPrefix(netip.Prefix{})
@@ -172,7 +172,7 @@ func (scanPlanBinaryInetToNetipPrefixScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToNetipPrefixScanner struct{}
 
 func (scanPlanTextAnyToNetipPrefixScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(NetipPrefixScanner)
+	scanner := dst.(NetipPrefixScanner)
 
 	if src == nil {
 		return scanner.ScanNetipPrefix(netip.Prefix{})

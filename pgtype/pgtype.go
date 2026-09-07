@@ -412,7 +412,7 @@ func (scanPlanString) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	p := (dst).(*string)
+	p := dst.(*string)
 	*p = string(src)
 	return nil
 }
@@ -1832,19 +1832,19 @@ func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextVa
 	// Avoid using reflect path for common types.
 	switch value := value.(type) {
 	case []int16:
-		return &wrapSliceEncodePlan[int16]{}, (FlatArray[int16])(value), true
+		return &wrapSliceEncodePlan[int16]{}, FlatArray[int16](value), true
 	case []int32:
-		return &wrapSliceEncodePlan[int32]{}, (FlatArray[int32])(value), true
+		return &wrapSliceEncodePlan[int32]{}, FlatArray[int32](value), true
 	case []int64:
-		return &wrapSliceEncodePlan[int64]{}, (FlatArray[int64])(value), true
+		return &wrapSliceEncodePlan[int64]{}, FlatArray[int64](value), true
 	case []float32:
-		return &wrapSliceEncodePlan[float32]{}, (FlatArray[float32])(value), true
+		return &wrapSliceEncodePlan[float32]{}, FlatArray[float32](value), true
 	case []float64:
-		return &wrapSliceEncodePlan[float64]{}, (FlatArray[float64])(value), true
+		return &wrapSliceEncodePlan[float64]{}, FlatArray[float64](value), true
 	case []string:
-		return &wrapSliceEncodePlan[string]{}, (FlatArray[string])(value), true
+		return &wrapSliceEncodePlan[string]{}, FlatArray[string](value), true
 	case []time.Time:
-		return &wrapSliceEncodePlan[time.Time]{}, (FlatArray[time.Time])(value), true
+		return &wrapSliceEncodePlan[time.Time]{}, FlatArray[time.Time](value), true
 	}
 
 	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Slice {
@@ -1864,7 +1864,7 @@ type wrapSliceEncodePlan[T any] struct {
 func (plan *wrapSliceEncodePlan[T]) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapSliceEncodePlan[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	return plan.next.Encode((FlatArray[T])(value.([]T)), buf)
+	return plan.next.Encode(FlatArray[T](value.([]T)), buf)
 }
 
 type wrapSliceEncodeReflectPlan struct {

@@ -225,7 +225,7 @@ func (c *TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target any
 type scanPlanBinaryTimestamptzToTimestamptzScanner struct{ location *time.Location }
 
 func (plan *scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TimestamptzScanner)
+	scanner := dst.(TimestamptzScanner)
 
 	if src == nil {
 		return scanner.ScanTimestamptz(Timestamptz{})
@@ -264,7 +264,7 @@ func (plan *scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst 
 type scanPlanTextTimestamptzToTimestamptzScanner struct{ location *time.Location }
 
 func (plan *scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TimestamptzScanner)
+	scanner := dst.(TimestamptzScanner)
 
 	if src == nil {
 		return scanner.ScanTimestamptz(Timestamptz{})

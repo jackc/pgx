@@ -348,7 +348,7 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	var s string
 
 	err := conn.QueryRow(context.Background(), "select point(1,2)").Scan(&s)
-	if err == nil || !(strings.Contains(err.Error(), "cannot scan point (OID 600) in binary format into *string")) {
+	if err == nil || !strings.Contains(err.Error(), "cannot scan point (OID 600) in binary format into *string") {
 		t.Fatalf("Expected Scan to fail to scan binary value into string but: %v", err)
 	}
 

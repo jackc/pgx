@@ -116,7 +116,7 @@ func (scanPlanBinaryMacaddrToHardwareAddr) Scan(src []byte, dst any) error {
 type scanPlanBinaryMacaddrToTextScanner struct{}
 
 func (scanPlanBinaryMacaddrToTextScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TextScanner)
+	scanner := dst.(TextScanner)
 	if src == nil {
 		return scanner.ScanText(Text{})
 	}

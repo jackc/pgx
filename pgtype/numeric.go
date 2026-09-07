@@ -672,7 +672,7 @@ func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 type scanPlanBinaryNumericToNumericScanner struct{}
 
 func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(NumericScanner)
+	scanner := dst.(NumericScanner)
 
 	if src == nil {
 		return scanner.ScanNumeric(Numeric{})
@@ -781,7 +781,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryNumericToFloat64Scanner struct{}
 
 func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(Float64Scanner)
+	scanner := dst.(Float64Scanner)
 
 	if src == nil {
 		return scanner.ScanFloat64(Float8{})
@@ -805,7 +805,7 @@ func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryNumericToInt64Scanner struct{}
 
 func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(Int64Scanner)
+	scanner := dst.(Int64Scanner)
 
 	if src == nil {
 		return scanner.ScanInt64(Int8{})
@@ -833,7 +833,7 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryNumericToTextScanner struct{}
 
 func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TextScanner)
+	scanner := dst.(TextScanner)
 
 	if src == nil {
 		return scanner.ScanText(Text{})
@@ -857,7 +857,7 @@ func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToNumericScanner struct{}
 
 func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(NumericScanner)
+	scanner := dst.(NumericScanner)
 
 	if src == nil {
 		return scanner.ScanNumeric(Numeric{})

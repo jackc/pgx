@@ -251,7 +251,7 @@ func (scanPlanBinaryFloat8ToFloat64) Scan(src []byte, dst any) error {
 	}
 
 	n := int64(raw)
-	f := (dst).(*float64)
+	f := dst.(*float64)
 	*f = math.Float64frombits(uint64(n))
 
 	return nil
@@ -260,7 +260,7 @@ func (scanPlanBinaryFloat8ToFloat64) Scan(src []byte, dst any) error {
 type scanPlanBinaryFloat8ToFloat64Scanner struct{}
 
 func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(src []byte, dst any) error {
-	s := (dst).(Float64Scanner)
+	s := dst.(Float64Scanner)
 
 	if src == nil {
 		return s.ScanFloat64(Float8{})
@@ -278,7 +278,7 @@ func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryFloat8ToInt64Scanner struct{}
 
 func (scanPlanBinaryFloat8ToInt64Scanner) Scan(src []byte, dst any) error {
-	s := (dst).(Int64Scanner)
+	s := dst.(Int64Scanner)
 
 	if src == nil {
 		return s.ScanInt64(Int8{})
@@ -302,7 +302,7 @@ func (scanPlanBinaryFloat8ToInt64Scanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryFloat8ToTextScanner struct{}
 
 func (scanPlanBinaryFloat8ToTextScanner) Scan(src []byte, dst any) error {
-	s := (dst).(TextScanner)
+	s := dst.(TextScanner)
 
 	if src == nil {
 		return s.ScanText(Text{})
@@ -331,7 +331,7 @@ func (scanPlanTextAnyToFloat64) Scan(src []byte, dst any) error {
 		return err
 	}
 
-	f := (dst).(*float64)
+	f := dst.(*float64)
 	*f = n
 
 	return nil
@@ -340,7 +340,7 @@ func (scanPlanTextAnyToFloat64) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToFloat64Scanner struct{}
 
 func (scanPlanTextAnyToFloat64Scanner) Scan(src []byte, dst any) error {
-	s := (dst).(Float64Scanner)
+	s := dst.(Float64Scanner)
 
 	if src == nil {
 		return s.ScanFloat64(Float8{})

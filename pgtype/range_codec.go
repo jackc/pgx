@@ -267,7 +267,7 @@ type scanPlanBinaryRangeToRangeScanner struct {
 }
 
 func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) error {
-	rangeScanner := (target).(RangeScanner)
+	rangeScanner := target.(RangeScanner)
 
 	if src == nil {
 		return rangeScanner.ScanNull()
@@ -317,7 +317,7 @@ type scanPlanTextRangeToRangeScanner struct {
 }
 
 func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error {
-	rangeScanner := (target).(RangeScanner)
+	rangeScanner := target.(RangeScanner)
 
 	if src == nil {
 		return rangeScanner.ScanNull()

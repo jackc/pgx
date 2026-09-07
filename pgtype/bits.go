@@ -161,7 +161,7 @@ func (c BitsCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 type scanPlanBinaryBitsToBitsScanner struct{}
 
 func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BitsScanner)
+	scanner := dst.(BitsScanner)
 
 	if src == nil {
 		return scanner.ScanBits(Bits{})
@@ -193,7 +193,7 @@ func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToBitsScanner struct{}
 
 func (scanPlanTextAnyToBitsScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BitsScanner)
+	scanner := dst.(BitsScanner)
 
 	if src == nil {
 		return scanner.ScanBits(Bits{})

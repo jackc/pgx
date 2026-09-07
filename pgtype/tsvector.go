@@ -182,7 +182,7 @@ func (encodePlanTSVectorCodecBinary) Encode(value any, buf []byte) ([]byte, erro
 type scanPlanBinaryTSVectorToTSVectorScanner struct{}
 
 func (scanPlanBinaryTSVectorToTSVectorScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TSVectorScanner)
+	scanner := dst.(TSVectorScanner)
 
 	if src == nil {
 		return scanner.ScanTSVector(TSVector{})
@@ -297,7 +297,7 @@ func (TSVectorCodec) PlanScan(m *Map, oid uint32, format int16, target any) Scan
 type scanPlanTextAnyToTSVectorScanner struct{}
 
 func (s scanPlanTextAnyToTSVectorScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TSVectorScanner)
+	scanner := dst.(TSVectorScanner)
 
 	if src == nil {
 		return scanner.ScanTSVector(TSVector{})

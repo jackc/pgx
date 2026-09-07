@@ -171,7 +171,7 @@ func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 type scanPlanBinaryPathToPathScanner struct{}
 
 func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PathScanner)
+	scanner := dst.(PathScanner)
 
 	if src == nil {
 		return scanner.ScanPath(Path{})
@@ -207,7 +207,7 @@ func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToPathScanner struct{}
 
 func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PathScanner)
+	scanner := dst.(PathScanner)
 
 	if src == nil {
 		return scanner.ScanPath(Path{})

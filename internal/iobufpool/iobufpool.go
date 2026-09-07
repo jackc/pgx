@@ -33,7 +33,7 @@ func Get(size int) *[]byte {
 		return &buf
 	}
 
-	ptrBuf := (pools[i].Get().(*[]byte))
+	ptrBuf := pools[i].Get().(*[]byte)
 	*ptrBuf = (*ptrBuf)[:size]
 
 	return ptrBuf

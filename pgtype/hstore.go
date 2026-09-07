@@ -179,7 +179,7 @@ func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPl
 type scanPlanBinaryHstoreToHstoreScanner struct{}
 
 func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(HstoreScanner)
+	scanner := dst.(HstoreScanner)
 
 	if src == nil {
 		return scanner.ScanHstore(Hstore(nil))
@@ -226,7 +226,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToHstoreScanner struct{}
 
 func (s scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(HstoreScanner)
+	scanner := dst.(HstoreScanner)
 
 	if src == nil {
 		return scanner.ScanHstore(Hstore(nil))
