@@ -790,6 +790,27 @@ func TestRowToStructByNameDbTagsCaseInsensitive(t *testing.T) {
 	})
 }
 
+func TestRowToStructByNameDbTagsPreferExactMatch(t *testing.T) {
+	type record struct {
+		Lower  int32  `db:"foo"`
+		Upper  int32  `db:"FOO"`
+		Region string `db:"Region"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for _, query := range []string{
+			`select 1 as foo, 2 as "FOO", 'east' as region`,
+			`select 2 as "FOO", 1 as foo, 'east' as region`,
+		} {
+			rows, err := conn.Query(ctx, query)
+			require.NoError(t, err)
+			got, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[record])
+			require.NoError(t, err)
+			require.Equal(t, record{Lower: 1, Upper: 2, Region: "east"}, got)
+		}
+	})
+}
+
 func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 	type Name struct {
 		Last  string `db:"last_name"`
