@@ -184,9 +184,9 @@ func TestTimestamptzDecodeTextInvalid(t *testing.T) {
 		`10001-02-29 00:00:00+00`,
 		`4712-02-29 00:00:00+00 BC`,
 
-		// Beyond PostgreSQL's MAX_TZDISP_HOUR of 15.
-		`2024-01-02 03:04:05+16`,
-		`2024-01-02 03:04:05-16`,
+		// Beyond the server's int32 time zone offset representation.
+		`2024-01-02 03:04:05+596523:14:08`,
+		`2024-01-02 03:04:05-596523:14:09`,
 
 		// Outside PostgreSQL's range once the offset has been applied.
 		`294277-01-01 00:00:00+00`,
@@ -227,6 +227,32 @@ func TestTimestamptzTextAndBinaryScanAgree(t *testing.T) {
 
 			require.Truef(t, binary.Equal(text), "%s: binary %v, text %v", expr, binary, text)
 			require.Equalf(t, binary.String(), text.String(), "%s", expr)
+		}
+	})
+}
+
+func TestTimestamptzCodecPOSIXTimezones(t *testing.T) {
+	skipCockroachDB(t, "Server does not support PostgreSQL POSIX time zones")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		want := time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)
+		for _, zone := range []string{
+			"XXX-16", "XXX16", "XXX-24", "XXX-167:59", "XXX167:59",
+			// The implicit DST offset is one hour east of the standard offset.
+			"XXX-167:59YYY,M3.2.0,M11.1.0",
+		} {
+			_, err := conn.Exec(ctx, "select set_config('TimeZone', $1, false)", zone)
+			require.NoError(t, err)
+			for _, mode := range []any{
+				pgx.QueryResultFormats{pgtype.BinaryFormatCode},
+				pgx.QueryResultFormats{pgtype.TextFormatCode},
+				pgx.QueryExecModeSimpleProtocol,
+			} {
+				var got time.Time
+				err := conn.QueryRow(ctx, "select '2024-07-01 00:00:00+00'::timestamptz", mode).Scan(&got)
+				require.NoErrorf(t, err, "zone=%s mode=%v", zone, mode)
+				require.Truef(t, want.Equal(got), "zone=%s mode=%v: got %v", zone, mode, got)
+			}
 		}
 	})
 }

@@ -22,9 +22,10 @@
   * `date` now rejects impossible dates instead of normalizing them. `2024-02-30` returned `2024-03-01` and
     `2024-13-01` returned `2025-01-01`; both are now errors. `timestamp` and `timestamptz` already rejected them.
   * All three types now reject values outside PostgreSQL's range for that type, in the binary format as well as the
-    text format, and `timestamptz` rejects a time zone displacement beyond PostgreSQL's `MAX_TZDISP_HOUR`.
-    PostgreSQL never sends such values, so this only affects corrupt or hand-built input; it is checked in both
-    formats so that whether a value is accepted does not depend on `QueryExecMode`.
+    text format. PostgreSQL never sends out-of-range dates, so this only affects corrupt or hand-built input; the range
+    is checked in both formats so that whether a value is accepted does not depend on `QueryExecMode`.
+    `timestamptz` also rejects time zone displacements outside PostgreSQL's signed 32-bit seconds range, while accepting
+    the wider offsets emitted for POSIX time zones, such as `+16`.
   * `timestamptz` values scanned from the text format are now returned in `time.Local`, or in `ScanLocation` when it is
     set, matching what the binary format has always returned. Previously the text path kept whatever location
     `time.Parse` derived from the offset the server sent, so the same value scanned in the two formats could report a

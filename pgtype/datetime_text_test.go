@@ -82,6 +82,27 @@ func TestParseTextDateTime(t *testing.T) {
 			},
 		},
 		{
+			"2024-01-02 03:04:05+168:59",
+			textDateTime{
+				year: 2024, month: 1, day: 2, hour: 3, min: 4, sec: 5,
+				offset: 168*60*60 + 59*60, hasTime: true, hasOffset: true,
+			},
+		},
+		{
+			"2024-01-02 03:04:05+596523:14:07",
+			textDateTime{
+				year: 2024, month: 1, day: 2, hour: 3, min: 4, sec: 5,
+				offset: 2147483647, hasTime: true, hasOffset: true,
+			},
+		},
+		{
+			"2024-01-02 03:04:05-596523:14:08",
+			textDateTime{
+				year: 2024, month: 1, day: 2, hour: 3, min: 4, sec: 5,
+				offset: -2147483648, hasTime: true, hasOffset: true,
+			},
+		},
+		{
 			// Not something the server emits, but pgx's own text encoder writes it.
 			"2024-01-02 03:04:05Z",
 			textDateTime{year: 2024, month: 1, day: 2, hour: 3, min: 4, sec: 5, hasTime: true, hasOffset: true},
@@ -172,12 +193,13 @@ func TestParseTextDateTimeErrors(t *testing.T) {
 		"2024-01-01 24:00:00", // PostgreSQL never emits hour 24
 		"2024-01-01 00:60:00",
 		"2024-01-01 00:00:60",
-		"2024-01-01 00:00:00.",   // fraction with no digits
-		"2024-01-01 00:00:00+16", // beyond MAX_TZDISP_HOUR
-		"2024-01-01 00:00:00-16", // beyond MAX_TZDISP_HOUR
+		"2024-01-01 00:00:00.",             // fraction with no digits
+		"2024-01-01 00:00:00+596523:14:08", // seconds exceed int32
+		"2024-01-01 00:00:00-596523:14:09", // seconds exceed int32
+		"2024-01-01 00:00:00+99999999999999999999", // hour long enough to overflow
 		"2024-01-01 00:00:00+15:60",
 		"2024-01-01 00:00:00+15:00:60",
-		"2024-01-01 00:00:00+0", // offset hour is always two digits
+		"2024-01-01 00:00:00+0", // offset hour needs at least two digits
 		"2024-01-01 00:00:00 extra",
 		"2024-01-01 00:00:00+00 AD", // PostgreSQL only ever writes " BC"
 		"2024-01-01 BC extra",
