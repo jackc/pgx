@@ -216,7 +216,7 @@ func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 type scanPlanBinaryDateToDateScanner struct{}
 
 func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(DateScanner)
+	scanner := dst.(DateScanner)
 
 	if src == nil {
 		return scanner.ScanDate(Date{})
@@ -247,7 +247,7 @@ func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToDateScanner struct{}
 
 func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(DateScanner)
+	scanner := dst.(DateScanner)
 
 	if src == nil {
 		return scanner.ScanDate(Date{})

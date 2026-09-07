@@ -174,7 +174,7 @@ func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target any) Scan
 type scanPlanBinaryIntervalToIntervalScanner struct{}
 
 func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(IntervalScanner)
+	scanner := dst.(IntervalScanner)
 
 	if src == nil {
 		return scanner.ScanInterval(Interval{})
@@ -196,7 +196,7 @@ func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToIntervalScanner struct{}
 
 func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(IntervalScanner)
+	scanner := dst.(IntervalScanner)
 
 	if src == nil {
 		return scanner.ScanInterval(Interval{})

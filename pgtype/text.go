@@ -186,7 +186,7 @@ func (scanPlanTextAnyToString) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	p := (dst).(*string)
+	p := dst.(*string)
 	*p = string(src)
 
 	return nil
@@ -195,7 +195,7 @@ func (scanPlanTextAnyToString) Scan(src []byte, dst any) error {
 type scanPlanAnyToNewByteSlice struct{}
 
 func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst any) error {
-	p := (dst).(*[]byte)
+	p := dst.(*[]byte)
 	if src == nil {
 		*p = nil
 	} else {
@@ -209,14 +209,14 @@ func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst any) error {
 type scanPlanAnyToByteScanner struct{}
 
 func (scanPlanAnyToByteScanner) Scan(src []byte, dst any) error {
-	p := (dst).(BytesScanner)
+	p := dst.(BytesScanner)
 	return p.ScanBytes(src)
 }
 
 type scanPlanTextAnyToTextScanner struct{}
 
 func (scanPlanTextAnyToTextScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TextScanner)
+	scanner := dst.(TextScanner)
 
 	if src == nil {
 		return scanner.ScanText(Text{})

@@ -17,17 +17,17 @@ func isExpectedEq(a any) func(any) bool {
 func TestFloat8Transcode(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float8", []pgxtest.ValueRoundTripTest{
 		{
-			Param:  (zeronull.Float8)(1),
+			Param:  zeronull.Float8(1),
 			Result: new(zeronull.Float8),
-			Test:   isExpectedEq((zeronull.Float8)(1)),
+			Test:   isExpectedEq(zeronull.Float8(1)),
 		},
 		{
 			Param:  nil,
 			Result: new(zeronull.Float8),
-			Test:   isExpectedEq((zeronull.Float8)(0)),
+			Test:   isExpectedEq(zeronull.Float8(0)),
 		},
 		{
-			Param:  (zeronull.Float8)(0),
+			Param:  zeronull.Float8(0),
 			Result: new(any),
 			Test:   isExpectedEq(nil),
 		},

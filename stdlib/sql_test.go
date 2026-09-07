@@ -535,7 +535,8 @@ func TestConnQueryScanRange(t *testing.T) {
 				UpperType: pgtype.Exclusive,
 				Valid:     true,
 			},
-			r)
+			r,
+		)
 	})
 }
 

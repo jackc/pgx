@@ -21,17 +21,17 @@ func isExpectedEqTimestamp(a any) func(any) bool {
 func TestTimestampTranscode(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "timestamp", []pgxtest.ValueRoundTripTest{
 		{
-			Param:  (zeronull.Timestamp)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Param:  zeronull.Timestamp(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
 			Result: new(zeronull.Timestamp),
-			Test:   isExpectedEqTimestamp((zeronull.Timestamp)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))),
+			Test:   isExpectedEqTimestamp(zeronull.Timestamp(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))),
 		},
 		{
 			Param:  nil,
 			Result: new(zeronull.Timestamp),
-			Test:   isExpectedEqTimestamp((zeronull.Timestamp)(time.Time{})),
+			Test:   isExpectedEqTimestamp(zeronull.Timestamp(time.Time{})),
 		},
 		{
-			Param:  (zeronull.Timestamp)(time.Time{}),
+			Param:  zeronull.Timestamp(time.Time{}),
 			Result: new(any),
 			Test:   isExpectedEq(nil),
 		},

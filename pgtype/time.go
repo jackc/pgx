@@ -157,7 +157,7 @@ func (TimeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 type scanPlanBinaryTimeToTimeScanner struct{}
 
 func (scanPlanBinaryTimeToTimeScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TimeScanner)
+	scanner := dst.(TimeScanner)
 
 	if src == nil {
 		return scanner.ScanTime(Time{})
@@ -176,7 +176,7 @@ func (scanPlanBinaryTimeToTimeScanner) Scan(src []byte, dst any) error {
 type scanPlanBinaryTimeToTextScanner struct{}
 
 func (scanPlanBinaryTimeToTextScanner) Scan(src []byte, dst any) error {
-	ts, ok := (dst).(TextScanner)
+	ts, ok := dst.(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
 	}
@@ -205,7 +205,7 @@ func (scanPlanBinaryTimeToTextScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToTimeScanner struct{}
 
 func (scanPlanTextAnyToTimeScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TimeScanner)
+	scanner := dst.(TimeScanner)
 
 	if src == nil {
 		return scanner.ScanTime(Time{})

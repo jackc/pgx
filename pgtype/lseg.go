@@ -144,7 +144,7 @@ func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 type scanPlanBinaryLsegToLsegScanner struct{}
 
 func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(LsegScanner)
+	scanner := dst.(LsegScanner)
 
 	if src == nil {
 		return scanner.ScanLseg(Lseg{})
@@ -173,7 +173,7 @@ func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToLsegScanner struct{}
 
 func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(LsegScanner)
+	scanner := dst.(LsegScanner)
 
 	if src == nil {
 		return scanner.ScanLseg(Lseg{})

@@ -130,7 +130,7 @@ type scanPlanBinaryCompositeToCompositeIndexScanner struct {
 }
 
 func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, target any) error {
-	targetScanner := (target).(CompositeIndexScanner)
+	targetScanner := target.(CompositeIndexScanner)
 
 	if src == nil {
 		return targetScanner.ScanNull()
@@ -172,7 +172,7 @@ type scanPlanTextCompositeToCompositeIndexScanner struct {
 }
 
 func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, target any) error {
-	targetScanner := (target).(CompositeIndexScanner)
+	targetScanner := target.(CompositeIndexScanner)
 
 	if src == nil {
 		return targetScanner.ScanNull()

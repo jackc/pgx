@@ -214,7 +214,7 @@ func (c PointCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (a
 type scanPlanBinaryPointToPointScanner struct{}
 
 func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PointScanner)
+	scanner := dst.(PointScanner)
 
 	if src == nil {
 		return scanner.ScanPoint(Point{})
@@ -238,7 +238,7 @@ func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToPointScanner struct{}
 
 func (scanPlanTextAnyToPointScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(PointScanner)
+	scanner := dst.(PointScanner)
 
 	if src == nil {
 		return scanner.ScanPoint(Point{})

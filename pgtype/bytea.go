@@ -185,7 +185,7 @@ func (scanPlanBinaryBytesToBytes) Scan(src []byte, dst any) error {
 type scanPlanBinaryBytesToBytesScanner struct{}
 
 func (scanPlanBinaryBytesToBytesScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BytesScanner)
+	scanner := dst.(BytesScanner)
 	return scanner.ScanBytes(src)
 }
 
@@ -210,7 +210,7 @@ func (scanPlanTextByteaToBytes) Scan(src []byte, dst any) error {
 type scanPlanTextByteaToBytesScanner struct{}
 
 func (scanPlanTextByteaToBytesScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BytesScanner)
+	scanner := dst.(BytesScanner)
 	buf, err := decodeHexBytea(src)
 	if err != nil {
 		return err

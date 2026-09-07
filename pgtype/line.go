@@ -146,7 +146,7 @@ func (LineCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 type scanPlanBinaryLineToLineScanner struct{}
 
 func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(LineScanner)
+	scanner := dst.(LineScanner)
 
 	if src == nil {
 		return scanner.ScanLine(Line{})
@@ -173,7 +173,7 @@ func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToLineScanner struct{}
 
 func (scanPlanTextAnyToLineScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(LineScanner)
+	scanner := dst.(LineScanner)
 
 	if src == nil {
 		return scanner.ScanLine(Line{})

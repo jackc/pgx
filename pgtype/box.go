@@ -144,7 +144,7 @@ func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan 
 type scanPlanBinaryBoxToBoxScanner struct{}
 
 func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BoxScanner)
+	scanner := dst.(BoxScanner)
 
 	if src == nil {
 		return scanner.ScanBox(Box{})
@@ -173,7 +173,7 @@ func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst any) error {
 type scanPlanTextAnyToBoxScanner struct{}
 
 func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(BoxScanner)
+	scanner := dst.(BoxScanner)
 
 	if src == nil {
 		return scanner.ScanBox(Box{})

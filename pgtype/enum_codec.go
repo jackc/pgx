@@ -88,7 +88,7 @@ func (plan *scanPlanTextAnyToEnumString) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	p := (dst).(*string)
+	p := dst.(*string)
 	*p = plan.codec.lookupAndCacheString(src)
 
 	return nil
@@ -99,7 +99,7 @@ type scanPlanTextAnyToEnumTextScanner struct {
 }
 
 func (plan *scanPlanTextAnyToEnumTextScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(TextScanner)
+	scanner := dst.(TextScanner)
 
 	if src == nil {
 		return scanner.ScanText(Text{})
