@@ -1,8 +1,173 @@
+# mise is this project's single development entry point: the same `mise run <task>` works on
+# native macOS, on native Linux, and inside the devcontainer. See DEVELOPMENT.md.
+#
+# The division of labour:
+#   mise             tool versions, this checkout's environment, one-shot tasks
+#   process-compose  long-running services (process-compose.yaml) — five PostgreSQL clusters + CRDB
+#   port-tamer       this checkout's TCP ports (port-tamer.toml -> .dev/ports.env)
+#
+# PostgreSQL itself is the one prerequisite mise does not provide; DEVELOPMENT.md §1 lists it.
+
 [tools]
-go = '1.26.3'
+go = '1.27.0'
+ruby = '4.0.4'
 "go:github.com/go-critic/go-critic/cmd/gocritic" = "latest"
 "go:github.com/gordonklaus/ineffassign" = "latest"
 "go:github.com/mdempsky/unconvert" = "latest"
 "go:golang.org/x/tools/cmd/goimports" = "latest"
 "go:mvdan.cc/gofumpt" = "latest"
-ruby = '4.0.4'
+
+# The linter .golangci.yml configures and CLAUDE.md documents. It was never actually provisioned
+# by the devcontainer, so `golangci-lint run ./...` only worked if you had installed it yourself.
+golangci-lint = '2.13.2'
+
+# The process supervisor for the long-running development services. Pinned like every other tool
+# so macOS, Linux, and the devcontainer run the same version.
+process-compose = '1.122.0'
+
+# Per-checkout TCP port allocation. The `github:` backend takes the prebuilt release binary, so it
+# does not depend on the Go toolchain this repo pins.
+"github:jackc/port-tamer" = '0.1.0'
+
+# The CockroachDB test target. Previously a container image; the version tracks the one CI installs
+# in ci/setup_test.bash.
+cockroach = '25.4.4'
+
+# --- Environment ---------------------------------------------------------------------------------
+#
+# This checkout's own service endpoints. Loading them here is what makes the per-checkout clusters
+# the DEFAULT: a bare `psql` and a bare `go test ./...` read PG*/PGX_TEST_* from the environment,
+# so pointing those at .dev/ in one place moves every consumer at once.
+#
+# Two files with two owners, and the order matters — the derived values are read after the
+# allocation they come from:
+#
+#   .dev/ports.env     port-tamer's state file (port-tamer.toml declares the names). NAME=<port>
+#                      lines only; port-tamer rewrites it canonically and rejects anything else.
+#   .dev/derived.env   PGHOST/PGPORT/PGUSER/PGDATABASE plus the default target's PGX_TEST_* set —
+#                      scripts/devenv.rb, via scripts/lib/test_targets.rb.
+#
+# Both are generated per checkout and gitignored; `mise run dev:init` creates them. Their absence
+# is not an error — mise skips a missing file and PG* falls back to whatever the shell already had.
+[env]
+_.file = ['.dev/ports.env', '.dev/derived.env']
+
+# Homebrew's postgresql@<major> formulas are KEG-ONLY: nothing is linked into the prefix bin, so
+# psql and pg_isready are not on PATH after `brew install`. The scripts that need the SERVER
+# binaries resolve them per major explicitly (scripts/lib/pg_bin.rb), but the CLIENT tools are
+# invoked by name from the readiness probes, `rake db:psql`, and the database bootstrap.
+#
+# The newest major's client is used for every server: libpq is backward compatible, so one psql
+# talks to all five clusters. Both standard Homebrew prefixes are listed (Apple silicon, then
+# Intel). Neither exists on Linux, where a nonexistent PATH entry is simply ignored, so this is
+# inert in the devcontainer.
+_.path = [
+  '/opt/homebrew/opt/postgresql@18/bin',
+  '/usr/local/opt/postgresql@18/bin',
+]
+
+# process-compose's control API address. The port comes from this checkout's allocation
+# (PC_PORT_NUM in .dev/ports.env), so every `process-compose ...` command reaches THIS checkout's
+# stack with no flags.
+PC_ADDRESS = "127.0.0.1"
+
+# Kept separate deliberately: `mise run dev` writes the supervisor log, and a client command such
+# as `process-compose process list` would otherwise truncate the log of the stack it is inspecting.
+PC_SERVER_LOG_FILE = "{{config_root}}/.dev/process-compose.log"
+PC_LOG_FILE = "{{config_root}}/.dev/process-compose-client.log"
+
+# --- Tasks: the project's development interface ---------------------------------------------------
+#
+# Thin wrappers. The logic lives in scripts/ and the Rakefile; these exist so a workflow is
+# reachable without knowing what is underneath, and so the same command works in every environment.
+
+[tasks."dev:init"]
+description = "Bootstrap this checkout: allocate its ports, decode its certificates"
+run = "ruby scripts/devenv.rb ensure"
+
+[tasks.dev]
+description = "Start PostgreSQL 18 and this checkout's on-demand database supervisor"
+run = "ruby scripts/dev.rb"
+
+[tasks."dev:all"]
+description = "Start PostgreSQL 14-18 and CockroachDB eagerly under process-compose"
+run = "ruby scripts/dev.rb all"
+
+[tasks."dev:down"]
+description = "Stop this checkout's development stack"
+run = "ruby scripts/dev.rb down"
+
+[tasks."dev:wait"]
+description = "Wait for a detached development stack to become ready"
+run = "ruby scripts/dev_ready.rb --wait"
+
+[tasks."dev:ready"]
+description = "Require the development stack to be running"
+run = "ruby scripts/dev_ready.rb"
+hide = true
+
+[tasks."dev:ports"]
+description = "Print this checkout's port allocation and where each server's data lives"
+run = "rake dev:ports:show"
+
+[tasks."dev:ports:ensure"]
+description = "Allocate this checkout's ports if it has none (idempotent)"
+run = "rake dev:ports:ensure"
+
+[tasks."dev:ports:overwrite"]
+description = "Move this checkout to a different port group (stop its services first)"
+run = "rake dev:ports:overwrite"
+
+# --- Databases -----------------------------------------------------------------------------------
+
+[tasks."db:start"]
+description = "Prewarm database targets (default: pg18); e.g. mise run db:start pg16 crdb"
+run = "ruby scripts/dev_services.rb start"
+
+[tasks."db:stop"]
+description = "Stop database targets (default: pg18); e.g. mise run db:stop pg16 crdb"
+run = "ruby scripts/dev_services.rb stop"
+
+# These call scripts/devdb.rb rather than the equivalent rake tasks. mise APPENDS a task's
+# arguments to its `run` line, and `rake db:reset 16` does not mean "db:reset with the argument
+# 16" — rake reads the 16 as a SECOND TASK, runs db:reset with no major (which is every cluster),
+# and only then fails on the unknown task. devdb.rb takes the major as an ordinary argument, so
+# `mise run db:reset 16` reaches it as written. `rake db:reset[16]` is still the rake spelling.
+
+[tasks."db:init"]
+description = "Create this checkout's PostgreSQL clusters under .dev (idempotent); e.g. mise run db:init 16"
+run = "ruby scripts/devdb.rb init"
+
+[tasks."db:psql"]
+description = "psql against one of this checkout's clusters (default: the newest major)"
+run = "ruby scripts/devdb.rb psql"
+
+[tasks."db:setup"]
+description = "Create pgx_test and its roles in a running cluster (idempotent)"
+run = "ruby scripts/devdb.rb setup"
+
+[tasks."db:reset"]
+description = "Destroy and recreate this checkout's clusters (destructive; CONFIRM=yes, stack down)"
+run = "ruby scripts/devdb.rb reset"
+
+# --- Test, format, generate ------------------------------------------------------------------------
+
+[tasks.test]
+description = "Run the test suite against one target (default pg18); e.g. mise run test pg16"
+run = "./test.sh"
+
+[tasks."test:all"]
+description = "Run the test suite against every target: PostgreSQL 14-18 and CockroachDB"
+run = "./test.sh all"
+
+[tasks.fmt]
+description = "Format all Go sources with goimports"
+run = "goimports -w ."
+
+[tasks.lint]
+description = "Run the linters configured in .golangci.yml"
+run = "golangci-lint run ./..."
+
+[tasks.generate]
+description = "Regenerate the ERB-templated Go sources"
+run = "rake generate"

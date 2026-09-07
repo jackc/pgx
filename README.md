@@ -12,7 +12,15 @@ The toolkit component is a related set of packages that implement PostgreSQL fun
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
 proxies, load balancers, logical replication clients, etc.
 
-## Example Usage
+## Quick Start
+
+### Installation
+
+```bash
+go get github.com/jackc/pgx/v5
+```
+
+### Example Usage
 
 ```go
 package main
@@ -46,7 +54,18 @@ func main() {
 }
 ```
 
-See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx) for more information.
+### Connection Configuration
+
+`pgx.Connect` and `pgxpool.New` accept PostgreSQL connection URLs (such as `postgres://user:pass@host:5432/db?sslmode=verify-full`) as well as `key=value` strings. See [`pgconn.ParseConfig`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#ParseConfig) and the [PostgreSQL connection string documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) for supported options and environment variables.
+
+For a step-by-step walkthrough, see the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx).
+
+## Documentation
+
+Package documentation and API reference are available on [pkg.go.dev](https://pkg.go.dev/github.com/jackc/pgx/v5):
+* [`pgx`](https://pkg.go.dev/github.com/jackc/pgx/v5) — base PostgreSQL driver
+* [`pgxpool`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool) — concurrency-safe connection pool
+* [`stdlib`](https://pkg.go.dev/github.com/jackc/pgx/v5/stdlib) — `database/sql` compatibility adapter
 
 ## Features
 
@@ -82,9 +101,30 @@ The pgx interface is recommended when:
 
 It is also possible to use the `database/sql` interface and convert a connection to the lower-level pgx interface as needed.
 
-## Testing
+## Development and Testing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
+Each checkout has its own PostgreSQL 14-18 clusters and CockroachDB node, so the whole test matrix
+is available locally on macOS, on Linux, or in the included devcontainer. Only PostgreSQL 18 stays
+running by default; other targets start and stop around their tests:
+
+```sh
+scripts/setup-host # native macOS (Homebrew required) or Ubuntu: host packages and mise
+export PATH="$HOME/.local/bin:$PATH" # if mise was just installed
+mise trust
+mise install        # project tools
+mise run dev:init   # checkout ports and certificates
+mise run dev        # start PostgreSQL 18 and the on-demand database supervisor
+./test.sh           # the suite against PostgreSQL 18
+./test.sh all       # every target, starting and stopping each server as needed
+```
+
+Host setup installs PostgreSQL 14-18 and Ruby build dependencies. It does not install project
+tools or initialize the checkout; those remain separate steps above. The devcontainer already
+provides the host prerequisites.
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full setup, and
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute — including how to run the tests against
+a PostgreSQL server you already have, without any of the above.
 
 ## Architecture
 

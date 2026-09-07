@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -151,14 +150,16 @@ func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanLseg(Lseg{})
 	}
 
-	if len(src) != 32 {
-		return fmt.Errorf("invalid length for lseg: %v", len(src))
-	}
+	r := pgio.NewReader(src)
 
-	x1 := binary.BigEndian.Uint64(src)
-	y1 := binary.BigEndian.Uint64(src[8:])
-	x2 := binary.BigEndian.Uint64(src[16:])
-	y2 := binary.BigEndian.Uint64(src[24:])
+	x1 := r.Uint64()
+	y1 := r.Uint64()
+	x2 := r.Uint64()
+	y2 := r.Uint64()
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("lseg: %w", err)
+	}
 
 	return scanner.ScanLseg(Lseg{
 		P: [2]Vec2{

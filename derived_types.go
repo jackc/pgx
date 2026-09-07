@@ -64,9 +64,12 @@ UNION ALL
 -- As can be seen, there are 3 ways this can occur (the last of which
 -- is due to being a composite class, where the composite fields are children)
 pc(parent, child) AS (
+    -- typtype = 'b' AND typelem != 0 is not sufficient to identify an array type: some
+    -- scalar types (box, point, line, lseg, name, ...) also set typelem to describe their
+    -- internal C representation. typcategory = 'A' is the reliable "is an array" signal.
     SELECT parent.oid, parent.typelem
     FROM pg_type parent
-    WHERE parent.typtype = 'b' AND parent.typelem != 0
+    WHERE parent.typtype = 'b' AND parent.typelem != 0 AND parent.typcategory = 'A'
 UNION ALL
     SELECT parent.oid, parent.typbasetype
     FROM pg_type parent
@@ -113,6 +116,7 @@ SELECT typname,
        typtype,
        typbasetype,
        typelem,
+       typdelim,
        pg_type.oid,`)
 	if supportsMultirange {
 		parts = append(parts, `
@@ -135,9 +139,13 @@ SELECT typname,
 	parts = append(parts, `
     LEFT OUTER JOIN composite USING (oid)
     LEFT OUTER JOIN pg_namespace ON (pg_type.typnamespace = pg_namespace.oid)
-    WHERE NOT (typtype = 'b' AND typelem = 0)`)
+    -- Only emit typtype = 'b' rows that are true arrays (typcategory = 'A'). Other base
+    -- types, including ones with a non-zero typelem for non-array reasons (box, point,
+    -- line, lseg, name, ...), already have a codec registered and must not be re-emitted,
+    -- or LoadTypes will overwrite their correct codec with a bogus ArrayCodec.
+    WHERE NOT (typtype = 'b' AND NOT (typelem != 0 AND typcategory = 'A'))`)
 	parts = append(parts, `
-    GROUP BY typname, pg_namespace.nspname, typtype, typbasetype, typelem, pg_type.oid, pg_range.rngsubtype,`)
+    GROUP BY typname, pg_namespace.nspname, typtype, typbasetype, typelem, typdelim, pg_type.oid, pg_range.rngsubtype,`)
 	if supportsMultirange {
 		parts = append(parts, `
         multirange.rngtypid,`)
@@ -150,9 +158,16 @@ SELECT typname,
 
 type derivedTypeInfo struct {
 	Oid, Typbasetype, Typelem, Rngsubtype, Rngtypid uint32
-	TypeName, Typtype, NspName                      string
+	TypeName, Typtype, NspName, Typdelim            string
 	Attnames                                        []string
 	Atttypids                                       []uint32
+}
+
+func parseTypeDelimiter(typdelim string) byte {
+	if typdelim == "" {
+		return 0
+	}
+	return typdelim[0]
 }
 
 // LoadTypes performs a single (complex) query, returning all the required
@@ -177,7 +192,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	result := make([]*pgtype.Type, 0, 100)
 	for rows.Next() {
 		ti := derivedTypeInfo{}
-		err = rows.Scan(&ti.TypeName, &ti.NspName, &ti.Typtype, &ti.Typbasetype, &ti.Typelem, &ti.Oid, &ti.Rngtypid, &ti.Rngsubtype, &ti.Attnames, &ti.Atttypids)
+		err = rows.Scan(&ti.TypeName, &ti.NspName, &ti.Typtype, &ti.Typbasetype, &ti.Typelem, &ti.Typdelim, &ti.Oid, &ti.Rngtypid, &ti.Rngsubtype, &ti.Attnames, &ti.Atttypids)
 		if err != nil {
 			return nil, fmt.Errorf("While scanning type information: %w", err)
 		}
@@ -188,7 +203,7 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 			if !ok {
 				return nil, fmt.Errorf("Array element OID %v not registered while loading pgtype %q", ti.Typelem, ti.TypeName)
 			}
-			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.ArrayCodec{ElementType: dt}}
+			type_ = &pgtype.Type{Name: ti.TypeName, OID: ti.Oid, Codec: &pgtype.ArrayCodec{ElementType: dt, Delimiter: parseTypeDelimiter(ti.Typdelim)}}
 		case "c": // composite
 			var fields []pgtype.CompositeCodecField
 			for i, fieldName := range ti.Attnames {

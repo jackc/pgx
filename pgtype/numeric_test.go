@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -71,6 +72,60 @@ func mustParseNumeric(t *testing.T, src string) pgtype.Numeric {
 	err := plan.Scan([]byte(src), &n)
 	require.NoError(t, err)
 	return n
+}
+
+func TestNumericScanScientificPreservesPrecision(t *testing.T) {
+	tests := []struct {
+		src  string
+		want pgtype.Numeric
+	}{
+		{
+			src:  "1234567890123456789e0",
+			want: pgtype.Numeric{Int: mustParseBigInt(t, "1234567890123456789"), Valid: true},
+		},
+		{
+			src:  "1.234567890123456789e5",
+			want: pgtype.Numeric{Int: mustParseBigInt(t, "1234567890123456789"), Exp: -13, Valid: true},
+		},
+		{
+			src:  "1e131071",
+			want: pgtype.Numeric{Int: big.NewInt(1), Exp: 131071, Valid: true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			var got pgtype.Numeric
+			require.NoError(t, got.ScanScientific(tt.src))
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNumericScanScientificErrors(t *testing.T) {
+	// Errors report the string the caller passed in, not an internal rewrite of
+	// it, and do not leak strconv's wording.
+	for _, tt := range []struct {
+		src     string
+		wantErr string
+	}{
+		{src: "1e", wantErr: "1e is not a number"},
+		{src: "1e+", wantErr: "1e+ is not a number"},
+		{src: "1e1.5", wantErr: "1e1.5 is not a number"},
+		{src: "1e5e5", wantErr: "1e5e5 is not a number"},
+		{src: "1.2.3e4", wantErr: "1.2.3e4 is not a number"},
+		{src: "e5", wantErr: "e5 is not a number"},
+		{src: "1.2.3", wantErr: "1.2.3 is not a number"},
+		{src: "1e99999999999999999999", wantErr: "1e99999999999999999999 exponent out of range"},
+		{src: "1000e2147483647", wantErr: "1000e2147483647 exponent out of range"},
+		{src: "1e131072", wantErr: "1e131072 exponent out of range"},
+		{src: "1e-32768", wantErr: "1e-32768 exponent out of range"},
+	} {
+		t.Run(tt.src, func(t *testing.T) {
+			var n pgtype.Numeric
+			require.EqualError(t, n.ScanScientific(tt.src), tt.wantErr)
+		})
+	}
 }
 
 func TestNumericCodec(t *testing.T) {
@@ -147,6 +202,81 @@ func TestNumericCodecInfinity(t *testing.T) {
 	})
 }
 
+// TestNumericBinaryDecodeUnnormalizedZero ensures the binary decoder does not
+// hang on a zero value encoded with ndigits > 0. PostgreSQL always normalizes
+// zero to ndigits == 0, but other servers speaking the same wire protocol
+// (e.g. CockroachDB) and connection poolers may send an unnormalized zero. The
+// trailing-zero reduction loop divided such a value by 10 forever because
+// 0 % 10 == 0, spinning the CPU indefinitely.
+func TestNumericBinaryDecodeUnnormalizedZero(t *testing.T) {
+	// ndigits=1, weight=0, sign=0 (positive), dscale=0, single base-10000 digit = 0.
+	src := []byte{
+		0x00, 0x01, // ndigits
+		0x00, 0x00, // weight
+		0x00, 0x00, // sign
+		0x00, 0x00, // dscale
+		0x00, 0x00, // digit[0]
+	}
+
+	done := make(chan error, 1)
+	var n pgtype.Numeric
+	go func() {
+		plan := pgtype.NumericCodec{}.PlanScan(nil, pgtype.NumericOID, pgtype.BinaryFormatCode, &n)
+		require.NotNil(t, plan)
+		done <- plan.Scan(src, &n)
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+		require.True(t, n.Valid)
+		require.False(t, n.NaN)
+		require.Equal(t, pgtype.Finite, n.InfinityModifier)
+		require.Equal(t, 0, n.Int.Sign())
+	case <-time.After(5 * time.Second):
+		t.Fatal("decoding unnormalized zero did not terminate (infinite loop)")
+	}
+}
+
+func TestNumericBinaryEncodeExponentOutOfRange(t *testing.T) {
+	// The binary format stores weight and dscale as int16. Exponents beyond what
+	// those fields can hold used to be silently truncated, encoding a completely
+	// different value.
+	for _, tt := range []struct {
+		name       string
+		n          pgtype.Numeric
+		encodeable bool
+	}{
+		{name: "largest encodable exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 131071, Valid: true}, encodeable: true},
+		{name: "weight overflows by one", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 131072, Valid: true}},
+		{name: "weight wraps to a smaller positive", n: pgtype.Numeric{Int: big.NewInt(1), Exp: 300000, Valid: true}},
+		{name: "maximum exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: math.MaxInt32, Valid: true}},
+		{name: "smallest encodable exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: -math.MaxInt16, Valid: true}, encodeable: true},
+		{name: "dscale overflows by one", n: pgtype.Numeric{Int: big.NewInt(1), Exp: -math.MaxInt16 - 1, Valid: true}},
+		{name: "minimum exponent", n: pgtype.Numeric{Int: big.NewInt(1), Exp: math.MinInt32, Valid: true}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := pgtype.NewMap()
+			plan := m.PlanEncode(pgtype.NumericOID, pgtype.BinaryFormatCode, tt.n)
+			require.NotNil(t, plan)
+
+			buf, err := plan.Encode(tt.n, nil)
+			if !tt.encodeable {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// The boundary values must still round trip unchanged.
+			var got pgtype.Numeric
+			scanPlan := m.PlanScan(pgtype.NumericOID, pgtype.BinaryFormatCode, &got)
+			require.NotNil(t, scanPlan)
+			require.NoError(t, scanPlan.Scan(buf, &got))
+			require.True(t, isExpectedEqNumeric(tt.n)(got), "got Int=%v Exp=%d", got.Int, got.Exp)
+		})
+	}
+}
+
 func TestNumericFloat64Valuer(t *testing.T) {
 	for i, tt := range []struct {
 		n pgtype.Numeric
@@ -169,6 +299,36 @@ func TestNumericFloat64Valuer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, math.IsNaN(f.Float64))
 	assert.True(t, f.Valid)
+}
+
+func TestNumericInt64Valuer(t *testing.T) {
+	for i, tt := range []struct {
+		n pgtype.Numeric
+		i pgtype.Int8
+	}{
+		{mustParseNumeric(t, "1"), pgtype.Int8{Int64: 1, Valid: true}},
+		{mustParseNumeric(t, "-99999999999"), pgtype.Int8{Int64: -99999999999, Valid: true}},
+		{mustParseNumeric(t, "0"), pgtype.Int8{Int64: 0, Valid: true}},
+		// A valid Numeric with a nil Int is zero, matching Float64Value, Value,
+		// and MarshalJSON. Int64Value used to dereference the nil Int and panic.
+		{pgtype.Numeric{Valid: true}, pgtype.Int8{Int64: 0, Valid: true}},
+		{pgtype.Numeric{}, pgtype.Int8{}},
+	} {
+		v, err := tt.n.Int64Value()
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, tt.i, v, "%d", i)
+	}
+
+	// NaN and infinite values cannot be represented as int64. They also have a
+	// nil Int, but must error rather than convert to zero.
+	for i, n := range []pgtype.Numeric{
+		{NaN: true, Valid: true},
+		{InfinityModifier: pgtype.Infinity, Valid: true},
+		{InfinityModifier: pgtype.NegativeInfinity, Valid: true},
+	} {
+		_, err := n.Int64Value()
+		assert.Errorf(t, err, "%d", i)
+	}
 }
 
 func TestNumericCodecFuzz(t *testing.T) {
@@ -245,6 +405,31 @@ func TestNumericMarshalJSON(t *testing.T) {
 	})
 }
 
+func TestNumericMarshalJSONInfinity(t *testing.T) {
+	// PostgreSQL renders numeric infinity in JSON as the quoted strings
+	// "Infinity"/"-Infinity" (like to_json('infinity'::numeric)), matching the
+	// existing "NaN" handling. Previously these marshaled to 0, silently
+	// corrupting the value.
+	for _, tt := range []struct {
+		name string
+		num  pgtype.Numeric
+		want string
+	}{
+		{"Infinity", pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, `"Infinity"`},
+		{"-Infinity", pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, `"-Infinity"`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := json.Marshal(tt.num)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(got))
+
+			var back pgtype.Numeric
+			require.NoError(t, back.UnmarshalJSON(got))
+			require.Equal(t, tt.num, back)
+		})
+	}
+}
+
 func TestNumericUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -262,6 +447,18 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 			name:    "NaN",
 			want:    &pgtype.Numeric{Valid: true, NaN: true},
 			src:     []byte(`"NaN"`),
+			wantErr: false,
+		},
+		{
+			name:    "Infinity",
+			want:    &pgtype.Numeric{Valid: true, InfinityModifier: pgtype.Infinity},
+			src:     []byte(`"Infinity"`),
+			wantErr: false,
+		},
+		{
+			name:    "-Infinity",
+			want:    &pgtype.Numeric{Valid: true, InfinityModifier: pgtype.NegativeInfinity},
+			src:     []byte(`"-Infinity"`),
 			wantErr: false,
 		},
 		{
@@ -295,9 +492,49 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "scientific: 1e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 10},
+			src:     []byte("1e10"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: 1.000101231014e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1000101231014), Exp: -2},
+			src:     []byte("1.000101231014e10"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: what encoding/json emits for float64(1e21)",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 21},
+			src:     []byte("1e+21"),
+			wantErr: false,
+		},
+		{
+			name:    "scientific: negative exponent",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(-15), Exp: -4},
+			src:     []byte("-1.5e-3"),
+			wantErr: false,
+		},
+		{
+			name: "scientific: beyond float64 precision",
+			want: &pgtype.Numeric{
+				Valid: true,
+				Int:   mustParseBigInt(t, "1234567890123456789"),
+				Exp:   -13,
+			},
+			src:     []byte("1.234567890123456789e5"),
+			wantErr: false,
+		},
+		{
 			name:    "invalid value",
 			want:    &pgtype.Numeric{},
 			src:     []byte("0xffff"),
+			wantErr: true,
+		},
+		{
+			name:    "invalid exponent",
+			want:    &pgtype.Numeric{},
+			src:     []byte("1e1.5"),
 			wantErr: true,
 		},
 	}

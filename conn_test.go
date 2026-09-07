@@ -1110,6 +1110,19 @@ create type pgx_b.point as (c text);
 	})
 }
 
+func TestLoadTypeLoadsArrayDelimiter(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support box type")
+
+		dt, err := conn.LoadType(ctx, "_box")
+		require.NoError(t, err)
+
+		codec, ok := dt.Codec.(*pgtype.ArrayCodec)
+		require.True(t, ok)
+		require.Equal(t, byte(';'), codec.Delimiter)
+	})
+}
+
 func TestLoadCompositeType(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()

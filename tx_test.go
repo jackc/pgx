@@ -643,3 +643,77 @@ func TestTxSendBatchClosed(t *testing.T) {
 	_, err = br.Query()
 	require.Error(t, err)
 }
+
+// When a query is cancelled mid-flight the underlying connection is closed, but
+// the Tx handle has not been finalized. The first Rollback then fails to send
+// ROLLBACK over the dead connection. That error must be matchable as
+// pgconn.ErrConnClosed (transport gone) rather than ErrTxClosed (handle already
+// finalized), so callers can tell the two apart. A second Rollback returns
+// ErrTxClosed. See https://github.com/jackc/pgx/issues/2557.
+func TestTxRollbackOnClosedConnReturnsErrConnClosed(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	tx, err := conn.Begin(context.Background())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = tx.Exec(ctx, "select pg_sleep(5)")
+	require.Error(t, err)
+	require.True(t, conn.IsClosed())
+
+	err = tx.Rollback(context.Background())
+	require.ErrorIs(t, err, pgconn.ErrConnClosed)
+	require.NotErrorIs(t, err, pgx.ErrTxClosed)
+
+	err = tx.Rollback(context.Background())
+	require.ErrorIs(t, err, pgx.ErrTxClosed)
+}
+
+func TestBeginTxNonFatalErrorKeepsConnAlive(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server returns a different severity/error for an invalid BEGIN")
+
+	ctx := context.Background()
+
+	_, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "begin transaction isolation level nonsense"})
+	require.Error(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.NotEqual(t, "FATAL", pgErr.SeverityUnlocalized)
+
+	require.False(t, conn.IsClosed())
+
+	var n int
+	require.NoError(t, conn.QueryRow(ctx, "select 1").Scan(&n))
+	require.Equal(t, 1, n)
+}
+
+func TestBeginTxFatalErrorKillsConn(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support pg_terminate_backend()")
+
+	ctx := context.Background()
+
+	_, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
+	require.Error(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "FATAL", pgErr.SeverityUnlocalized)
+
+	require.True(t, conn.IsClosed())
+}

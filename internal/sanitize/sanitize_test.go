@@ -226,6 +226,27 @@ func TestQuerySanitize(t *testing.T) {
 			expected: `insert  '2020-03-01 23:59:59.999999Z' `,
 		},
 		{
+			// A BC year gets PostgreSQL's era suffix, which comes after the zone.
+			// time.Format writes a leading minus instead, which PostgreSQL rejects
+			// outright.
+			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
+			args:     []any{time.Date(-4712, time.February, 29, 0, 0, 0, 0, time.UTC)},
+			expected: `insert  '4713-02-29 00:00:00Z BC' `,
+		},
+		{
+			// A year past four digits is written out in full rather than truncated.
+			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
+			args:     []any{time.Date(10000, time.January, 2, 3, 4, 5, 0, time.UTC)},
+			expected: `insert  '10000-01-02 03:04:05Z' `,
+		},
+		{
+			// A value in another zone is converted to UTC, matching what pgtype's
+			// timestamptz text encoder sends.
+			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
+			args:     []any{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.FixedZone("", 5*60*60))},
+			expected: `insert  '2020-03-01 18:59:59.999999Z' `,
+		},
+		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
 			args:     []any{int64(-1)},
 			expected: `select 1- -1 `,

@@ -98,6 +98,40 @@ func TestXMLCodecPointerToPointerToString(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1691
+func TestXMLCodecPointerIndirection(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB does not support XML.")
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		// More levels of indirection than TestXMLCodecPointerToPointerToString.
+		var ps **string
+		err := conn.QueryRow(ctx, "select ''::xml").Scan(&ps)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+		require.Equal(t, "", **ps)
+
+		err = conn.QueryRow(ctx, "select null::xml").Scan(&ps)
+		require.NoError(t, err)
+		require.Nil(t, ps)
+
+		// Pointers to a type unmarshaled by encoding/xml rather than to a string.
+		expected := xmlStruct{XMLName: xml.Name{Local: "person"}, Name: "Adam", Age: 10}
+
+		var s *xmlStruct
+		err = conn.QueryRow(ctx, `select '<person age="10"><name>Adam</name></person>'::xml`).Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, expected, *s)
+
+		var ss **xmlStruct
+		err = conn.QueryRow(ctx, `select '<person age="10"><name>Adam</name></person>'::xml`).Scan(&ss)
+		require.NoError(t, err)
+		require.Equal(t, expected, **ss)
+
+		err = conn.QueryRow(ctx, "select null::xml").Scan(&ss)
+		require.NoError(t, err)
+		require.Nil(t, ss)
+	})
+}
+
 func TestXMLCodecDecodeValue(t *testing.T) {
 	skipCockroachDB(t, "CockroachDB does not support XML.")
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {

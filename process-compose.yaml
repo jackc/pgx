@@ -1,0 +1,189 @@
+# process-compose — the long-running half of this checkout's development environment.
+#
+# The division of labour (identical natively and in the devcontainer):
+#
+#   mise             one-shot work: bootstrap, ports, initdb, test, format
+#   process-compose  long-running work: the five PostgreSQL servers and CockroachDB
+#
+# These are exactly the services .devcontainer/docker-compose.yml used to run as containers. They
+# now run as ordinary processes against this checkout's own clusters under .dev, so the same
+# command set works on macOS, on Linux, and inside the container.
+#
+# Note what this file does NOT contain: no ports, no resolved paths, no per-process environment
+# blocks, no database bootstrap. Ports arrive through the environment (.dev/, exported by the
+# launcher — scripts/dev.rb); data directories, binary locations and the socket directory are
+# resolved once inside scripts/devdb.rb, so a server and its readiness probe cannot disagree; and
+# one-shot work (initdb, creating pgx_test) stays in scripts this file merely sequences.
+#
+# Two kinds of environment variable ARE read here, both set by scripts/dev.rb and both with a
+# default that makes a direct `process-compose up` start only PostgreSQL 18:
+#
+#   PGX_LOGS_DIR       DevPaths::LOGS_DIR — the layout belongs to that module, not to ten literals
+#   PGX_DISABLE_*      "true" for an on-demand target, or for a PostgreSQL major whose binaries are
+#                      missing. Disabled processes remain available for `db:start` and lazy tests.
+#
+# The five servers are identical apart from their major, so pg14 carries the YAML anchors and the
+# rest alias them. Anchors are resolved by the YAML parser before process-compose sees the
+# document, so a probe threshold or a shutdown signal is now one edit rather than five that can
+# drift apart.
+#
+#   mise run dev                             start PostgreSQL 18 and the supervisor
+#   mise run dev:all                         start every database
+#   mise run db:start pg16 crdb              prewarm selected targets
+#   process-compose process list             status, scriptable
+#   process-compose process logs pg16        logs for one server
+#   process-compose down                     stop this checkout's stack only
+#
+# Each checkout runs its own instance on its own control port (PC_PORT_NUM, from this checkout's
+# allocation), which process-compose reads from the environment — so the commands above need no
+# flags and never reach another checkout's stack.
+version: "0.5"
+
+# A process whose dependency failed should not be reported as merely skipped, and shutdown should
+# unwind in dependency order rather than all at once.
+is_strict: true
+ordered_shutdown: true
+
+processes:
+  # PostgreSQL 14, and the template for 15-18. `serve` initdb's the cluster if this checkout has
+  # none, then execs the server in the foreground — so a fresh checkout goes straight to
+  # `mise run dev` with no documented prerequisite step, and process-compose supervises the real
+  # postmaster.
+  pg14: &pg
+    disabled: ${PGX_DISABLE_PG14:-true}
+    command: ruby scripts/devdb.rb serve 14
+    readiness_probe: &pg-probe
+      exec:
+        command: ruby scripts/devdb.rb ready 14
+      initial_delay_seconds: 1
+      period_seconds: 1
+      failure_threshold: 30
+    # SIGINT is PostgreSQL's fast shutdown: roll back open transactions and exit, rather than
+    # waiting for clients to disconnect.
+    shutdown:
+      signal: 2
+      timeout_seconds: 20
+    availability:
+      restart: on_failure
+      # Bounded: `on_failure` alone retries a PERMANENT error forever (a cluster built by the other
+      # platform, a corrupt PGDATA), burying the real message under a restart loop. Five attempts
+      # then stop, so the cause stays on screen.
+      max_restarts: 5
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg14.log
+
+  # Creates pgx_test with its extensions and its md5/scram/password/cert roles once the server is
+  # up, then exits. A no-op when the database already exists, so restarting the stack is free.
+  #
+  # This is a one-shot, and process-compose does not re-run one when its dependency restarts.
+  # On-demand starts therefore run the same idempotent setup through scripts/dev_services.rb.
+  # CockroachDB, whose store is in memory, creates its database from its readiness probe instead.
+  pg14-setup: &pg-setup
+    disabled: ${PGX_DISABLE_PG14:-true}
+    command: ruby scripts/devdb.rb setup 14
+    depends_on:
+      pg14:
+        condition: process_healthy
+    availability:
+      restart: "no"
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg14-setup.log
+
+  pg15:
+    <<: *pg
+    disabled: ${PGX_DISABLE_PG15:-true}
+    command: ruby scripts/devdb.rb serve 15
+    readiness_probe:
+      <<: *pg-probe
+      exec:
+        command: ruby scripts/devdb.rb ready 15
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg15.log
+
+  pg15-setup:
+    <<: *pg-setup
+    disabled: ${PGX_DISABLE_PG15:-true}
+    command: ruby scripts/devdb.rb setup 15
+    depends_on:
+      pg15:
+        condition: process_healthy
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg15-setup.log
+
+  pg16:
+    <<: *pg
+    disabled: ${PGX_DISABLE_PG16:-true}
+    command: ruby scripts/devdb.rb serve 16
+    readiness_probe:
+      <<: *pg-probe
+      exec:
+        command: ruby scripts/devdb.rb ready 16
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg16.log
+
+  pg16-setup:
+    <<: *pg-setup
+    disabled: ${PGX_DISABLE_PG16:-true}
+    command: ruby scripts/devdb.rb setup 16
+    depends_on:
+      pg16:
+        condition: process_healthy
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg16-setup.log
+
+  pg17:
+    <<: *pg
+    disabled: ${PGX_DISABLE_PG17:-true}
+    command: ruby scripts/devdb.rb serve 17
+    readiness_probe:
+      <<: *pg-probe
+      exec:
+        command: ruby scripts/devdb.rb ready 17
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg17.log
+
+  pg17-setup:
+    <<: *pg-setup
+    disabled: ${PGX_DISABLE_PG17:-true}
+    command: ruby scripts/devdb.rb setup 17
+    depends_on:
+      pg17:
+        condition: process_healthy
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg17-setup.log
+
+  pg18:
+    <<: *pg
+    disabled: ${PGX_DISABLE_PG18:-false}
+    command: ruby scripts/devdb.rb serve 18
+    readiness_probe:
+      <<: *pg-probe
+      exec:
+        command: ruby scripts/devdb.rb ready 18
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg18.log
+
+  pg18-setup:
+    <<: *pg-setup
+    disabled: ${PGX_DISABLE_PG18:-false}
+    command: ruby scripts/devdb.rb setup 18
+    depends_on:
+      pg18:
+        condition: process_healthy
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/pg18-setup.log
+
+  # CockroachDB, the `crdb` test target. Insecure, single-node and entirely in memory — the same
+  # configuration the cockroachdb/cockroach container ran with.
+  #
+  # It has NO setup process, deliberately. The store is in memory, so every restart of this node is
+  # an empty cluster, and a completed one-shot is not re-run when its dependency restarts: after a
+  # crash-restart the node reported Ready with no pgx_test in it and `./test.sh crdb` failed every
+  # test. `devcrdb.rb ready` therefore creates the database itself, which makes the probe true on
+  # the first start and on every restart alike.
+  crdb:
+    disabled: ${PGX_DISABLE_CRDB:-true}
+    command: ruby scripts/devcrdb.rb serve
+    readiness_probe:
+      exec:
+        command: ruby scripts/devcrdb.rb ready
+      initial_delay_seconds: 2
+      period_seconds: 1
+      failure_threshold: 45
+    shutdown:
+      signal: 15
+      timeout_seconds: 20
+    availability:
+      restart: on_failure
+      max_restarts: 5
+    log_location: ${PGX_LOGS_DIR:-.dev/logs}/crdb.log

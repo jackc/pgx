@@ -34,7 +34,7 @@ func (dst *NegotiateProtocolVersion) Decode(src []byte) error {
 		capHint = remaining
 	}
 	dst.UnrecognizedOptions = make([]string, 0, capHint)
-	for i := 0; i < optionCount; i++ {
+	for range optionCount {
 		if rp >= len(src) {
 			return &invalidMessageFormatErr{messageType: "NegotiateProtocolVersion"}
 		}

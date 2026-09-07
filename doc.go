@@ -210,8 +210,18 @@ implemented on top of [pgconn.PgConn]. The [Conn.PgConn] method can be used to a
 
 PgBouncer
 
-By default pgx automatically uses prepared statements. Prepared statements are incompatible with PgBouncer. This can be
-disabled by setting a different [QueryExecMode] in [ConnConfig.DefaultQueryExecMode].
+By default pgx automatically uses protocol-level named prepared statements. PgBouncer 1.21.0 and newer can use these
+prepared statements in transaction and statement pooling modes when its max_prepared_statements setting is greater than
+zero. In this configuration the default [QueryExecModeCacheStatement] mode may be used. See the PgBouncer documentation
+for limitations and configuration details: https://www.pgbouncer.org/config.html#max_prepared_statements.
+
+When using an older PgBouncer version or when prepared statement support is disabled, set
+[ConnConfig.DefaultQueryExecMode] to [QueryExecModeExec]. [QueryExecModeCacheDescribe] and
+[QueryExecModeSimpleProtocol] are also compatible with PgBouncer. Prefer [QueryExecModeExec] over
+[QueryExecModeSimpleProtocol] whenever possible. Do not use [QueryExecModeDescribeExec] with transaction pooling because
+PgBouncer may assign a different server connection between the describe and execute steps.
+
+SQL-level prepared statements created with PREPARE are not supported by PgBouncer in transaction pooling mode.
 */
 package pgx
 

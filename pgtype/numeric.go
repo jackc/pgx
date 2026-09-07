@@ -3,7 +3,7 @@ package pgtype
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -15,6 +15,14 @@ import (
 
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
 const nbase = 10_000
+
+// Numeric's binary representation stores the exponent through a base-10,000
+// weight and an int16 dscale. These are also the largest exponents that can be
+// safely materialized by the text encoders.
+const (
+	minNumericExponent = -math.MaxInt16
+	maxNumericExponent = math.MaxInt16*4 + 3
+)
 
 const (
 	pgNumericNaN     = 0x00000000c0000000
@@ -133,12 +141,7 @@ func (n *Numeric) ScanScientific(src string) error {
 		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
-	if bigF, ok := new(big.Float).SetString(src); ok {
-		smallF, _ := bigF.Float64()
-		src = strconv.FormatFloat(smallF, 'f', -1, 64)
-	}
-
-	num, exp, err := parseNumericString(src)
+	num, exp, err := parseScientificNumericString(src)
 	if err != nil {
 		return err
 	}
@@ -148,7 +151,45 @@ func (n *Numeric) ScanScientific(src string) error {
 	return nil
 }
 
+func parseScientificNumericString(str string) (n *big.Int, exp int32, err error) {
+	idx := strings.IndexAny(str, "eE")
+	if idx == -1 {
+		return parseNumericString(str)
+	}
+
+	mantissa := str[:idx]
+	scientificExp, err := strconv.ParseInt(str[idx+1:], 10, 32)
+	if err != nil {
+		if errors.Is(err, strconv.ErrRange) {
+			return nil, 0, fmt.Errorf("%s exponent out of range", str)
+		}
+		return nil, 0, fmt.Errorf("%s is not a number", str)
+	}
+
+	num, mantissaExp, err := parseNumericString(mantissa)
+	if err != nil {
+		return nil, 0, fmt.Errorf("%s is not a number", str)
+	}
+
+	combinedExp := int64(mantissaExp) + scientificExp
+	if combinedExp < minNumericExponent || combinedExp > maxNumericExponent {
+		return nil, 0, fmt.Errorf("%s exponent out of range", str)
+	}
+
+	return num, int32(combinedExp), nil
+}
+
 func (n *Numeric) toBigInt() (*big.Int, error) {
+	if n.NaN {
+		return nil, fmt.Errorf("cannot convert NaN to integer")
+	} else if n.InfinityModifier != Finite {
+		return nil, fmt.Errorf("cannot convert %v to integer", n.InfinityModifier)
+	}
+
+	if n.Int == nil {
+		return big.NewInt(0), nil
+	}
+
 	if n.Exp == 0 {
 		return n.Int, nil
 	}
@@ -173,40 +214,41 @@ func (n *Numeric) toBigInt() (*big.Int, error) {
 }
 
 func parseNumericString(str string) (n *big.Int, exp int32, err error) {
-	idx := strings.IndexByte(str, '.')
+	// Keep str intact so errors report what the caller actually passed in.
+	digits := str
+	idx := strings.IndexByte(digits, '.')
 
 	if idx == -1 {
-		for len(str) > 1 && str[len(str)-1] == '0' && str[len(str)-2] != '-' {
-			str = str[:len(str)-1]
+		for len(digits) > 1 && digits[len(digits)-1] == '0' && digits[len(digits)-2] != '-' {
+			digits = digits[:len(digits)-1]
 			exp++
 		}
 	} else {
-		exp = int32(-(len(str) - idx - 1))
-		str = str[:idx] + str[idx+1:]
+		exp = int32(-(len(digits) - idx - 1))
+		digits = digits[:idx] + digits[idx+1:]
 	}
 
 	accum := &big.Int{}
-	if _, ok := accum.SetString(str, 10); !ok {
+	if _, ok := accum.SetString(digits, 10); !ok {
 		return nil, 0, fmt.Errorf("%s is not a number", str)
 	}
 
 	return accum, exp, nil
 }
 
-func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
-	digits := min(len(src)/2, 4)
-
-	rp := 0
+// nbaseDigitsToInt64 reads up to 4 nbase digits and packs them into an int64.
+// It stops early at digitsLeft or at the end of r, whichever comes first.
+func nbaseDigitsToInt64(r *pgio.Reader, digitsLeft int) (accum int64, digitsRead int) {
+	digits := min(digitsLeft, r.Remaining()/2, 4)
 
 	for i := range digits {
 		if i > 0 {
 			accum *= nbase
 		}
-		accum += int64(binary.BigEndian.Uint16(src[rp:]))
-		rp += 2
+		accum += int64(r.Uint16())
 	}
 
-	return accum, rp, digits
+	return accum, digits
 }
 
 // Scan implements the [database/sql.Scanner] interface.
@@ -242,8 +284,13 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	if n.NaN {
+	switch {
+	case n.NaN:
 		return []byte(`"NaN"`), nil
+	case n.InfinityModifier == Infinity:
+		return []byte(`"Infinity"`), nil
+	case n.InfinityModifier == NegativeInfinity:
+		return []byte(`"-Infinity"`), nil
 	}
 
 	return n.numberTextBytes(), nil
@@ -259,7 +306,17 @@ func (n *Numeric) UnmarshalJSON(src []byte) error {
 		*n = Numeric{NaN: true, Valid: true}
 		return nil
 	}
-	return scanPlanTextAnyToNumericScanner{}.Scan(src, n)
+	if bytes.Equal(src, []byte(`"Infinity"`)) {
+		*n = Numeric{InfinityModifier: Infinity, Valid: true}
+		return nil
+	}
+	if bytes.Equal(src, []byte(`"-Infinity"`)) {
+		*n = Numeric{InfinityModifier: NegativeInfinity, Valid: true}
+		return nil
+	}
+	// JSON numbers may use scientific notation even when the producer did not
+	// write it that way: encoding/json emits 1e+21 for float64(1e21).
+	return n.ScanScientific(string(src))
 }
 
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
@@ -416,6 +473,14 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 		sign = 16384
 	}
 
+	// The binary format stores ndigits, weight, and dscale as int16, so values
+	// that do not fit must be rejected rather than silently truncated. Exp maps
+	// directly onto dscale, so check it before doing any big.Int work: a very
+	// negative exponent would otherwise build an enormous divisor below.
+	if n.Exp < -math.MaxInt16 {
+		return nil, fmt.Errorf("cannot encode numeric: exponent %d is out of range", n.Exp)
+	}
+
 	absInt := &big.Int{}
 	wholePart := &big.Int{}
 	fracPart := &big.Int{}
@@ -443,7 +508,7 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 
 	if exp < 0 {
 		divisor := &big.Int{}
-		divisor.Exp(big10, big.NewInt(int64(-exp)), nil)
+		divisor.Exp(big10, big.NewInt(-int64(exp)), nil)
 		wholePart.DivMod(absInt, divisor, fracPart)
 		fracPart.Add(fracPart, divisor)
 	} else {
@@ -464,18 +529,25 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 		}
 	}
 
-	buf = pgio.AppendInt16(buf, int16(len(wholeDigits)+len(fracDigits)))
+	ndigits := len(wholeDigits) + len(fracDigits)
+	if ndigits > math.MaxInt16 {
+		return nil, fmt.Errorf("cannot encode numeric: %d digits is out of range", ndigits)
+	}
+	buf = pgio.AppendInt16(buf, int16(ndigits))
 
-	var weight int16
+	var weight int64
 	if len(wholeDigits) > 0 {
-		weight = int16(len(wholeDigits) - 1)
+		weight = int64(len(wholeDigits) - 1)
 		if exp > 0 {
-			weight += int16(exp / 4)
+			weight += int64(exp) / 4
 		}
 	} else {
-		weight = int16(exp/4) - 1 + int16(len(fracDigits))
+		weight = int64(exp)/4 - 1 + int64(len(fracDigits))
 	}
-	buf = pgio.AppendInt16(buf, weight)
+	if weight > math.MaxInt16 || weight < math.MinInt16 {
+		return nil, fmt.Errorf("cannot encode numeric: exponent %d is out of range", n.Exp)
+	}
+	buf = pgio.AppendInt16(buf, int16(weight))
 
 	buf = pgio.AppendInt16(buf, sign)
 
@@ -606,19 +678,15 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{})
 	}
 
-	if len(src) < 8 {
-		return fmt.Errorf("numeric incomplete %v", src)
-	}
+	r := pgio.NewReader(src)
 
-	rp := 0
-	ndigits := binary.BigEndian.Uint16(src[rp:])
-	rp += 2
-	weight := int16(binary.BigEndian.Uint16(src[rp:]))
-	rp += 2
-	sign := binary.BigEndian.Uint16(src[rp:])
-	rp += 2
-	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
-	rp += 2
+	ndigits := r.Uint16()
+	weight := r.Int16()
+	sign := r.Uint16()
+	dscale := r.Int16()
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("numeric incomplete: %w", err)
+	}
 
 	switch sign {
 	case pgNumericNaNSign:
@@ -633,15 +701,16 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{Int: big.NewInt(0), Valid: true})
 	}
 
-	if len(src[rp:]) < int(ndigits)*2 {
+	if r.Remaining() < int(ndigits)*2 {
 		return fmt.Errorf("numeric incomplete %v", src)
 	}
 
 	accum := &big.Int{}
 
-	for i := 0; i < int(ndigits+3)/4; i++ {
-		int64accum, bytesRead, digitsRead := nbaseDigitsToInt64(src[rp:])
-		rp += bytesRead
+	// int(ndigits) before the addition: ndigits is a uint16, so ndigits+3
+	// would wrap for counts above 65532 and skip the loop entirely.
+	for i := 0; i < (int(ndigits)+3)/4; i++ {
+		int64accum, digitsRead := nbaseDigitsToInt64(r, int(ndigits)-i*4)
 
 		if i > 0 {
 			var mul *big.Int
@@ -661,6 +730,10 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 		}
 
 		accum.Add(accum, big.NewInt(int64accum))
+	}
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("numeric: %w", err)
 	}
 
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
@@ -687,7 +760,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 
 	reduced := &big.Int{}
 	remainder := &big.Int{}
-	if exp >= 0 {
+	if exp >= 0 && accum.Sign() != 0 {
 		for {
 			reduced.DivMod(accum, big10, remainder)
 			if remainder.Sign() != 0 {

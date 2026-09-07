@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -280,12 +279,13 @@ func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for uint32: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("uint32: %w", err)
 	}
 
 	p := (dst).(*uint32)
-	*p = binary.BigEndian.Uint32(src)
+	*p = raw
 
 	return nil
 }
@@ -302,11 +302,10 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst any) error {
 		return s.ScanUint32(Uint32{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for uint32: %v", len(src))
+	n, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("uint32: %w", err)
 	}
-
-	n := binary.BigEndian.Uint32(src)
 
 	return s.ScanUint32(Uint32{Uint32: n, Valid: true})
 }
@@ -323,11 +322,12 @@ func (scanPlanBinaryUint32ToTextScanner) Scan(src []byte, dst any) error {
 		return s.ScanText(Text{})
 	}
 
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for uint32: %v", len(src))
+	raw, err := pgio.Uint32Exact(src)
+	if err != nil {
+		return fmt.Errorf("uint32: %w", err)
 	}
 
-	n := uint64(binary.BigEndian.Uint32(src))
+	n := uint64(raw)
 	return s.ScanText(Text{String: strconv.FormatUint(n, 10), Valid: true})
 }
 

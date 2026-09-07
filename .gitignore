@@ -22,6 +22,26 @@ _testmain.go
 *.exe
 
 .envrc
-/.testdb
+
+# Per-checkout development state: this checkout's allocated TCP ports, the values derived from
+# them, its decoded client certificates, and its own PostgreSQL/CockroachDB clusters. A git
+# worktree is the native equivalent of a second devcontainer instance, so this is instance-local
+# by definition -- never shared, never committed. See DEVELOPMENT.md.
+/.dev/
+
+# port-tamer writes this checkout's allocation to .dev/ports.env (the --state-file every task
+# passes). These are where a bare `port-tamer` run at the repo root would put a stray second
+# allocation instead; ignored so it cannot be committed by accident.
+/.port-tamer.env
+/.port-tamer.env.lock
+
+# Personal, machine-local mise overrides (mise.toml IS committed/shared). Git has no knowledge of
+# mise's conventions, so this must be ignored explicitly.
+/mise.local.toml
+
+# Provisioned on demand with `rake references:setup`; never committed.
+/references/
 
 .DS_Store
+
+/.vscode

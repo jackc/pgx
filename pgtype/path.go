@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -178,26 +177,24 @@ func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanPath(Path{})
 	}
 
-	if len(src) < 5 {
-		return fmt.Errorf("invalid length for Path: %v", len(src))
-	}
+	r := pgio.NewReader(src)
 
-	closed := src[0] == 1
-	pointCount := int(binary.BigEndian.Uint32(src[1:]))
-
-	rp := 5
-
-	if 5+pointCount*16 != len(src) {
-		return fmt.Errorf("invalid length for Path with %d points: %v", pointCount, len(src))
+	closed := r.Byte() == 1
+	// Each point is two float64s.
+	pointCount := r.Count(16)
+	if err := r.Err(); err != nil {
+		return fmt.Errorf("invalid length for Path: %w", err)
 	}
 
 	points := make([]Vec2, pointCount)
 	for i := range points {
-		x := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
-		y := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
+		x := r.Uint64()
+		y := r.Uint64()
 		points[i] = Vec2{math.Float64frombits(x), math.Float64frombits(y)}
+	}
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("invalid length for Path with %d points: %w", pointCount, err)
 	}
 
 	return scanner.ScanPath(Path{

@@ -1,8 +1,122 @@
 # Unreleased
 
+## Changes
+
+* pgtype: `date`, `timestamp` and `timestamptz` text values are now parsed and written by a hand-written parser and
+  encoder for PostgreSQL's ISO date/time format instead of `time.Parse` and `time.Format`. Go's layout language cannot
+  express a variable-width year or the BC era, which is the root of the bugs below. The text scan path is roughly 2.5x
+  faster for `timestamp` and `timestamptz`. Bug fixes:
+  * `timestamp` and `timestamptz` no longer silently move February 29 of a BC leap year to March 1 when encoding.
+    `time.Date(-4712, 2, 29, ...)` was written as `4713-03-01 BC` and is now written as `4713-02-29 BC`. This
+    affected ordinary four-digit BC years, not only extended-range ones. `date` was never affected.
+  * `timestamp` and `timestamptz` can now scan BC leap days. `4713-02-29 BC` previously failed with
+    `day out of range`. `date` could already scan them.
+  * Years past 9999 can now be scanned. `10000-01-02 03:04:05` previously failed to parse, so `timestamp` and
+    `timestamptz` values at the high end of PostgreSQL's range were unreadable over the simple protocol and in any
+    other text-format result.
+  * Fractional seconds beyond microsecond precision are rounded the way the server rounds them (round half to even,
+    carrying into the rest of the value) instead of being kept at full precision. PostgreSQL never sends more than six
+    fractional digits, so this only affects values from other sources.
+
+  Behavior changes:
+  * `date` now rejects impossible dates instead of normalizing them. `2024-02-30` returned `2024-03-01` and
+    `2024-13-01` returned `2025-01-01`; both are now errors. `timestamp` and `timestamptz` already rejected them.
+  * All three types now reject values outside PostgreSQL's range for that type, in the binary format as well as the
+    text format, and `timestamptz` rejects a time zone displacement beyond PostgreSQL's `MAX_TZDISP_HOUR`.
+    PostgreSQL never sends such values, so this only affects corrupt or hand-built input; it is checked in both
+    formats so that whether a value is accepted does not depend on `QueryExecMode`.
+  * `timestamptz` values scanned from the text format are now returned in `time.Local`, or in `ScanLocation` when it is
+    set, matching what the binary format has always returned. Previously the text path kept whatever location
+    `time.Parse` derived from the offset the server sent, so the same value scanned in the two formats could report a
+    different `Location()` and `Zone()`. The instant is unchanged, but everything that renders the location changes
+    with it: `Timestamptz.MarshalJSON` now writes the client's offset rather than the server's, so a value the server
+    sent as `+05:30` marshals as `2024-01-01T13:34:05-08:00` on a UTC-8 client instead of `2024-01-02T03:04:05+05:30`,
+    and `DecodeDatabaseSQLValue` hands `database/sql` a `time.Time` in that same location. Set the codec's
+    `ScanLocation` to `time.UTC` to pin the location regardless of the client's zone.
+  * Error messages from these paths have changed.
+
+* pgconn: connection URIs (`postgres://...`) are now parsed by a new parser designed to exactly match libpq's URI
+  parser behavior instead of `net/url`,
+  making pgx accept and reject exactly the same URIs as libpq (verified by differential fuzzing against libpq itself).
+  Most connection strings are unaffected. Edge-case behavior changes, all matching libpq:
+  * `+` in query values is literal, no longer decoded as a space.
+  * Malformed percent-encoding is a parse error instead of the parameter being silently dropped. `%00` is rejected.
+  * Leading/trailing spaces in URI components are trimmed; interior spaces are a parse error (encode them as `%20`).
+  * `#` is ordinary data, not a fragment delimiter.
+  * The userinfo terminator is the first `@` before any `/` (previously the last `@`).
+  * When a query parameter is repeated, the last occurrence wins (previously the first).
+  * `ssl=true` is accepted as an alias for `sslmode=require` in URIs (JDBC compatibility). A repeated `ssl` key
+    follows the same last-occurrence-wins rule as other repeated parameters, even across the rewrite to `sslmode`. If
+    the final `ssl` value is not `true`, an independent explicit `sslmode` remains in effect.
+  * Multiple hosts with mixed port specs are positionally aligned: `postgres://h1,h2:5433/db` now means h1:5432 and
+    h2:5433 (previously both hosts got port 5433). A port list that is neither a single port nor exactly one port per
+    host is an error (`could not match N port numbers to M hosts`), also for keyword/value connection strings.
+  * An IPv6 address in a URI must be enclosed in brackets. A bare `postgres://::1/db` was previously accepted as host
+    `::1`; it is now read as an empty host followed by port `:1` and fails with an invalid port error. Write it as
+    `postgres://[::1]/db`.
+  * Empty host list elements (e.g. `h1,,h2`) get the default host instead of being dropped. Likewise, an empty host in
+    a keyword/value string (`host=`) now means the default host -- typically the Unix socket directory -- where it
+    previously meant a TCP connection to an empty hostname.
+  * An empty port (`?port=` in a URI or `port=` in a keyword/value string) now means the default port 5432 for the
+    affected hosts; previously it was an invalid port error. Like any connection-string port, a present-but-empty port
+    takes precedence over `PGPORT`.
+  * ASCII control characters (tab, newline, ...) in a URI are ordinary data bytes, as they are to libpq; `net/url`
+    rejected any URI containing one. The exception is a literal NUL byte, which is still rejected, as `net/url` did.
+    (libpq never sees one -- C strings end at the first NUL -- but in Go a raw NUL could otherwise pass through into
+    the NUL-delimited startup message and inject extra parameters.)
+
+  Unlike libpq, unrecognized URI query parameters are still accepted (they become runtime parameters or pgx-specific
+  options). Parse error messages avoid quoting the unredacted connection string and redact recognizable password
+  fields on a best-effort basis. Invalid connection strings can be structurally ambiguous, so password redaction
+  cannot be guaranteed for every malformed input.
+
+* pgconn: keyword/value connection strings (`host=... user=...`) now match libpq's parser exactly, the same treatment
+  the URI parser received above and verified the same way, by differential fuzzing against libpq itself. Most
+  connection strings are unaffected. Behavior changes, all matching libpq:
+  * A backslash escapes whatever character follows it and is dropped, where previously only `\\` and `\'` were
+    unescaped and every other backslash was kept. A value containing a backslash must now escape it, as libpq
+    requires: `sslcert=C:\path\to\cert` reads as `C:pathtocert` and has to be written `sslcert=C:\\path\\to\\cert`.
+    This mainly affects Windows certificate and key paths, which previously came through intact without doubling.
+  * A trailing backslash in an unquoted value escapes the end of the string, so it is dropped and the value ends
+    there; it was previously rejected with `invalid backslash`. Inside a quoted value the escaped terminator leaves
+    the string unterminated, which is still an error.
+  * Whitespace inside a keyword is an error (`missing "=" after "us" in connection info string`) instead of becoming
+    part of the key. Whitespace around the `=` is unaffected. This most often shows up with an unquoted value
+    containing a space: `application_name=my app host=x` previously set neither parameter and sent `app host` to the
+    server as a runtime parameter, and now fails to parse.
+
+  As with URIs, unrecognized keywords are still accepted where libpq rejects them, and an empty `user=` is still
+  dropped so that `PGUSER` and the OS user still apply.
+
 ## Fixes
 
+* pgconn: a backslash as the last byte of a quoted value in a keyword/value connection string no longer panics with
+  `slice bounds out of range`. `host='a\` -- and the shorter `='\`, reachable through `pgx.ParseConfig` and
+  `pgxpool.ParseConfig` -- now return `unterminated quoted string in connection info string`, libpq's own message for
+  the same input. The unquoted branch has been guarded since be69c1c1; the quoted branch carried the same unguarded
+  increment since the parser was ported from pgx v3. Found by fuzzing (Maxim Korotkov)
+* pgconn: error messages that embed the connection string now also redact `password` and `sslpassword` values supplied
+  as URI query parameters; previously only the userinfo password was redacted. Redaction matches keys the way the
+  parser does -- percent-encoded spellings such as `pass%77ord=` are recognized -- and masks the entire raw value, so
+  a password containing a space cannot leak its tail into the error message. Credentials stranded outside the
+  userinfo by a malformed URI are masked whole, and invalid-port errors no longer embed the offending text (which in
+  a malformed URI can be a mislaid password). Redaction of invalid connection strings is necessarily best effort:
+  their structure may be ambiguous, so some malformed inputs can still expose password text in an error.
+* pgconn: `ParseConfigOptions.ConnStringAllowedKeys` no longer exempts an explicitly supplied empty port (`?port=` in
+  a URI or `port=` in a keyword/value string) from the allow-list. Only the implied all-empty port list of a
+  multi-host URI without ports (`postgres://h1,h2/db`) is exempt. An explicit empty port shadows `PGPORT` even though
+  it is empty, so it must be allowed like any other user-supplied key. The URI-only `ssl=true` alias is accepted when
+  either `ssl` or `sslmode` is allowed, and every `ssl`/`sslmode` spelling written in the URI is validated --
+  including occurrences superseded by later repeated parameters.
 * pgconn: drain socket before close in `asyncClose` so context cancellation produces a TCP FIN instead of RST, avoiding "connection reset by peer" on the server / proxy (Sean Chittenden at CrowdStrike, Inc.)
+* pgproto3: `StartupMessage.Encode` rejects a NUL byte in any parameter name or value instead of writing it. The
+  startup message body is a run of NUL-delimited strings whose length is data-driven, so a NUL in a value ends that
+  parameter and everything after it is read by the server as further parameters -- an `application_name` of
+  `x\x00user\x00admin` changed the role the connection logged in as. libpq cannot reach this state because its
+  parameters are NUL-terminated C strings. `Connect` now fails with nothing written to the wire, which covers
+  settings that bypass connection string parsing: service files and direct assignment to `Config.RuntimeParams`,
+  `Config.User`, or `Config.Database`.
+* pgconn: keyword/value connection strings containing a NUL byte are rejected by `ParseConfig`, as URIs already were.
 
 # 5.10.0 (June 3, 2026)
 

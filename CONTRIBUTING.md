@@ -24,21 +24,30 @@ Using AI is acceptable (not that it can really be stopped) under one the followi
 
 ## Development Environment Setup
 
-pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE`
-environment variable. The `PGX_TEST_DATABASE` environment variable can either be a URL or key-value pairs. In addition,
-the standard `PG*` environment variables will be respected. Consider using [direnv](https://github.com/direnv/direnv) to
-simplify environment variable handling.
+pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the
+`PGX_TEST_DATABASE` environment variable. The `PGX_TEST_DATABASE` environment variable can either be
+a URL or key-value pairs. In addition, the standard `PG*` environment variables will be respected.
 
-### Devcontainer
+### The full environment
 
-The easiest way to start development is with the included devcontainer. It includes containers for each supported
-PostgreSQL version as well as CockroachDB. `./test.sh all` will run the tests against all database types.
+[DEVELOPMENT.md](DEVELOPMENT.md) describes the maintained setup: [mise](https://mise.jdx.dev)
+installs the toolchain, and each checkout has its own PostgreSQL 14-18 clusters and CockroachDB
+node, so the whole test matrix is available locally. PostgreSQL 18 stays running; other servers
+start and stop around their tests. It works natively on macOS and Linux, and in the included
+devcontainer.
 
-### Using an Existing PostgreSQL Cluster Outside of a Devcontainer
+```
+mise install
+mise run dev:init
+mise run dev
+./test.sh all
+```
 
-If you already have a PostgreSQL development server this is the quickest way to start and run the majority of the pgx
-test suite. Some tests will be skipped that require server configuration changes (e.g. those testing different
-authentication methods).
+### Using an existing PostgreSQL cluster
+
+If you already have a PostgreSQL development server this is the quickest way to run the majority of
+the pgx test suite, and it needs nothing from the section above. Some tests will be skipped that
+require server configuration changes (e.g. those testing different authentication methods).
 
 Create and setup a test database:
 
@@ -50,86 +59,30 @@ psql -c 'create extension ltree;'
 psql -c 'create domain uint64 as numeric(20,0);'
 ```
 
-Ensure a `postgres` user exists. This happens by default in normal PostgreSQL installs, but some installation methods
-such as Homebrew do not.
+Ensure a `postgres` user exists. This happens by default in normal PostgreSQL installs, but some
+installation methods such as Homebrew do not.
 
 ```
 createuser -s postgres
 ```
 
-Ensure your `PGX_TEST_DATABASE` environment variable points to the database you just created and run the tests.
+Ensure your `PGX_TEST_DATABASE` environment variable points to the database you just created and run
+the tests.
 
 ```
 export PGX_TEST_DATABASE="host=/private/tmp database=pgx_test"
 go test ./...
 ```
 
-This will run the vast majority of the tests, but some tests will be skipped (e.g. those testing different connection methods).
-
-### Creating a New PostgreSQL Cluster Exclusively for Testing Outside of a Devcontainer
-
-The following environment variables need to be set both for initial setup and whenever the tests are run. (direnv is
-highly recommended). Depending on your platform, you may need to change the host for `PGX_TEST_UNIX_SOCKET_CONN_STRING`.
-
-```
-export PGPORT=5015
-export PGUSER=postgres
-export PGDATABASE=pgx_test
-export POSTGRESQL_DATA_DIR=postgresql
-
-export PGX_TEST_DATABASE="host=127.0.0.1 database=pgx_test user=pgx_md5 password=secret"
-export PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/private/tmp database=pgx_test"
-export PGX_TEST_TCP_CONN_STRING="host=127.0.0.1 database=pgx_test user=pgx_md5 password=secret"
-export PGX_TEST_SCRAM_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_scram password=secret database=pgx_test channel_binding=disable"
-export PGX_TEST_SCRAM_PLUS_CONN_STRING="host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=`pwd`/.testdb/ca.pem database=pgx_test channel_binding=require"
-export PGX_TEST_MD5_PASSWORD_CONN_STRING="host=127.0.0.1 database=pgx_test user=pgx_md5 password=secret"
-export PGX_TEST_PLAIN_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_pw password=secret"
-export PGX_TEST_TLS_CONN_STRING="host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=`pwd`/.testdb/ca.pem channel_binding=disable"
-export PGX_SSL_PASSWORD=certpw
-export PGX_TEST_TLS_CLIENT_CONN_STRING="host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=`pwd`/.testdb/ca.pem database=pgx_test sslcert=`pwd`/.testdb/pgx_sslcert.crt sslkey=`pwd`/.testdb/pgx_sslcert.key"
-```
-
-Create a new database cluster.
-
-```
-initdb --locale=en_US -E UTF-8 --username=postgres .testdb/$POSTGRESQL_DATA_DIR
-
-echo "listen_addresses = '127.0.0.1'" >> .testdb/$POSTGRESQL_DATA_DIR/postgresql.conf
-echo "port = $PGPORT" >> .testdb/$POSTGRESQL_DATA_DIR/postgresql.conf
-cat testsetup/postgresql_ssl.conf >> .testdb/$POSTGRESQL_DATA_DIR/postgresql.conf
-cp testsetup/pg_hba.conf .testdb/$POSTGRESQL_DATA_DIR/pg_hba.conf
-
-cd .testdb
-
-# Generate CA, server, and encrypted client certificates.
-go run ../testsetup/generate_certs.go
-
-# Copy certificates to server directory and set permissions.
-cp ca.pem $POSTGRESQL_DATA_DIR/root.crt
-cp localhost.key $POSTGRESQL_DATA_DIR/server.key
-chmod 600 $POSTGRESQL_DATA_DIR/server.key
-cp localhost.crt $POSTGRESQL_DATA_DIR/server.crt
-
-cd ..
-```
-
-
-Start the new cluster. This will be necessary whenever you are running pgx tests.
-
-```
-postgres -D .testdb/$POSTGRESQL_DATA_DIR
-```
-
-Setup the test database in the new cluster.
-
-```
-createdb
-psql --no-psqlrc -f testsetup/postgresql_setup.sql
-```
+This will run the vast majority of the tests, but some tests will be skipped (e.g. those testing
+different connection methods).
 
 ### PgBouncer
 
 There are tests specific for PgBouncer that will be executed if `PGX_TEST_PGBOUNCER_CONN_STRING` is set.
+The test PgBouncer must be version 1.21.0 or newer, use transaction pooling, and have `max_prepared_statements` set to a
+non-zero value. This ensures the tests cover PgBouncer's protocol-level named prepared statement support in addition to
+the pgx query modes that do not use named prepared statements.
 
 ### Optional Tests
 

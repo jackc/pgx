@@ -44,13 +44,28 @@ func TestConnectConfig(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_min_idle_conns=2")
+	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_min_idle_conns=2 pool_ping_timeout=250ms")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
 	assert.EqualValues(t, 1, config.MinConns)
 	assert.EqualValues(t, 2, config.MinIdleConns)
+	assert.Equal(t, 250*time.Millisecond, config.PingTimeout)
+
+	// Anything left in RuntimeParams is sent to the server as a startup parameter, which makes every connection fail
+	// with "unrecognized configuration parameter".
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_idle_conns")
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_ping_timeout")
+
+	config, err = pgxpool.ParseConfig("")
+	assert.NoError(t, err)
+	assert.Zero(t, config.PingTimeout)
+
+	for _, v := range []string{"abc", "250"} {
+		_, err := pgxpool.ParseConfig("pool_ping_timeout=" + v)
+		assert.Errorf(t, err, "pool_ping_timeout=%s should be rejected", v)
+	}
 }
 
 func TestConstructorIgnoresContext(t *testing.T) {
@@ -176,8 +191,10 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	require.EqualValues(t, 3, pool.Stat().TotalConns())
 
 	var pids []uint32
+	var originalConns []*pgx.Conn
 	for _, c := range conns {
 		pids = append(pids, c.Conn().PgConn().PID())
+		originalConns = append(originalConns, c.Conn())
 		c.Release()
 	}
 
@@ -199,10 +216,14 @@ func TestPoolAcquireChecksIdleConns(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	cPID := c.Conn().PgConn().PID()
+	newConn := c.Conn()
 	c.Release()
 
-	require.NotContains(t, pids, cPID)
+	// Compare connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's PID to a
+	// new backend, which made this test flaky in CI.
+	for _, originalConn := range originalConns {
+		require.NotSame(t, originalConn, newConn)
+	}
 }
 
 func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
@@ -229,11 +250,13 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
+	const idleTime = 200 * time.Millisecond
+
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	c.Release()
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(idleTime)
 
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
@@ -241,7 +264,9 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 
 	require.NotNil(t, shouldPingLastCalledWith)
 	assert.Equal(t, conn, shouldPingLastCalledWith.Conn)
-	assert.InDelta(t, time.Millisecond*200, shouldPingLastCalledWith.IdleDuration, float64(time.Millisecond*100))
+	// Only the lower bound can be asserted. A busy machine can delay the acquire arbitrarily long after the sleep,
+	// which made an upper bound assertion flaky in CI.
+	assert.GreaterOrEqual(t, shouldPingLastCalledWith.IdleDuration, idleTime)
 
 	c.Release()
 }
@@ -477,17 +502,20 @@ func TestPoolAfterRelease(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	connPIDs := map[uint32]struct{}{}
+	// Count distinct connections by identity instead of by backend PID. PostgreSQL can assign a terminated backend's
+	// PID to a new backend, which made this test flaky in CI. Retaining the connections in the map also prevents them
+	// from being garbage collected, so a destroyed connection's address cannot be reused either.
+	distinctConns := map[*pgx.Conn]struct{}{}
 
 	for range 10 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
-		connPIDs[conn.Conn().PgConn().PID()] = struct{}{}
+		distinctConns[conn.Conn()] = struct{}{}
 		conn.Release()
 		waitForReleaseToComplete()
 	}
 
-	assert.EqualValues(t, 5, len(connPIDs))
+	assert.EqualValues(t, 5, len(distinctConns))
 }
 
 func TestPoolBeforeClose(t *testing.T) {
@@ -1060,11 +1088,34 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.TxIsoLevel("foo"),
 	})
-	assert.Error(t, err)
-	if !assert.Zero(t, tx) {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}
+	require.Error(t, err)
+	require.Zero(t, tx)
+
+	require.EqualValues(t, 1, db.Stat().TotalConns())
+
+	var n int
+	require.NoError(t, db.QueryRow(ctx, "select 1").Scan(&n))
+	require.EqualValues(t, 1, n)
+}
+
+func TestConnDestroyedWhenBeginFailsFatally(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	controllerConn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(ctx)
+	pgxtest.SkipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	db, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.BeginTx(ctx, pgx.TxOptions{BeginQuery: "select pg_terminate_backend(pg_backend_pid())"})
+	require.Error(t, err)
+	require.Zero(t, tx)
 
 	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
@@ -1073,7 +1124,7 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	assert.EqualValues(t, 0, db.Stat().TotalConns())
+	require.EqualValues(t, 0, db.Stat().TotalConns())
 }
 
 func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
@@ -1382,13 +1433,10 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	config.PingTimeout = 200 * time.Millisecond
 	config.ConnConfig.DialFunc = newDelayProxyDialFunc(500 * time.Millisecond)
 
-	var conID *uint32
-	// Only ping the connection with the original PID to force creation of a new connection
+	var originalConn *pgx.Conn
+	// Only ping the original connection to force creation of a new connection
 	config.ShouldPing = func(_ context.Context, params pgxpool.ShouldPingParams) bool {
-		if conID != nil && params.Conn.PgConn().PID() == *conID {
-			return true
-		}
-		return false
+		return originalConn != nil && params.Conn == originalConn
 	}
 
 	// Limit to a single connection to ensure the same connection is reused
@@ -1402,8 +1450,7 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
-	originalPID := c.Conn().PgConn().PID()
-	conID = &originalPID
+	originalConn = c.Conn()
 
 	c.Release()
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
@@ -1411,12 +1458,12 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
-	newPID := c.Conn().PgConn().PID()
+	newConn := c.Conn()
 
 	c.Release()
 
 	require.EqualValues(t, 1, pool.Stat().TotalConns())
 	assert.Nil(t, ctx.Err())
-	assert.NotEqualValues(t, originalPID, newPID,
+	assert.NotSame(t, originalConn, newConn,
 		"Expected new connection due to ping timeout, but got same connection")
 }

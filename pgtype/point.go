@@ -3,7 +3,6 @@ package pgtype
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -221,12 +220,14 @@ func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanPoint(Point{})
 	}
 
-	if len(src) != 16 {
-		return fmt.Errorf("invalid length for point: %v", len(src))
-	}
+	r := pgio.NewReader(src)
 
-	x := binary.BigEndian.Uint64(src)
-	y := binary.BigEndian.Uint64(src[8:])
+	x := r.Uint64()
+	y := r.Uint64()
+
+	if err := r.Finish(); err != nil {
+		return fmt.Errorf("point: %w", err)
+	}
 
 	return scanner.ScanPoint(Point{
 		P:     Vec2{math.Float64frombits(x), math.Float64frombits(y)},

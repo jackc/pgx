@@ -48,14 +48,17 @@ func (plan *scanPlanBinaryRecordToCompositeIndexScanner) Scan(src []byte, target
 
 	scanner := NewCompositeBinaryScanner(plan.m, src)
 	for i := 0; scanner.Next(); i++ {
-		fieldTarget := targetScanner.ScanIndex(i)
+		fieldTarget, err := compositeFieldTarget(targetScanner, i)
+		if err != nil {
+			return err
+		}
 		if fieldTarget != nil {
 			fieldPlan := plan.m.PlanScan(scanner.OID(), BinaryFormatCode, fieldTarget)
 			if fieldPlan == nil {
 				return fmt.Errorf("unable to scan OID %d in binary format into %v", scanner.OID(), fieldTarget)
 			}
 
-			err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
+			err = fieldPlan.Scan(scanner.Bytes(), fieldTarget)
 			if err != nil {
 				return err
 			}
@@ -96,8 +99,11 @@ func (RecordCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 		return string(src), nil
 	case BinaryFormatCode:
 		scanner := NewCompositeBinaryScanner(m, src)
-		values := make([]any, scanner.FieldCount())
-		for i := 0; scanner.Next(); i++ {
+		// The field count is a hint for the initial allocation only. Append the
+		// values actually present rather than indexing into a presized slice, as
+		// the source may carry more or fewer fields than the header claims.
+		values := make([]any, 0, scanner.FieldCount())
+		for scanner.Next() {
 			var v any
 			fieldPlan := m.PlanScan(scanner.OID(), BinaryFormatCode, &v)
 			if fieldPlan == nil {
@@ -109,7 +115,7 @@ func (RecordCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 				return nil, err
 			}
 
-			values[i] = v
+			values = append(values, v)
 		}
 
 		if err := scanner.Err(); err != nil {
