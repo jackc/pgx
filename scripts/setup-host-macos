@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Install the host packages used by the native macOS development environment.
+set -euo pipefail
+cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
+if ! command -v brew >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+setup-host-macos: Homebrew is required.
+Install it from https://brew.sh, then run scripts/setup-host again.
+EOF
+    exit 1
+fi
+
+echo "==> installing macOS host dependencies"
+brew bundle --file Brewfile
