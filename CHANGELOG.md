@@ -1,6 +1,31 @@
-# Unreleased
+# 5.11.0 (September 7, 2026)
+
+This release adds direct PostgreSQL type scanning through `database/sql` on Go 1.27, improves compatibility with
+libpq connection strings and PostgreSQL date/time values, and includes further decoder hardening. See Changes for
+connection-string and date/time behavior changes that may affect existing applications.
+
+## Features
+
+* stdlib: support Go 1.27's `driver.RowsColumnScanner`, allowing PostgreSQL types such as arrays and ranges to be
+  scanned directly into Go values without `pgtype.Map.SQLScanner`. Existing `database/sql` scalar conversions and
+  `sql.Scanner` behavior are preserved. The minimum supported Go version remains 1.25.
+* Add `Rows.TypeMap` to expose the type map used to decode rows, including rows created by `RowsFromResultReader`
+  that have no underlying `Conn`. Custom implementations of `Rows`, including mocks, must add this method.
+* pgconn: add `Config.MaxProtocolMessageBodyLen` to configure the maximum incoming protocol message body size
+  (carter-ya)
+* pgconn: add `ErrReadOnlyConnection`, `ErrReadWriteConnection`, `ErrPrimaryConnection`, and `ErrStandbyConnection`
+  sentinel errors for `target_session_attrs` validation, allowing callers to use `errors.Is` (Adrian-Stefan Mares)
+* pgxpool: accept `pool_ping_timeout` in connection strings to configure `Config.PingTimeout`. The default is zero;
+  zero and negative durations mean no timeout (1991santhu)
 
 ## Changes
+
+* Name-based row-to-struct mapping now matches explicit `db` tags case-insensitively, with exact matches taking
+  precedence so tags can still distinguish quoted column names that differ only by case (AlisinaDevelo)
+* pgconn: resolve the OS user account only when no user is supplied by the connection string, environment, or service
+  file, avoiding unnecessary account lookups and crashes in some restricted container environments. Home-directory
+  defaults for password, service, and TLS files remain available independently of the account lookup. On Unix these
+  now use `$HOME` rather than the OS account's home directory (Mohamed MAACHE)
 
 * pgtype: `date`, `timestamp` and `timestamptz` text values are now parsed and written by a hand-written parser and
   encoder for PostgreSQL's ISO date/time format instead of `time.Parse` and `time.Format`. Go's layout language cannot
@@ -14,6 +39,7 @@
   * Years past 9999 can now be scanned. `10000-01-02 03:04:05` previously failed to parse, so `timestamp` and
     `timestamptz` values at the high end of PostgreSQL's range were unreadable over the simple protocol and in any
     other text-format result.
+  * `time.Time` arguments in the simple protocol now encode BC dates correctly, using the same timestamp encoder.
   * Fractional seconds beyond microsecond precision are rounded the way the server rounds them (round half to even,
     carrying into the rest of the value) instead of being kept at full precision. PostgreSQL never sends more than six
     fractional digits, so this only affects values from other sources.
@@ -91,6 +117,46 @@
 
 ## Fixes
 
+* Keep the connection open after a recoverable PostgreSQL error from `Begin` or `BeginTx`
+  (Victor Alejandro Sanz Ararat)
+* Call `TraceQueryEnd` when `Exec` fails while deallocating invalidated cached statements (Chris Bandy)
+* Deallocate a failed prepare using the statement name actually sent to the server, and skip cleanup if Parse never
+  completed, avoiding leaked prepared statements and unnecessary cleanup errors (Eliran Ben-Zikri)
+* Fix `LoadTypes` overwriting scalar codecs such as `box` and `point` with an incorrect `ArrayCodec` (Arsen Ozhetov)
+* pgconn: retrieve field descriptions when cached descriptions are empty, such as for cursor `FETCH` statements,
+  including batch and pipeline execution (water)
+* pgconn: keep batch statement descriptions and result formats aligned when commands return no rows or when
+  `Batch.ExecStatement` is mixed with other batch commands; preserve field descriptions for empty results
+* pgconn: handle empty and comment-only queries in pipeline mode, discard stale statement data after bind errors,
+  and return a nil result from `Pipeline.GetResults` on error
+* pgconn: skip reading the password file when a password is already set (Jared Fowkes)
+* pgxpool: treat non-positive `MaxConnLifetime` values as unlimited instead of immediately expiring connections
+  (Aurelien Pillevesse)
+* pgtype: support non-comma text array delimiters through `ArrayCodec.Delimiter`, including the semicolon delimiter
+  used by `box[]`. `LoadType` and `LoadTypes` now load the delimiter from PostgreSQL (Sueun Cho)
+* pgtype: quote text array elements containing internal whitespace (Louisa Huang)
+* pgtype: quote and escape text range bounds containing delimiters, quotes, or backslashes, and distinguish empty
+  string bounds from unbounded ranges (Sueun Cho)
+* pgtype: preserve decimal precision in `Numeric.ScanScientific` and accept scientific notation in
+  `Numeric.UnmarshalJSON`; reject out-of-range scientific exponents and preserve the original input in parse errors
+  (Sueun Cho)
+* pgtype: encode and decode numeric infinity in JSON as `"Infinity"` and `"-Infinity"` instead of encoding it as zero
+  (Vladimir Saraikin)
+* pgtype: treat a valid `Numeric` with a nil `Int` as zero in `Int64Value`, and return errors when converting NaN or
+  infinity to an integer instead of panicking (Vladimir Saraikin)
+* pgtype: fix an infinite loop when decoding binary numeric zero with a nonzero digit count (Vladimir Saraikin)
+* pgtype: fix binary numeric digit-count overflow and trailing-byte handling. Binary encoding now rejects values
+  whose digit count, weight, or scale cannot fit the wire format, while accepting the full unsigned digit-count range.
+* pgtype: fix scanning through multiple pointer levels, including SQL NULL and XML values, and return an error
+  instead of panicking when a pointer-to-pointer scan destination is nil (Rangel Reale)
+* pgtype: use bounds-checked binary reads throughout the codecs and reject malformed lengths, counts, and trailing
+  data. This includes fixes for panics on malformed records and truncated multiranges (Vladimir Saraikin), and
+  validation of `bit` / `varbit` bit lengths against the actual data (g3m0sis).
+* pgtype: return errors instead of panicking on malformed interval text (greymoth-jp), unterminated composite text
+  fields, and text arrays whose dimensions and element counts disagree
+* pgtype: cap the initial allocation estimate when parsing hstore text to avoid excessive allocation from unvalidated
+  separator counts; valid hstores may still contain any number of pairs (AshSgDe29071999)
+* pgtype: correct reversed bounds in integer scan error messages
 * pgconn: a backslash as the last byte of a quoted value in a keyword/value connection string no longer panics with
   `slice bounds out of range`. `host='a\` -- and the shorter `='\`, reachable through `pgx.ParseConfig` and
   `pgxpool.ParseConfig` -- now return `unterminated quoted string in connection info string`, libpq's own message for
