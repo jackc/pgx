@@ -473,9 +473,9 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 		sign = 16384
 	}
 
-	// The binary format stores ndigits, weight, and dscale as int16, so values
-	// that do not fit must be rejected rather than silently truncated. Exp maps
-	// directly onto dscale, so check it before doing any big.Int work: a very
+	// The binary format stores ndigits as uint16 and weight and dscale as int16,
+	// so values that do not fit must be rejected rather than silently truncated.
+	// Exp maps directly onto dscale, so check it before doing any big.Int work: a very
 	// negative exponent would otherwise build an enormous divisor below.
 	if n.Exp < -math.MaxInt16 {
 		return nil, fmt.Errorf("cannot encode numeric: exponent %d is out of range", n.Exp)
@@ -530,10 +530,10 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 	}
 
 	ndigits := len(wholeDigits) + len(fracDigits)
-	if ndigits > math.MaxInt16 {
+	if ndigits > math.MaxUint16 {
 		return nil, fmt.Errorf("cannot encode numeric: %d digits is out of range", ndigits)
 	}
-	buf = pgio.AppendInt16(buf, int16(ndigits))
+	buf = pgio.AppendUint16(buf, uint16(ndigits))
 
 	var weight int64
 	if len(wholeDigits) > 0 {
