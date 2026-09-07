@@ -572,10 +572,10 @@ func (pgConn *PgConn) signalMessage() chan struct{} {
 		panic("BUG: signalMessage when already in progress")
 	}
 
+	ch := make(chan struct{})
 	pgConn.bufferingReceive = true
 	pgConn.bufferingReceiveMux.Lock()
 
-	ch := make(chan struct{})
 	go func() {
 		pgConn.bufferingReceiveMsg, pgConn.bufferingReceiveErr = pgConn.frontend.Receive()
 		pgConn.bufferingReceiveMux.Unlock()
