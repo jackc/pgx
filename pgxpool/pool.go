@@ -343,7 +343,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 // ParseConfig builds a Config from connString. It parses connString with the same behavior as [pgx.ParseConfig] with the
 // addition of the following variables:
 //
-//   - pool_max_conns: integer greater than 0 (default 4)
+//   - pool_max_conns: integer greater than 0 (default is the greater of 4 or runtime.NumCPU())
 //   - pool_min_conns: integer 0 or greater (default 0)
 //   - pool_min_idle_conns: integer 0 or greater (default 0)
 //   - pool_max_conn_lifetime: duration string (default 1 hour)
