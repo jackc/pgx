@@ -108,11 +108,19 @@ is available locally on macOS, on Linux, or in the included devcontainer. Only P
 running by default; other targets start and stop around their tests:
 
 ```sh
-mise install && mise run dev:init
+scripts/setup-host # native macOS (Homebrew required) or Ubuntu: host packages and mise
+export PATH="$HOME/.local/bin:$PATH" # if mise was just installed
+mise trust
+mise install        # project tools
+mise run dev:init   # checkout ports and certificates
 mise run dev        # start PostgreSQL 18 and the on-demand database supervisor
 ./test.sh           # the suite against PostgreSQL 18
 ./test.sh all       # every target, starting and stopping each server as needed
 ```
+
+Host setup installs PostgreSQL 14-18 and Ruby build dependencies. It does not install project
+tools or initialize the checkout; those remain separate steps above. The devcontainer already
+provides the host prerequisites.
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full setup, and
 [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute — including how to run the tests against

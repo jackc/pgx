@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Install Ubuntu host packages without creating system-wide PostgreSQL clusters.
+set -euo pipefail
+cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
+if [ ! -r /etc/os-release ]; then
+    echo "setup-host-ubuntu: Ubuntu is required (missing /etc/os-release)" >&2
+    exit 1
+fi
+. /etc/os-release
+if [ "${ID:-}" != ubuntu ] || [ -z "${VERSION_CODENAME:-}" ]; then
+    echo "setup-host-ubuntu: unsupported distribution: ${PRETTY_NAME:-unknown}; Ubuntu is required" >&2
+    exit 1
+fi
+
+SUDO=()
+if [ "$(id -u)" -ne 0 ]; then
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "setup-host-ubuntu: sudo is required to install host packages" >&2
+        exit 1
+    fi
+    SUDO=(sudo)
+fi
+
+sources_file="$(mktemp)"
+cluster_override_dir=/etc/postgresql-common/createcluster.d
+cluster_override_dir_created=false
+cluster_override=""
+remove_cluster_override() {
+    if [ -n "$cluster_override" ]; then
+        "${SUDO[@]}" rm -f "$cluster_override"
+        cluster_override=""
+    fi
+    if [ "$cluster_override_dir_created" = true ]; then
+        if "${SUDO[@]}" rmdir "$cluster_override_dir" 2>/dev/null; then
+            cluster_override_dir_created=false
+        fi
+    fi
+}
+cleanup() {
+    remove_cluster_override
+    rm -f "$sources_file"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+echo "==> installing Ubuntu host dependencies"
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    curl ca-certificates build-essential libssl-dev libreadline-dev zlib1g-dev \
+    libffi-dev libncurses-dev libyaml-dev libgmp-dev
+
+# Official PGDG repository: https://www.postgresql.org/download/linux/ubuntu/
+"${SUDO[@]}" install -d -m 0755 /usr/share/postgresql-common/pgdg
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc >"$sources_file"
+"${SUDO[@]}" install -m 0644 "$sources_file" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+architecture="$(dpkg --print-architecture)"
+cat >"$sources_file" <<EOF
+Types: deb
+URIs: https://apt.postgresql.org/pub/repos/apt
+Suites: ${VERSION_CODENAME}-pgdg
+Architectures: ${architecture}
+Components: main
+Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+EOF
+"${SUDO[@]}" install -m 0644 "$sources_file" /etc/apt/sources.list.d/pgdg.sources
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive apt-get \
+    -o Dpkg::Options::=--force-confdef \
+    -o Dpkg::Options::=--force-confold \
+    install -y postgresql-common
+
+# Install postgresql-common first, then temporarily override its cluster policy.
+# The package-owned createcluster.conf is never edited; verify that it includes
+# our override before installing servers, and remove the override even on failure.
+if ! "${SUDO[@]}" test -d "$cluster_override_dir"; then
+    "${SUDO[@]}" install -d -m 0755 "$cluster_override_dir"
+    cluster_override_dir_created=true
+fi
+cluster_override="$(
+    "${SUDO[@]}" mktemp --suffix=.conf "$cluster_override_dir/zzzz-pgx-setup.XXXXXX"
+)"
+printf '%s\n' 'create_main_cluster = false' \
+    | "${SUDO[@]}" tee "$cluster_override" >/dev/null
+if [ "$(
+    "${SUDO[@]}" pg_conftool /etc/postgresql-common/createcluster.conf \
+        show -bs create_main_cluster
+)" != off ]; then
+    echo "setup-host-ubuntu: temporary PostgreSQL cluster policy was not applied" >&2
+    exit 1
+fi
+"${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    postgresql-client-18 postgresql-{14,15,16,17,18} postgresql-contrib-{14,15,16,17,18}
+remove_cluster_override

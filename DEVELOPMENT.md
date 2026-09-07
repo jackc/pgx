@@ -6,6 +6,9 @@ the same `process-compose.yaml`, so nothing here is specific to one of them exce
 prerequisites in §1.
 
 ```sh
+scripts/setup-host # native macOS or Ubuntu host prerequisites (once per machine)
+export PATH="$HOME/.local/bin:$PATH" # if mise was just installed
+mise trust          # trust this checkout's configuration
 mise install        # tool versions from mise.toml
 mise run dev:init   # this checkout's ports and certificates
 mise run dev        # start PostgreSQL 18 and the on-demand database supervisor
@@ -24,12 +27,21 @@ PostgreSQL itself is the one thing it does not: pgx tests against five major ver
 come from the system package manager.
 
 ```sh
-# macOS
-brew install mise postgresql@14 postgresql@15 postgresql@16 postgresql@17 postgresql@18
-
-# Debian/Ubuntu, from apt.postgresql.org
-apt-get install postgresql-{14,15,16,17,18} postgresql-contrib-{14,15,16,17,18} postgresql-client-18
+scripts/setup-host
 ```
+
+On macOS, install [Homebrew](https://brew.sh) first. The script uses `Brewfile` to install
+PostgreSQL 14-18 and Ruby build dependencies. On Ubuntu, it uses sudo when needed, configures
+the official PostgreSQL apt repository, and installs the same server versions and build
+dependencies. Other Linux distributions require manual prerequisite installation.
+
+The Ubuntu installer temporarily disables automatic `main` cluster creation during server
+installation and removes that override on exit, leaving the package-owned cluster configuration
+unchanged. The macOS installer does not start Homebrew services.
+
+The dispatcher installs mise if it is missing and prints its executable path. It does not run
+`mise trust`, install project tools, allocate ports, initialize databases, or start servers. Run
+the remaining commands above explicitly as your regular development user.
 
 - **Do not** `brew services start` any of them, and on Debian do not let the packages create a
   machine-wide cluster. pgx runs its own clusters per checkout.
