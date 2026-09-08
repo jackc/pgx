@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -137,6 +138,8 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 
 	query, arguments, _ := br.nextQueryAndArgs()
 
+	readStartTime := time.Now()
+
 	if !br.mrr.NextResult() {
 		err := br.mrr.Close()
 		if err == nil {
@@ -144,9 +147,10 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 		}
 		if br.conn.batchTracer != nil {
 			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
-				SQL:  query,
-				Args: arguments,
-				Err:  err,
+				SQL:           query,
+				Args:          arguments,
+				Err:           err,
+				ReadStartTime: readStartTime,
 			})
 		}
 		return pgconn.CommandTag{}, err
@@ -160,10 +164,11 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 
 	if br.conn.batchTracer != nil {
 		br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
-			SQL:        query,
-			Args:       arguments,
-			CommandTag: commandTag,
-			Err:        br.err,
+			SQL:           query,
+			Args:          arguments,
+			CommandTag:    commandTag,
+			Err:           br.err,
+			ReadStartTime: readStartTime,
 		})
 	}
 
@@ -198,9 +203,10 @@ func (br *batchResults) Query() (Rows, error) {
 
 		if br.conn.batchTracer != nil {
 			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
-				SQL:  query,
-				Args: arguments,
-				Err:  rows.err,
+				SQL:           query,
+				Args:          arguments,
+				Err:           rows.err,
+				ReadStartTime: rows.startTime,
 			})
 		}
 
@@ -306,9 +312,19 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 		return pgconn.CommandTag{}, err
 	}
 
+	readStartTime := time.Now()
+
 	results, err := br.pipeline.GetResults()
 	if err != nil {
 		br.err = err
+		if br.conn.batchTracer != nil {
+			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+				SQL:           query,
+				Args:          arguments,
+				Err:           br.err,
+				ReadStartTime: readStartTime,
+			})
+		}
 		return pgconn.CommandTag{}, br.err
 	}
 	var commandTag pgconn.CommandTag
@@ -316,15 +332,25 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 	case *pgconn.ResultReader:
 		commandTag, br.err = results.Close()
 	default:
-		return pgconn.CommandTag{}, fmt.Errorf("unexpected pipeline result: %T", results)
+		err = fmt.Errorf("unexpected pipeline result: %T", results)
+		if br.conn.batchTracer != nil {
+			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+				SQL:           query,
+				Args:          arguments,
+				Err:           err,
+				ReadStartTime: readStartTime,
+			})
+		}
+		return pgconn.CommandTag{}, err
 	}
 
 	if br.conn.batchTracer != nil {
 		br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
-			SQL:        query,
-			Args:       arguments,
-			CommandTag: commandTag,
-			Err:        br.err,
+			SQL:           query,
+			Args:          arguments,
+			CommandTag:    commandTag,
+			Err:           br.err,
+			ReadStartTime: readStartTime,
 		})
 	}
 
@@ -364,9 +390,10 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 
 		if br.conn.batchTracer != nil {
 			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
-				SQL:  query,
-				Args: arguments,
-				Err:  err,
+				SQL:           query,
+				Args:          arguments,
+				Err:           err,
+				ReadStartTime: rows.startTime,
 			})
 		}
 	} else {
@@ -378,6 +405,15 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 			br.err = err
 			rows.err = err
 			rows.closed = true
+
+			if br.conn.batchTracer != nil {
+				br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+					SQL:           query,
+					Args:          arguments,
+					Err:           err,
+					ReadStartTime: rows.startTime,
+				})
+			}
 		}
 	}
 
