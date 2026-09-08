@@ -5,29 +5,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type errBatchResults struct {
-	err error
-}
-
-func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, br.err
-}
-
-func (br errBatchResults) Query() (pgx.Rows, error) {
-	return errRows{err: br.err}, br.err
-}
-
-func (br errBatchResults) QueryRow() pgx.Row {
-	return errRow{err: br.err}
-}
-
-func (br errBatchResults) Close() error {
-	return br.err
-}
-
 type poolBatchResults struct {
 	br pgx.BatchResults
 	c  *Conn
+	tx *Tx // owns c instead when the batch began a transaction
 }
 
 func (br *poolBatchResults) Exec() (pgconn.CommandTag, error) {
@@ -49,4 +30,11 @@ func (br *poolBatchResults) Close() error {
 		br.c = nil
 	}
 	return err
+}
+
+func (br *poolBatchResults) Tx() pgx.Tx {
+	if br.tx == nil {
+		return nil
+	}
+	return br.tx
 }
