@@ -209,15 +209,24 @@ func (tl *TraceLog) TraceBatchStart(ctx context.Context, conn *pgx.Conn, data pg
 }
 
 func (tl *TraceLog) TraceBatchQuery(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchQueryData) {
+	tl.ensureConfig()
+
+	// ReadStartTime is when pgx began reading this query's result, not when SendBatch was called, so this interval
+	// measures this query's own result consumption rather than its position in the batch.
+	var interval time.Duration
+	if !data.ReadStartTime.IsZero() {
+		interval = time.Since(data.ReadStartTime)
+	}
+
 	if data.Err != nil {
 		if tl.shouldLog(LogLevelError) {
-			tl.log(ctx, conn, LogLevelError, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), "err": data.Err})
+			tl.log(ctx, conn, LogLevelError, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), "err": data.Err, tl.Config.TimeKey: interval})
 		}
 		return
 	}
 
 	if tl.shouldLog(LogLevelInfo) {
-		tl.log(ctx, conn, LogLevelInfo, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), "commandTag": data.CommandTag.String()})
+		tl.log(ctx, conn, LogLevelInfo, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), tl.Config.TimeKey: interval, "commandTag": data.CommandTag.String()})
 	}
 }
 

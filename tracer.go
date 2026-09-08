@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -44,6 +45,16 @@ type TraceBatchQueryData struct {
 	Args       []any
 	CommandTag pgconn.CommandTag
 	Err        error
+
+	// ReadStartTime is when pgx began reading this query's result from the server -- i.e. when it requested the next
+	// result in the batch, not when SendBatch was called or when this query's turn in the batch started.
+	//
+	// The interval from ReadStartTime to when TraceBatchQuery is called is not a pure network or server measurement.
+	// It excludes any time the query spent waiting for earlier queries in the batch to be consumed, but it does
+	// include network waits, server-side buffering, and -- for a query consumed via [QueuedQuery.Query] or
+	// [BatchResults.Query] -- however long the calling application takes to read and close the returned Rows, since
+	// TraceBatchQuery for that query is not called until Rows is closed.
+	ReadStartTime time.Time
 }
 
 type TraceBatchEndData struct {
