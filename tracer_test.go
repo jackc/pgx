@@ -422,10 +422,8 @@ func TestTraceBatchErrorWhileReadingResultsWhileClosing(t *testing.T) {
 	})
 }
 
-// TestTraceBatchQueryReadStartTime asserts that TraceBatchQueryData.ReadStartTime is populated for every execution
-// mode and consumption path (Exec, QueryRow, and Query followed by a deferred Rows.Close), and that it advances
-// monotonically across a batch. It also asserts that, for Query, TraceBatchQuery is not emitted until the returned
-// Rows is closed -- a pause while the application holds Rows open must not be excluded from the traced interval.
+// TestTraceBatchQueryReadStartTime checks that each result's timestamp excludes pauses before requesting it and
+// includes pauses while its Rows remains open, across all execution modes and consumption paths.
 func TestTraceBatchQueryReadStartTime(t *testing.T) {
 	t.Parallel()
 
@@ -442,42 +440,61 @@ func TestTraceBatchQueryReadStartTime(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		beforeSendBatch := time.Now()
-
 		var readStartTimes []time.Time
 		tracer.traceBatchQuery = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchQueryData) {
 			require.NoError(t, data.Err)
 			require.Falsef(t, data.ReadStartTime.IsZero(), "ReadStartTime must be populated")
-			require.Falsef(t, data.ReadStartTime.Before(beforeSendBatch), "ReadStartTime must not predate SendBatch")
 			readStartTimes = append(readStartTimes, data.ReadStartTime)
+		}
+		assertReadStartTime := func(index int, beforeRead, afterRead time.Time) {
+			t.Helper()
+			require.Falsef(t, readStartTimes[index].Before(beforeRead),
+				"query %d: ReadStartTime must exclude the pause before requesting the result", index)
+			require.Falsef(t, readStartTimes[index].After(afterRead),
+				"query %d: ReadStartTime must be captured before the result request returns", index)
 		}
 
 		batch := &pgx.Batch{}
 		batch.Queue(`select 1`)
 		batch.Queue(`select 2`)
 		batch.Queue(`select 3`)
+		batch.Queue(`select 4`)
 
-		br := conn.SendBatch(context.Background(), batch)
-
-		// Exec consumes the first query immediately; TraceBatchQuery fires before Exec returns.
-		_, err := br.Exec()
-		require.NoError(t, err)
-		require.Len(t, readStartTimes, 1)
+		br := conn.SendBatch(ctx, batch)
+		defer br.Close()
 
 		time.Sleep(5 * time.Millisecond)
 
-		// QueryRow consumes the second query immediately too.
+		// Exec consumes the first query immediately; TraceBatchQuery fires before Exec returns.
+		beforeRead := time.Now()
+		_, err := br.Exec()
+		afterRead := time.Now()
+		require.NoError(t, err)
+		require.Len(t, readStartTimes, 1)
+		assertReadStartTime(0, beforeRead, afterRead)
+
+		time.Sleep(5 * time.Millisecond)
+
+		// QueryRow starts reading before Scan; the interval must include a pause before Scan closes the Rows.
+		beforeRead = time.Now()
+		row := br.QueryRow()
+		afterRead = time.Now()
+		require.Len(t, readStartTimes, 1)
+		time.Sleep(5 * time.Millisecond)
 		var n int32
-		err = br.QueryRow().Scan(&n)
+		err = row.Scan(&n)
 		require.NoError(t, err)
 		require.EqualValues(t, 2, n)
 		require.Len(t, readStartTimes, 2)
+		assertReadStartTime(1, beforeRead, afterRead)
 
 		time.Sleep(5 * time.Millisecond)
 
 		// Query defers TraceBatchQuery until the returned Rows is closed: reading the row and pausing before Close
 		// must not produce a trace yet, even though pgx already began reading the third query's result.
+		beforeRead = time.Now()
 		rows, err := br.Query()
+		afterRead = time.Now()
 		require.NoError(t, err)
 		require.True(t, rows.Next())
 		require.NoError(t, rows.Scan(&n))
@@ -490,20 +507,16 @@ func TestTraceBatchQueryReadStartTime(t *testing.T) {
 		rows.Close()
 		require.NoError(t, rows.Err())
 		require.Len(t, readStartTimes, 3)
+		assertReadStartTime(2, beforeRead, afterRead)
 
+		// Close requests and drains the remaining result, excluding the pause before Close.
+		time.Sleep(5 * time.Millisecond)
+		beforeRead = time.Now()
 		err = br.Close()
+		afterRead = time.Now()
 		require.NoError(t, err)
-		afterClose := time.Now()
-
-		require.Len(t, readStartTimes, 3)
-		for _, readStartTime := range readStartTimes {
-			require.Falsef(t, readStartTime.After(afterClose), "ReadStartTime must not postdate the batch close")
-		}
-		for i := 1; i < len(readStartTimes); i++ {
-			require.Falsef(t, readStartTimes[i].Before(readStartTimes[i-1]),
-				"ReadStartTime must be monotonic across a batch: query %d (%v) is before query %d (%v)",
-				i, readStartTimes[i], i-1, readStartTimes[i-1])
-		}
+		require.Len(t, readStartTimes, 4)
+		assertReadStartTime(3, beforeRead, afterRead)
 	})
 }
 
