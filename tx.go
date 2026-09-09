@@ -280,7 +280,10 @@ func (tx *dbTx) CopyFrom(ctx context.Context, tableName Identifier, columnNames 
 // SendBatch delegates to the underlying *Conn
 func (tx *dbTx) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	if tx.closed {
-		return &batchResults{err: ErrTxClosed}
+		return FailedBatchResults(b, ErrTxClosed)
+	}
+	if b.txOptions != nil {
+		return FailedBatchResults(b, errors.New("Batch.BeginTx cannot be used within a transaction"))
 	}
 
 	return tx.conn.SendBatch(ctx, b)
@@ -382,7 +385,7 @@ func (sp *dbSimulatedNestedTx) CopyFrom(ctx context.Context, tableName Identifie
 // SendBatch delegates to the underlying *Conn
 func (sp *dbSimulatedNestedTx) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	if sp.closed {
-		return &batchResults{err: ErrTxClosed}
+		return FailedBatchResults(b, ErrTxClosed)
 	}
 
 	return sp.tx.SendBatch(ctx, b)

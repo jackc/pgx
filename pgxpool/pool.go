@@ -798,13 +798,20 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return c.getPoolRow(row)
 }
 
+// SendBatch acquires a connection from the Pool and sends the batch on it. The connection is released when the returned
+// [pgx.BatchResults] is closed, unless the batch begins a transaction with [pgx.Batch.BeginTx]: then it is released when
+// the transaction returned by [pgx.BatchResults.Tx] is committed or rolled back.
 func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return errBatchResults{err: err}
+		return pgx.FailedBatchResults(b, err)
 	}
 
 	br := c.SendBatch(ctx, b)
+	if tx := br.Tx(); tx != nil {
+		return &poolBatchResults{br: br, tx: &Tx{t: tx, c: c}}
+	}
+
 	return &poolBatchResults{br: br, c: c}
 }
 
