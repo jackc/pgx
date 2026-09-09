@@ -378,21 +378,33 @@ parseValueLoop:
 func parseRange(buf *bytes.Buffer) (string, error) {
 	s := &bytes.Buffer{}
 
-	boundSepRead := false
+	inRange := false
+	inQuotes := false
+	escaped := false
 	for {
 		r, _, err := buf.ReadRune()
 		if err != nil {
 			return "", err
 		}
 
-		switch r {
-		case ',', '}':
-			if r == ',' && !boundSepRead {
-				boundSepRead = true
-				break
+		if escaped {
+			escaped = false
+		} else if r == '\\' {
+			escaped = true
+		} else if r == '"' {
+			inQuotes = !inQuotes
+		} else if !inQuotes {
+			switch r {
+			case '[', '(':
+				inRange = true
+			case ']', ')':
+				inRange = false
+			case ',', '}':
+				if !inRange {
+					buf.UnreadRune()
+					return s.String(), nil
+				}
 			}
-			buf.UnreadRune()
-			return s.String(), nil
 		}
 
 		s.WriteRune(r)
