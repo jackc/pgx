@@ -111,3 +111,35 @@ func TestMultirangeCodecDecodeValue(t *testing.T) {
 		}
 	})
 }
+
+func TestMultirangeCodecTextBounds(t *testing.T) {
+	skipPostgreSQLVersionLessThan(t, 14)
+	skipCockroachDB(t, "Server does not support range types")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
+		_, err := conn.Exec(ctx, `create type pg_temp.text_range as range (subtype = text, collation = "C", multirange_type_name = pg_temp.text_multirange)`)
+		require.NoError(t, err)
+		for _, name := range []string{"pg_temp.text_range", "pg_temp.text_multirange"} {
+			dataType, err := conn.LoadType(ctx, name)
+			require.NoError(t, err)
+			conn.TypeMap().RegisterType(dataType)
+		}
+
+		for _, bound := range []string{"abc", "a,b", "a}b", "a{b", "a)b", "a[b", `a"b`, `a\b`, "", "a b", "a,b}c"} {
+			t.Run(bound, func(t *testing.T) {
+				for _, format := range []int16{pgtype.BinaryFormatCode, pgtype.TextFormatCode} {
+					var got pgtype.Multirange[pgtype.Range[string]]
+					err := conn.QueryRow(ctx,
+						`select pg_temp.text_multirange(pg_temp.text_range($1, 'z', '[)'), pg_temp.text_range('zz', 'zzz' || $1, '[)'))`,
+						pgx.QueryResultFormats{format}, bound).Scan(&got)
+					require.NoError(t, err, "format %d", format)
+					require.Equal(t, pgtype.Multirange[pgtype.Range[string]]{{
+						Lower: bound, Upper: "z", LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true,
+					}, {
+						Lower: "zz", Upper: "zzz" + bound, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true,
+					}}, got, "format %d", format)
+				}
+			})
+		}
+	})
+}
