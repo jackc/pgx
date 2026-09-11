@@ -397,15 +397,20 @@ func traceDoubleQuotedString(buf []byte) string {
 	return `"` + string(buf) + `"`
 }
 
+const hexChars = "0123456789abcdef"
+
 // traceSingleQuotedString returns buf as a single-quoted string with non-printable characters hex-escaped. It is
 // roughly equivalent to pqTraceOutputNchar in libpq.
 func traceSingleQuotedString(buf []byte) string {
 	sb := &strings.Builder{}
+	sb.Grow(len(buf)*4 + 2) // worst case: every byte escaped (\xNN) + quotes
 
 	sb.WriteByte('\'')
 	for _, b := range buf {
 		if b < 32 || b > 126 {
-			fmt.Fprintf(sb, `\x%x`, b)
+			sb.WriteString(`\x`)
+			sb.WriteByte(hexChars[b>>4])
+			sb.WriteByte(hexChars[b&0x0f])
 		} else {
 			sb.WriteByte(b)
 		}
