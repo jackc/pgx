@@ -106,6 +106,51 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			expectedArgs: []any{nil},
 		},
 
+		// U+FFFD is a valid character, not the end of the query.
+		{
+			sql:          "select * from t where note = 'a\uFFFDb' and id = @id",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from t where note = 'a\uFFFDb' and id = $1",
+			expectedArgs: []any{int32(42)},
+		},
+		{
+			sql:          "select * from t where id = @id -- \uFFFD\nand deleted = false",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from t where id = $1 -- \uFFFD\nand deleted = false",
+			expectedArgs: []any{int32(42)},
+		},
+		{
+			sql:          "select * from t where id = @id /* \uFFFD */ and deleted = false",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from t where id = $1 /* \uFFFD */ and deleted = false",
+			expectedArgs: []any{int32(42)},
+		},
+		{
+			sql:          "select * from \"a\uFFFDb\" where id = @id",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from \"a\uFFFDb\" where id = $1",
+			expectedArgs: []any{int32(42)},
+		},
+		{
+			sql:          "select * from t where note = e'a\uFFFDb' and id = @id",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from t where note = e'a\uFFFDb' and id = $1",
+			expectedArgs: []any{int32(42)},
+		},
+		{
+			sql:          "select @id\uFFFD, @other",
+			namedArgs:    pgx.NamedArgs{"id": int32(42), "other": int32(7)},
+			expectedSQL:  "select $1\uFFFD, $2",
+			expectedArgs: []any{int32(42), int32(7)},
+		},
+		// Invalid UTF-8, unlike U+FFFD, still ends the input.
+		{
+			sql:          "select * from t where id = @id and note = '\xffb'",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * from t where id = $1 and note = '\xff",
+			expectedArgs: []any{int32(42)},
+		},
+
 		// test comments and quotes
 	} {
 		sql, args, err := tt.namedArgs.RewriteQuery(context.Background(), nil, tt.sql, tt.args)
