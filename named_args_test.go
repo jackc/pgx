@@ -78,6 +78,13 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			expectedArgs: []any{int32(42)},
 		},
 		{
+			// A backslash has no meaning in a -- comment; the comment still ends at the newline.
+			sql:          "select * -- C:\\path\\\nfrom users where id = @id",
+			namedArgs:    pgx.NamedArgs{"id": int32(42)},
+			expectedSQL:  "select * -- C:\\path\\\nfrom users where id = $1",
+			expectedArgs: []any{int32(42)},
+		},
+		{
 			sql: `select * /* @multi line
 			@comment
 			*/
