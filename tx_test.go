@@ -717,3 +717,169 @@ func TestBeginTxFatalErrorKillsConn(t *testing.T) {
 
 	require.True(t, conn.IsClosed())
 }
+
+func TestTxOptionsBeginSQL(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name      string
+		txOptions pgx.TxOptions
+		expected  string
+	}{
+		{
+			name:      "empty",
+			txOptions: pgx.TxOptions{},
+			expected:  "begin",
+		},
+		{
+			name:      "iso level",
+			txOptions: pgx.TxOptions{IsoLevel: pgx.Serializable},
+			expected:  "begin isolation level serializable",
+		},
+		{
+			name:      "access mode",
+			txOptions: pgx.TxOptions{AccessMode: pgx.ReadOnly},
+			expected:  "begin read only",
+		},
+		{
+			name: "all modes",
+			txOptions: pgx.TxOptions{
+				IsoLevel:       pgx.Serializable,
+				AccessMode:     pgx.ReadWrite,
+				DeferrableMode: pgx.NotDeferrable,
+			},
+			expected: "begin isolation level serializable read write not deferrable",
+		},
+		{
+			name:      "begin query overrides modes",
+			txOptions: pgx.TxOptions{IsoLevel: pgx.Serializable, BeginQuery: "begin priority high"},
+			expected:  "begin priority high",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.expected, tt.txOptions.BeginSQL())
+		})
+	}
+}
+
+func TestTxFromCurrentTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(ctx, "create temporary table foo(id integer primary key)")
+	require.NoError(t, err)
+
+	txOptions := pgx.TxOptions{IsoLevel: pgx.RepeatableRead}
+
+	batch := &pgx.Batch{}
+	batch.Queue(txOptions.BeginSQL())
+	batch.Queue("insert into foo(id) values (1)")
+	require.NoError(t, conn.SendBatch(ctx, batch).Close())
+
+	tx, err := conn.TxFromCurrentTransaction(txOptions)
+	require.NoError(t, err)
+
+	var isoLevel string
+	err = tx.QueryRow(ctx, "select current_setting('transaction_isolation')").Scan(&isoLevel)
+	require.NoError(t, err)
+	require.Equal(t, string(pgx.RepeatableRead), isoLevel)
+
+	_, err = tx.Exec(ctx, "insert into foo(id) values (2)")
+	require.NoError(t, err)
+
+	require.NoError(t, tx.Commit(ctx))
+
+	var n int64
+	err = conn.QueryRow(ctx, "select count(*) from foo").Scan(&n)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+}
+
+func TestTxFromCurrentTransactionRollback(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(ctx, "create temporary table foo(id integer primary key)")
+	require.NoError(t, err)
+
+	batch := &pgx.Batch{}
+	batch.Queue(pgx.TxOptions{}.BeginSQL())
+	batch.Queue("insert into foo(id) values (1)")
+	require.NoError(t, conn.SendBatch(ctx, batch).Close())
+
+	tx, err := conn.TxFromCurrentTransaction(pgx.TxOptions{})
+	require.NoError(t, err)
+	require.NoError(t, tx.Rollback(ctx))
+
+	var n int64
+	err = conn.QueryRow(ctx, "select count(*) from foo").Scan(&n)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, n)
+}
+
+func TestTxFromCurrentTransactionWhenNotInTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	tx, err := conn.TxFromCurrentTransaction(pgx.TxOptions{})
+	require.Error(t, err)
+	require.Nil(t, tx)
+
+	// The connection is untouched and remains usable.
+	var n int32
+	require.NoError(t, conn.QueryRow(ctx, "select 1").Scan(&n))
+	require.EqualValues(t, 1, n)
+}
+
+func TestTxFromCurrentTransactionWhenTransactionFailed(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	batch := &pgx.Batch{}
+	batch.Queue(pgx.TxOptions{}.BeginSQL())
+	batch.Queue("select 1/0")
+	require.Error(t, conn.SendBatch(ctx, batch).Close())
+
+	// The transaction is in the failed state, but a Tx is still needed to roll it back.
+	tx, err := conn.TxFromCurrentTransaction(pgx.TxOptions{})
+	require.NoError(t, err)
+	require.NoError(t, tx.Rollback(ctx))
+
+	var n int32
+	require.NoError(t, conn.QueryRow(ctx, "select 1").Scan(&n))
+	require.EqualValues(t, 1, n)
+}
+
+func TestTxFromCurrentTransactionCommitQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	txOptions := pgx.TxOptions{CommitQuery: "commit /* custom */"}
+
+	batch := &pgx.Batch{}
+	batch.Queue(txOptions.BeginSQL())
+	batch.Queue("select 1")
+	require.NoError(t, conn.SendBatch(ctx, batch).Close())
+
+	tx, err := conn.TxFromCurrentTransaction(txOptions)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit(ctx))
+	require.ErrorIs(t, tx.Commit(ctx), pgx.ErrTxClosed)
+}
