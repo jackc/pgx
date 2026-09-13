@@ -455,6 +455,79 @@ func TestLogAcquire(t *testing.T) {
 	require.Equal(t, tracelog.LogLevelError, logger.logs[1].lvl)
 }
 
+func TestLogAcquireEndContextCanceled(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelError,
+	}
+
+	config := defaultConnTestRunner.CreateConfig(ctx, t)
+	poolConfig, err := pgxpool.ParseConfig(config.ConnString())
+	require.NoError(t, err)
+	poolConfig.ConnConfig.Tracer = tracer
+
+	t.Run("LogLevelError with context.Canceled", func(t *testing.T) {
+		t.Cleanup(logger.Clear)
+
+		pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+		require.NoError(t, err)
+		t.Cleanup(pool.Close)
+
+		ctxCanceled, cancel := context.WithCancel(ctx)
+		cancel()
+
+		_, err = pool.Acquire(ctxCanceled)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Len(t, logger.logs, 0)
+	})
+
+	t.Run("LogLevelError with other error", func(t *testing.T) {
+		t.Cleanup(logger.Clear)
+
+		badPoolConfig, err := pgxpool.ParseConfig("host=/invalid")
+		require.NoError(t, err)
+		badPoolConfig.ConnConfig.Tracer = tracer
+
+		pool, err := pgxpool.NewWithConfig(ctx, badPoolConfig)
+		require.NoError(t, err)
+		t.Cleanup(pool.Close)
+
+		_, err = pool.Acquire(ctx)
+		require.Error(t, err)
+
+		logs := logger.FilterByMsg("Acquire")
+		require.Len(t, logs, 1)
+		require.Equal(t, tracelog.LogLevelError, logs[0].lvl)
+	})
+
+	t.Run("LogLevelDebug with context.Canceled", func(t *testing.T) {
+		t.Cleanup(logger.Clear)
+
+		tracer.LogLevel = tracelog.LogLevelDebug
+
+		pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+		require.NoError(t, err)
+		t.Cleanup(pool.Close)
+
+		ctxCanceled, cancel := context.WithCancel(ctx)
+		cancel()
+
+		_, err = pool.Acquire(ctxCanceled)
+		require.ErrorIs(t, err, context.Canceled)
+
+		require.Len(t, logger.logs, 1)
+		require.Equal(t, "Acquire", logger.logs[0].msg)
+		require.Equal(t, tracelog.LogLevelError, logger.logs[0].lvl)
+		require.Equal(t, context.Canceled, logger.logs[0].data["err"])
+	})
+}
+
 func TestLogRelease(t *testing.T) {
 	t.Parallel()
 
