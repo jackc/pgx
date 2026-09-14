@@ -110,6 +110,14 @@ create type ct_stringer_test as (
 	})
 }
 
+func TestCompositeCodecTypedNilFieldUsesCodecBeforeDriverValuer(t *testing.T) {
+	m := newCodecValuerTestMap()
+
+	buf, err := m.Encode(codecValuerCompositeOID, pgtype.TextFormatCode, pgtype.CompositeFields{codecValuerUUID(nil)}, nil)
+	require.NoError(t, err)
+	require.Equal(t, `()`, string(buf))
+}
+
 type point3d struct {
 	X, Y, Z float64
 }
