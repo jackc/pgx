@@ -94,7 +94,20 @@ func LogLevelFromString(s string) (LogLevel, error) {
 func logQueryArgs(args []any) []any {
 	logArgs := make([]any, 0, len(args))
 
-	for _, a := range args {
+	for i, a := range args {
+		if i == 0 {
+			switch a.(type) {
+			case pgx.QueryResultFormats:
+				continue
+			case pgx.QueryResultFormatsByOID:
+				continue
+			case pgx.QueryExecMode:
+				continue
+			case pgx.QueryRewriter:
+				continue
+			}
+		}
+
 		switch v := a.(type) {
 		case []byte:
 			if len(v) < 64 {
