@@ -633,6 +633,13 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			return nil, err
 		}
 
+		// Handle race condition: If the connection is assigned to this waiter at the exact
+		// moment the waiter's context is canceled, we must safely return it to the idle pool.
+		if ctx.Err() != nil {
+			res.Release()
+			return nil, ctx.Err()
+		}
+
 		cr := res.Value()
 
 		// Destroy expired connections before doing any further work (such as
