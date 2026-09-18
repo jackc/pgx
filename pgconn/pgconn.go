@@ -183,6 +183,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	fallbackConfigs := []*FallbackConfig{
 		{
 			Host:      config.Host,
+			HostAddr:  config.HostAddr,
 			Port:      config.Port,
 			TLSConfig: config.TLSConfig,
 		},
@@ -194,6 +195,20 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	var allErrors []error
 
 	for _, fb := range fallbackConfigs {
+		// A hostaddr is dialed as-is: no name resolution is performed, and the
+		// host name is retained only for identity purposes (libpq hostaddr).
+		if fb.HostAddr != "" {
+			network, address := NetworkAddress(fb.HostAddr, fb.Port)
+			configs = append(configs, &connectOneConfig{
+				network:          network,
+				address:          address,
+				originalHostname: fb.Host,
+				tlsConfig:        fb.TLSConfig,
+			})
+
+			continue
+		}
+
 		// skip resolve for unix sockets
 		if isAbsolutePath(fb.Host) {
 			network, address := NetworkAddress(fb.Host, fb.Port)
