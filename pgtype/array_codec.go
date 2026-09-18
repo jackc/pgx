@@ -142,7 +142,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 		elem := array.Index(i)
 		var elemBuf []byte
 		isNil, callNilDriverValuer := isNilDriverValuer(elem)
-		if !isNil {
+		if !isNil || callNilDriverValuer {
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
@@ -152,11 +152,6 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 				}
 			}
 			elemBuf, err = encodePlan.Encode(elem, inElemBuf)
-			if err != nil {
-				return nil, err
-			}
-		} else if callNilDriverValuer {
-			elemBuf, err = (&encodePlanDriverValuer{m: p.m, oid: p.ac.ElementType.OID, formatCode: TextFormatCode}).Encode(elem, inElemBuf)
 			if err != nil {
 				return nil, err
 			}
@@ -212,7 +207,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byt
 		elem := array.Index(i)
 		var elemBuf []byte
 		isNil, callNilDriverValuer := isNilDriverValuer(elem)
-		if !isNil {
+		if !isNil || callNilDriverValuer {
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
@@ -222,11 +217,6 @@ func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byt
 				}
 			}
 			elemBuf, err = encodePlan.Encode(elem, buf)
-			if err != nil {
-				return nil, err
-			}
-		} else if callNilDriverValuer {
-			elemBuf, err = (&encodePlanDriverValuer{m: p.m, oid: p.ac.ElementType.OID, formatCode: BinaryFormatCode}).Encode(elem, buf)
 			if err != nil {
 				return nil, err
 			}
