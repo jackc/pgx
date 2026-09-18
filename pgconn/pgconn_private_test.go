@@ -83,3 +83,48 @@ func TestNormalizeTimeoutError_PreservesErrorChain(t *testing.T) {
 	assert.True(t, errors.As(result, &dial), "original dial error should be preserved in the chain")
 	assert.Equal(t, "192.0.2.1:5432", dial.addr)
 }
+
+func TestBuildConnectOneConfigsUsesHostAddrWithoutResolving(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		connString   string
+		wantAddrs    []string
+		wantHostname []string
+	}{
+		{
+			connString:   "postgres://example.com?hostaddr=63.1.2.4&sslmode=disable",
+			wantAddrs:    []string{"63.1.2.4:5432"},
+			wantHostname: []string{"example.com"},
+		},
+		{
+			connString:   "host=h1,h2 hostaddr=1.1.1.1,2.2.2.2 sslmode=disable",
+			wantAddrs:    []string{"1.1.1.1:5432", "2.2.2.2:5432"},
+			wantHostname: []string{"h1", "h2"},
+		},
+		{
+			// An address without a host name is a complete target: there is no
+			// name to resolve and none to carry while connecting.
+			connString:   "postgres://?hostaddr=127.0.0.1&sslmode=disable",
+			wantAddrs:    []string{"127.0.0.1:5432"},
+			wantHostname: []string{""},
+		},
+	}
+
+	for _, tt := range tests {
+		config, err := ParseConfig(tt.connString)
+		require.NoError(t, err, tt.connString)
+		config.LookupFunc = func(_ context.Context, host string) ([]string, error) {
+			return nil, fmt.Errorf("LookupFunc must not be called when hostaddr is set, got %q", host)
+		}
+
+		connectOneConfigs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs, tt.connString)
+		require.Len(t, connectOneConfigs, len(tt.wantAddrs), tt.connString)
+
+		for i := range tt.wantAddrs {
+			assert.Equal(t, tt.wantAddrs[i], connectOneConfigs[i].address, tt.connString)
+			assert.Equal(t, tt.wantHostname[i], connectOneConfigs[i].originalHostname, tt.connString)
+		}
+	}
+}

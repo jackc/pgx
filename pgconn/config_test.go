@@ -856,6 +856,98 @@ func TestParseConfigHostPortCountMismatch(t *testing.T) {
 	}
 }
 
+func TestParseConfigHostAddr(t *testing.T) {
+	t.Parallel()
+
+	// hostaddr is the address to dial; host keeps its meaning for server
+	// identity. Neither may reach the server as a run-time parameter: those are
+	// sent on startup, which rejects hostaddr as an unrecognized configuration
+	// parameter.
+	tests := []struct {
+		connString   string
+		wantHost     string
+		wantHostAddr string
+	}{
+		// The issue's example: dial the address, present the other name.
+		{
+			"postgresql://someuser@hostname.not.used:54320/somedb?sslmode=require&host=hostname.for.sni&hostaddr=192.168.1.100",
+			"hostname.for.sni",
+			"192.168.1.100",
+		},
+		{"postgres://example.com?hostaddr=63.1.2.4", "example.com", "63.1.2.4"},
+		{"host=example.com hostaddr=63.1.2.4", "example.com", "63.1.2.4"},
+		{"host=h1,h2 hostaddr=1.1.1.1,2.2.2.2", "h1", "1.1.1.1"},
+	}
+
+	for _, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		require.NoError(t, err, tt.connString)
+		assert.Equal(t, tt.wantHost, config.Host, tt.connString)
+		assert.Equal(t, tt.wantHostAddr, config.HostAddr, tt.connString)
+		assert.NotContains(t, config.RuntimeParams, "hostaddr", tt.connString)
+
+		require.NotNil(t, config.TLSConfig, tt.connString)
+		assert.Equal(t, tt.wantHost, config.TLSConfig.ServerName, tt.connString)
+	}
+}
+
+func TestParseConfigHostAddrWithoutHost(t *testing.T) {
+	t.Parallel()
+
+	// libpq connects to an address given without a host name and uses no name at
+	// all: the default socket directory must not stand in for the missing host,
+	// or it would end up as the TLS server name. The address list then also sets
+	// the host count, as it would if the names had been written out.
+	tests := []struct {
+		connString   string
+		wantHostAddr string
+	}{
+		{"postgres://?hostaddr=127.0.0.1", "127.0.0.1"},
+		{"hostaddr=127.0.0.1", "127.0.0.1"},
+		{"hostaddr=1.1.1.1,2.2.2.2", "1.1.1.1"},
+	}
+
+	for _, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		require.NoError(t, err, tt.connString)
+		assert.Empty(t, config.Host, tt.connString)
+		assert.Equal(t, tt.wantHostAddr, config.HostAddr, tt.connString)
+		assert.NotContains(t, config.RuntimeParams, "hostaddr", tt.connString)
+
+		require.NotNil(t, config.TLSConfig, tt.connString)
+		assert.Empty(t, config.TLSConfig.ServerName, tt.connString)
+	}
+}
+
+func TestParseConfigHostAddrWithHostFromEnvironment(t *testing.T) {
+	// A host name from the environment is still a host name the user supplied, so
+	// hostaddr must not displace it.
+	t.Setenv("PGHOST", "hostname.for.sni")
+
+	config, err := pgconn.ParseConfig("hostaddr=192.168.1.100")
+	require.NoError(t, err)
+	assert.Equal(t, "hostname.for.sni", config.Host)
+	assert.Equal(t, "192.168.1.100", config.HostAddr)
+}
+
+func TestParseConfigHostAddrCountMismatch(t *testing.T) {
+	t.Parallel()
+
+	// hostaddr follows the same rule as port: a single address applies to every
+	// host, but any other address count must match the host count exactly.
+	tests := []string{
+		"host=h1,h2,h3 hostaddr=1.1.1.1,2.2.2.2",
+		"host=h1 hostaddr=1.1.1.1,2.2.2.2",
+		"postgres://h1,h2,h3/mydb?hostaddr=1.1.1.1,2.2.2.2",
+		"hostaddr=1.1.1.1,2.2.2.2 port=5432,5433,5434",
+	}
+	for _, connString := range tests {
+		_, err := pgconn.ParseConfig(connString)
+		require.Error(t, err, connString)
+		assert.Contains(t, err.Error(), "could not match", connString)
+	}
+}
+
 func TestParseConfigErrorsRedactQueryCredentials(t *testing.T) {
 	t.Parallel()
 
