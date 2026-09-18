@@ -32,6 +32,7 @@ type (
 // manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	Host           string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
+	HostAddr       string // numeric IP to dial instead of resolving Host (libpq hostaddr). Empty means resolve Host.
 	Port           uint16
 	Database       string
 	User           string
@@ -194,6 +195,7 @@ func (c *Config) Copy() *Config {
 // network connection. It is used for TLS fallback such as sslmode=prefer and high availability (HA) connections.
 type FallbackConfig struct {
 	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	HostAddr  string // numeric IP to dial instead of resolving Host (libpq hostaddr). Empty means resolve Host.
 	Port      uint16
 	TLSConfig *tls.Config // nil disables TLS
 }
@@ -427,6 +429,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
 
+	// Only a host name the user actually wrote counts as one: defaultSettings
+	// always sets host to the default Unix domain socket directory. hostaddr is a
+	// complete connection target on its own, so the two have to be told apart --
+	// see the host list handling below.
+	hostSpecified := envSettings["host"] != "" || connStringSettings["host"] != ""
+
 	// The home-directory-derived defaults (passfile, servicefile, sslcert,
 	// sslkey, sslrootcert) are already present in settings at this point:
 	// defaultSettings resolves them via the user's home directory, which is
@@ -453,6 +461,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		}
 
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
+		hostSpecified = hostSpecified || serviceSettings["host"] != ""
 	}
 
 	// Only fall back to the OS user account for the default PostgreSQL user
@@ -497,6 +506,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 	notRuntimeParams := map[string]struct{}{
 		"host":                 {},
+		"hostaddr":             {},
 		"port":                 {},
 		"database":             {},
 		"user":                 {},
@@ -540,6 +550,16 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 	hosts := strings.Split(settings["host"], ",")
 	ports := strings.Split(settings["port"], ",")
+	hostAddrs := strings.Split(settings["hostaddr"], ",")
+
+	// libpq connects to hostaddr without consulting the host name, and uses no
+	// host name at all when the user supplied only an address. The default socket
+	// directory must not stand in for a missing host name in that case, or it
+	// would become the TLS server name. The address list then also sets the host
+	// count, exactly as it would if the names had been written out.
+	if !hostSpecified && hostAddrs[0] != "" {
+		hosts = make([]string, len(hostAddrs))
+	}
 
 	// Like libpq, if exactly one port is given it applies to all hosts;
 	// otherwise there must be exactly one port per host. Empty list elements
@@ -548,11 +568,22 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("could not match %d port numbers to %d hosts", len(ports), len(hosts))}
 	}
 
+	// hostaddr follows the same rule as port: a single address applies to all
+	// hosts, otherwise there must be exactly one address per host.
+	if len(hostAddrs) > 1 && len(hostAddrs) != len(hosts) {
+		return nil, &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("could not match %d host addresses to %d hosts", len(hostAddrs), len(hosts))}
+	}
+
 	// defaultHost stats candidate socket directories, so resolve it at most
 	// once even when several host list elements are empty. It never returns "".
 	resolvedDefaultHost := ""
 	for i, host := range hosts {
-		if host == "" {
+		hostAddr := hostAddrs[0]
+		if len(hostAddrs) > 1 {
+			hostAddr = hostAddrs[i]
+		}
+
+		if host == "" && hostAddr == "" {
 			if resolvedDefaultHost == "" {
 				resolvedDefaultHost = defaultHost()
 			}
@@ -578,10 +609,16 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 			return nil, &ParseConfigError{ConnString: connString, msg: "invalid port"}
 		}
 
-		var tlsConfigs []*tls.Config
+		// A hostaddr always means a TCP connection; otherwise ignore TLS
+		// settings if Unix domain socket, like libpq.
+		isUnixSocket := false
+		if hostAddr == "" {
+			network, _ := NetworkAddress(host, port)
+			isUnixSocket = network == "unix"
+		}
 
-		// Ignore TLS settings if Unix domain socket like libpq
-		if network, _ := NetworkAddress(host, port); network == "unix" {
+		var tlsConfigs []*tls.Config
+		if isUnixSocket {
 			tlsConfigs = append(tlsConfigs, nil)
 		} else {
 			var err error
@@ -594,6 +631,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		for _, tlsConfig := range tlsConfigs {
 			fallbacks = append(fallbacks, &FallbackConfig{
 				Host:      host,
+				HostAddr:  hostAddr,
 				Port:      port,
 				TLSConfig: tlsConfig,
 			})
@@ -601,6 +639,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	}
 
 	config.Host = fallbacks[0].Host
+	config.HostAddr = fallbacks[0].HostAddr
 	config.Port = fallbacks[0].Port
 	config.TLSConfig = fallbacks[0].TLSConfig
 	config.Fallbacks = fallbacks[1:]
