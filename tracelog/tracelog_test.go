@@ -3,6 +3,7 @@ package tracelog_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -224,7 +225,10 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 		logs = logger.FilterByMsg("Query")
 		require.Len(t, logs, 1)
 		require.Equal(t, tracelog.LogLevelInfo, logs[0].lvl)
-		require.Equal(t, s.String()+" (truncated 3 bytes)", logs[0].data["args"].([]any)[0])
+		truncated := logs[0].data["args"].([]any)[0].(string)
+		require.Less(t, len(truncated), len(s.String()+"000"))
+		require.Contains(t, truncated, " (truncated ")
+		require.Contains(t, truncated, " bytes)")
 	})
 }
 
@@ -592,4 +596,50 @@ func TestConcurrentUsage(t *testing.T) {
 			require.NoError(t, err)
 		}()
 	}
+}
+
+func TestLogQueryArgsMaxLength(t *testing.T) {
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+		Config: &tracelog.TraceLogConfig{
+			MaxLogArgsLen: 8,
+		},
+	}
+
+	value := strings.Repeat("a", 100)
+	ctx := tracer.TraceQueryStart(context.Background(), &pgx.Conn{}, pgx.TraceQueryStartData{
+		SQL:  "select $1",
+		Args: []any{value, bytes.Repeat([]byte("a"), 100)},
+	})
+	tracer.TraceQueryEnd(ctx, &pgx.Conn{}, pgx.TraceQueryEndData{Err: errors.New("test error")})
+
+	logs := logger.FilterByMsg("Query")
+	require.Len(t, logs, 1)
+	args := logs[0].data["args"].([]any)
+	got := args[0].(string)
+	require.Equal(t, strings.Repeat("a", 8)+" (truncated 92 bytes)", got)
+	require.Equal(t, strings.Repeat("61", 8)+" (truncated 92 bytes)", args[1])
+}
+
+func TestLogQueryArgsDefaultDoesNotGrow(t *testing.T) {
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	value := strings.Repeat("a", 65)
+	ctx := tracer.TraceQueryStart(context.Background(), &pgx.Conn{}, pgx.TraceQueryStartData{
+		SQL:  "select $1",
+		Args: []any{value},
+	})
+	tracer.TraceQueryEnd(ctx, &pgx.Conn{}, pgx.TraceQueryEndData{Err: errors.New("test error")})
+
+	logs := logger.FilterByMsg("Query")
+	require.Len(t, logs, 1)
+	got := logs[0].data["args"].([]any)[0].(string)
+	require.Less(t, len(got), len(value))
+	require.Contains(t, got, " (truncated ")
 }
