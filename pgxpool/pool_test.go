@@ -1467,3 +1467,28 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	assert.NotSame(t, originalConn, newConn,
 		"Expected new connection due to ping timeout, but got same connection")
 }
+
+func TestCollectRowsStructPlan(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	type Item struct {
+		ID   int32  `db:"id"`
+		Name string `db:"name"`
+	}
+
+	rows, err := pool.Query(ctx, `select n as id, 'name_' || n as name from generate_series(1, 100) n`)
+	require.NoError(t, err)
+
+	items, err := pgx.CollectRows(rows, pgx.RowToStructByNamePlan[Item]())
+	require.NoError(t, err)
+	require.Len(t, items, 100)
+	require.EqualValues(t, 1, items[0].ID)
+	require.Equal(t, "name_1", items[0].Name)
+}
