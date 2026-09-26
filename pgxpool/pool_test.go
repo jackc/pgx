@@ -394,20 +394,18 @@ func TestPoolBeforeAcquire(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	conns := make([]*pgxpool.Conn, 4)
-	for i := range conns {
-		conns[i], err = db.Acquire(ctx)
-		assert.NoError(t, err)
-	}
-
-	for _, c := range conns {
-		c.Release()
-	}
+	func() {
+		for range 4 {
+			conn, err := db.Acquire(ctx)
+			require.NoError(t, err)
+			defer conn.Release()
+		}
+	}()
 	waitForReleaseToComplete()
 
 	assert.EqualValues(t, 8, acquireAttempts)
 
-	conns = db.AcquireAllIdle(ctx)
+	conns := db.AcquireAllIdle(ctx)
 	assert.Len(t, conns, 2)
 
 	for _, c := range conns {
