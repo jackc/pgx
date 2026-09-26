@@ -48,6 +48,26 @@ func TestTimeCodec(t *testing.T) {
 	})
 }
 
+func TestTimeTextEncode(t *testing.T) {
+	m := pgtype.NewMap()
+	tests := []struct {
+		source pgtype.Time
+		result string
+	}{
+		{source: pgtype.Time{Microseconds: 0, Valid: true}, result: "00:00:00.000000"},
+		{source: pgtype.Time{Microseconds: 1, Valid: true}, result: "00:00:00.000001"},
+		{source: pgtype.Time{Microseconds: 45_296_123_456, Valid: true}, result: "12:34:56.123456"},
+		{source: pgtype.Time{Microseconds: 86_399_999_999, Valid: true}, result: "23:59:59.999999"},
+		{source: pgtype.Time{Microseconds: 86_400_000_000, Valid: true}, result: "24:00:00.000000"},
+	}
+
+	for i, tt := range tests {
+		buf, err := m.Encode(pgtype.TimeOID, pgtype.TextFormatCode, tt.source, []byte("prefix:"))
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, "prefix:"+tt.result, string(buf), "%d", i)
+	}
+}
+
 func TestTimeTextScanner(t *testing.T) {
 	var pgTime pgtype.Time
 

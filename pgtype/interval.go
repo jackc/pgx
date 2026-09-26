@@ -145,12 +145,12 @@ func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte,
 	minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
 	seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
 
-	timeStr := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
-	buf = append(buf, timeStr...)
+	buf = appendTimeText(buf, hours, minutes, seconds)
 
 	microseconds := absMicroseconds % microsecondsPerSecond
 	if microseconds != 0 {
-		buf = append(buf, fmt.Sprintf(".%06d", microseconds)...)
+		buf = append(buf, '.')
+		buf = appendZeroPaddedInt64(buf, microseconds, 6)
 	}
 
 	return buf, nil

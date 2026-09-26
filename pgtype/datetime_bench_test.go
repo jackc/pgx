@@ -63,3 +63,33 @@ func BenchmarkTimestampCodecEncodeText(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkTimeCodecEncodeText(b *testing.B) {
+	m := pgtype.NewMap()
+	src := pgtype.Time{Microseconds: 12*60*60*1_000_000 + 34*60*1_000_000 + 56*1_000_000 + 123456, Valid: true}
+	buf := make([]byte, 0, 32)
+
+	b.ReportAllocs()
+	for b.Loop() {
+		var err error
+		buf, err = m.Encode(pgtype.TimeOID, pgtype.TextFormatCode, src, buf[:0])
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkIntervalCodecEncodeText(b *testing.B) {
+	m := pgtype.NewMap()
+	src := pgtype.Interval{Months: 12, Days: 34, Microseconds: 56*60*60*1_000_000 + 12*60*1_000_000 + 34*1_000_000 + 123456, Valid: true}
+	buf := make([]byte, 0, 64)
+
+	b.ReportAllocs()
+	for b.Loop() {
+		var err error
+		buf, err = m.Encode(pgtype.IntervalOID, pgtype.TextFormatCode, src, buf[:0])
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

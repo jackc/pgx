@@ -149,6 +149,8 @@ func TestIntervalTextEncode(t *testing.T) {
 		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 0, Valid: true}, result: "00:00:00"},
 		{source: pgtype.Interval{Months: 0, Days: 0, Microseconds: 6 * 60 * 1_000_000, Valid: true}, result: "00:06:00"},
 		{source: pgtype.Interval{Months: 0, Days: 1, Microseconds: 6*60*1_000_000 + 30, Valid: true}, result: "1 day 00:06:00.000030"},
+		{source: pgtype.Interval{Microseconds: 123_202_800_000_000, Valid: true}, result: "34223:00:00"},
+		{source: pgtype.Interval{Microseconds: -1_000_001, Valid: true}, result: "-00:00:01.000001"},
 	}
 	for i, tt := range successfulTests {
 		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.source, nil)
