@@ -164,7 +164,7 @@ type encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %> struct{}
 
 func (encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %>) Encode(value any, buf []byte) (newBuf []byte, err error) {
   n := value.(int<%= pg_bit_size %>)
-  return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+  return strconv.AppendInt(buf, int64(n), 10), nil
 }
 
 type encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer struct{}
@@ -208,7 +208,7 @@ func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value any, bu
 		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int64)
 	}
 
-  return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
+  return strconv.AppendInt(buf, n.Int64, 10), nil
 }
 
 func (Int<%= pg_byte_size %>Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

@@ -162,7 +162,7 @@ type encodePlanInt2CodecTextInt16 struct{}
 
 func (encodePlanInt2CodecTextInt16) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int16)
-	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+	return strconv.AppendInt(buf, int64(n), 10), nil
 }
 
 type encodePlanInt2CodecBinaryInt64Valuer struct{}
@@ -206,7 +206,7 @@ func (encodePlanInt2CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf 
 		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
+	return strconv.AppendInt(buf, n.Int64, 10), nil
 }
 
 func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
@@ -737,7 +737,7 @@ type encodePlanInt4CodecTextInt32 struct{}
 
 func (encodePlanInt4CodecTextInt32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int32)
-	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+	return strconv.AppendInt(buf, int64(n), 10), nil
 }
 
 type encodePlanInt4CodecBinaryInt64Valuer struct{}
@@ -781,7 +781,7 @@ func (encodePlanInt4CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf 
 		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
+	return strconv.AppendInt(buf, n.Int64, 10), nil
 }
 
 func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
@@ -1323,7 +1323,7 @@ type encodePlanInt8CodecTextInt64 struct{}
 
 func (encodePlanInt8CodecTextInt64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int64)
-	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+	return strconv.AppendInt(buf, int64(n), 10), nil
 }
 
 type encodePlanInt8CodecBinaryInt64Valuer struct{}
@@ -1367,7 +1367,7 @@ func (encodePlanInt8CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf 
 		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
+	return strconv.AppendInt(buf, n.Int64, 10), nil
 }
 
 func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

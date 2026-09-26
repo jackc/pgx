@@ -139,7 +139,7 @@ type encodePlanTextFloat32 struct{}
 
 func (encodePlanTextFloat32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(float32)
-	return append(buf, strconv.FormatFloat(float64(n), 'f', -1, 32)...), nil
+	return strconv.AppendFloat(buf, float64(n), 'f', -1, 32), nil
 }
 
 type encodePlanFloat4CodecBinaryFloat64Valuer struct{}

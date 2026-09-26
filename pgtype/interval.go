@@ -126,12 +126,12 @@ func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte,
 	}
 
 	if interval.Months != 0 {
-		buf = append(buf, strconv.FormatInt(int64(interval.Months), 10)...)
+		buf = strconv.AppendInt(buf, int64(interval.Months), 10)
 		buf = append(buf, " mon "...)
 	}
 
 	if interval.Days != 0 {
-		buf = append(buf, strconv.FormatInt(int64(interval.Days), 10)...)
+		buf = strconv.AppendInt(buf, int64(interval.Days), 10)
 		buf = append(buf, " day "...)
 	}
 

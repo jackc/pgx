@@ -147,7 +147,7 @@ type encodePlanTextFloat64 struct{}
 
 func (encodePlanTextFloat64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(float64)
-	return append(buf, strconv.FormatFloat(n, 'f', -1, 64)...), nil
+	return strconv.AppendFloat(buf, n, 'f', -1, 64), nil
 }
 
 type encodePlanFloat8CodecBinaryFloat64Valuer struct{}
@@ -177,7 +177,7 @@ func (encodePlanTextFloat64Valuer) Encode(value any, buf []byte) (newBuf []byte,
 		return nil, nil
 	}
 
-	return append(buf, strconv.FormatFloat(n.Float64, 'f', -1, 64)...), nil
+	return strconv.AppendFloat(buf, n.Float64, 'f', -1, 64), nil
 }
 
 type encodePlanFloat8CodecBinaryInt64Valuer struct{}
@@ -208,7 +208,7 @@ func (encodePlanTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, e
 		return nil, nil
 	}
 
-	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
+	return strconv.AppendInt(buf, n.Int64, 10), nil
 }
 
 func (Float8Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

@@ -157,7 +157,7 @@ type encodePlanUint64CodecTextUint64 struct{}
 
 func (encodePlanUint64CodecTextUint64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(uint64)
-	return append(buf, strconv.FormatUint(v, 10)...), nil
+	return strconv.AppendUint(buf, v, 10), nil
 }
 
 type encodePlanUint64CodecTextUint64Valuer struct{}
@@ -191,7 +191,7 @@ func (encodePlanUint64CodecTextInt64Valuer) Encode(value any, buf []byte) (newBu
 		return nil, fmt.Errorf("%d is less than minimum value for uint64", v.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(v.Int64, 10)...), nil
+	return strconv.AppendInt(buf, v.Int64, 10), nil
 }
 
 func (Uint64Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

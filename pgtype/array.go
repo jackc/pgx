@@ -349,9 +349,9 @@ func encodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
 
 	for _, dim := range dimensions {
 		buf = append(buf, '[')
-		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound), 10)...)
+		buf = strconv.AppendInt(buf, int64(dim.LowerBound), 10)
 		buf = append(buf, ':')
-		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound+dim.Length-1), 10)...)
+		buf = strconv.AppendInt(buf, int64(dim.LowerBound+dim.Length-1), 10)
 		buf = append(buf, ']')
 	}
 

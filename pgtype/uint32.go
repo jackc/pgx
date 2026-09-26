@@ -183,7 +183,7 @@ type encodePlanUint32CodecTextUint32 struct{}
 
 func (encodePlanUint32CodecTextUint32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(uint32)
-	return append(buf, strconv.FormatUint(uint64(v), 10)...), nil
+	return strconv.AppendUint(buf, uint64(v), 10), nil
 }
 
 type encodePlanUint32CodecTextUint32Valuer struct{}
@@ -220,7 +220,7 @@ func (encodePlanUint32CodecTextInt64Valuer) Encode(value any, buf []byte) (newBu
 		return nil, fmt.Errorf("%d is greater than maximum value for uint32", v.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(v.Int64, 10)...), nil
+	return strconv.AppendInt(buf, v.Int64, 10), nil
 }
 
 func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

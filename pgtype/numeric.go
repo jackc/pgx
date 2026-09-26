@@ -97,7 +97,7 @@ func (n Numeric) Float64Value() (Float8, error) {
 		buf = append(buf, n.Int.String()...)
 	}
 	buf = append(buf, 'e')
-	buf = append(buf, strconv.FormatInt(int64(n.Exp), 10)...)
+	buf = strconv.AppendInt(buf, int64(n.Exp), 10)
 
 	f, err := strconv.ParseFloat(string(buf), 64)
 	if err != nil {
@@ -599,7 +599,7 @@ func (encodePlanNumericCodecTextFloat64Valuer) Encode(value any, buf []byte) (ne
 	case math.IsInf(n.Float64, -1):
 		buf = append(buf, "-Infinity"...)
 	default:
-		buf = append(buf, strconv.FormatFloat(n.Float64, 'f', -1, 64)...)
+		buf = strconv.AppendFloat(buf, n.Float64, 'f', -1, 64)
 	}
 	return buf, nil
 }
@@ -616,7 +616,7 @@ func (encodePlanNumericCodecTextInt64Valuer) Encode(value any, buf []byte) (newB
 		return nil, nil
 	}
 
-	buf = append(buf, strconv.FormatInt(n.Int64, 10)...)
+	buf = strconv.AppendInt(buf, n.Int64, 10)
 	return buf, nil
 }
 
