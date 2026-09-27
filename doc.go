@@ -68,6 +68,15 @@ Use [Conn.Exec] to execute a query that does not return a result set.
         return errors.New("No row found to delete")
     }
 
+To match a column against a Go slice, pass the slice as one argument and use
+PostgreSQL's ANY. Bare IN $1 is invalid SQL, and IN ($1) compares against the
+array as a whole rather than its elements.
+
+    ids := []int64{1, 2, 3}
+    rows, _ := conn.Query(ctx, "select * from widgets where id = any($1)", ids)
+
+See https://www.postgresql.org/docs/current/functions-comparisons.html#FUNCTIONS-COMPARISONS-ANY-SOME.
+
 PostgreSQL Data Types
 
 pgx uses the [pgtype] package to converting Go values to and from PostgreSQL values. It supports many PostgreSQL types
