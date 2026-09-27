@@ -1386,6 +1386,8 @@ func TestPoolAcquireUnlimitedLifetimeDoesNotExpire(t *testing.T) {
 	// acquire-time expiry check must not treat such connections as expired,
 	// otherwise Acquire destroys and recreates them in a loop and ultimately fails.
 	config.MaxConnLifetime = 0
+	// Wait for the health check to return the connection instead of creating another.
+	config.MaxConns = 1
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
@@ -1409,8 +1411,9 @@ func TestPoolAcquireUnlimitedLifetimeDoesNotExpire(t *testing.T) {
 	for range 5 {
 		c, err = pool.Acquire(ctx)
 		require.NoError(t, err)
-		require.Same(t, firstConn, c.Conn())
+		currentConn := c.Conn()
 		c.Release()
+		require.Same(t, firstConn, currentConn)
 		waitForReleaseToComplete()
 	}
 
