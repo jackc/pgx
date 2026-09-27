@@ -160,6 +160,7 @@ type Config struct {
 	ShouldPing func(context.Context, ShouldPingParams) bool
 
 	// MaxConnLifetime is the duration since creation after which a connection will be automatically closed.
+	// The default is 1 hour.
 	MaxConnLifetime time.Duration
 
 	// MaxConnLifetimeJitter is the duration after MaxConnLifetime to randomly decide to close a connection.
@@ -167,6 +168,7 @@ type Config struct {
 	MaxConnLifetimeJitter time.Duration
 
 	// MaxConnIdleTime is the duration after which an idle connection will be automatically closed by the health check.
+	// The default is 30 minutes.
 	MaxConnIdleTime time.Duration
 
 	// PingTimeout is the maximum amount of time to wait for a connection to pong before considering it as unhealthy and
@@ -189,6 +191,7 @@ type Config struct {
 	MinIdleConns int32
 
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
+	// The default is 1 minute.
 	HealthCheckPeriod time.Duration
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
