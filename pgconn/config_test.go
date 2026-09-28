@@ -959,6 +959,19 @@ func TestParseConfigHostAddrWithEmptyElement(t *testing.T) {
 	assert.Equal(t, "127.0.0.1", config.Fallbacks[0].HostAddr)
 }
 
+func TestParseConfigHostAddrWithExplicitEmptyHost(t *testing.T) {
+	t.Setenv("PGHOST", "h1")
+	t.Setenv("PGHOSTADDR", "")
+
+	config, err := pgconn.ParseConfig("host='' hostaddr=127.0.0.1,127.0.0.2 sslmode=disable")
+	require.NoError(t, err)
+	require.Len(t, config.Fallbacks, 1)
+	assert.Empty(t, config.Host)
+	assert.Equal(t, "127.0.0.1", config.HostAddr)
+	assert.Empty(t, config.Fallbacks[0].Host)
+	assert.Equal(t, "127.0.0.2", config.Fallbacks[0].HostAddr)
+}
+
 func TestParseConfigHostAddrUsesHostAddrForPassfile(t *testing.T) {
 	t.Parallel()
 
