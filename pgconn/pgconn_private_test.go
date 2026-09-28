@@ -128,3 +128,30 @@ func TestBuildConnectOneConfigsUsesHostAddrWithoutResolving(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildConnectOneConfigsRejectsNonNumericHostAddr(t *testing.T) {
+	t.Parallel()
+
+	// libpq resolves hostaddr with AI_NUMERICHOST, so the value must be a numeric
+	// address. A host name is not resolved here, and a socket directory is not
+	// dialled as a Unix domain socket: either would reach somewhere other than
+	// the address the caller wrote.
+	tests := []string{
+		"hostaddr=localhost sslmode=disable",
+		"hostaddr=/tmp sslmode=disable",
+		"host=h1 hostaddr=not.an.address sslmode=disable",
+	}
+
+	for _, connString := range tests {
+		config, err := ParseConfig(connString)
+		require.NoError(t, err, connString)
+		config.LookupFunc = func(_ context.Context, host string) ([]string, error) {
+			return nil, fmt.Errorf("LookupFunc must not be called for hostaddr, got %q", host)
+		}
+
+		connectOneConfigs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, connectOneConfigs, connString)
+		require.Len(t, errs, 1, connString)
+		assert.Contains(t, errs[0].Error(), "could not parse network address", connString)
+	}
+}
