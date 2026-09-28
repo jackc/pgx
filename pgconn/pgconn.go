@@ -13,6 +13,7 @@ import (
 	"maps"
 	"math"
 	"net"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -175,6 +176,15 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 	return pgConn, nil
 }
 
+// isNumericHostAddr reports whether hostAddr is a numeric IP address. libpq
+// resolves hostaddr with AI_NUMERICHOST, so a host name or a socket directory
+// path is rejected instead of being resolved as a name or dialled as a Unix
+// domain socket. An IPv6 zone is part of the address.
+func isNumericHostAddr(hostAddr string) bool {
+	_, err := netip.ParseAddr(hostAddr)
+	return err == nil
+}
+
 // buildConnectOneConfigs resolves hostnames and builds a list of connectOneConfigs to try connecting to. It returns a
 // slice of successfully resolved connectOneConfigs and a slice of errors. It is possible for both slices to contain
 // values if some hosts were successfully resolved and others were not.
@@ -195,9 +205,19 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	var allErrors []error
 
 	for _, fb := range fallbackConfigs {
-		// A hostaddr is dialed as-is: no name resolution is performed, and the
-		// host name is retained only for identity purposes (libpq hostaddr).
+		// A hostaddr is dialled as a numeric address and never resolved, the way
+		// libpq resolves it with AI_NUMERICHOST. A value that is not one -- a
+		// host name, or a socket directory path -- is an error for this host; it
+		// must not fall back to name resolution or to a Unix domain socket.
 		if fb.HostAddr != "" {
+			if !isNumericHostAddr(fb.HostAddr) {
+				allErrors = append(allErrors, fmt.Errorf("could not parse network address %q: not a numeric address", fb.HostAddr))
+				continue
+			}
+
+			// The host name, when there is one, is kept only for server
+			// identity (TLS ServerName / SNI); it plays no part in reaching the
+			// server.
 			network, address := NetworkAddress(fb.HostAddr, fb.Port)
 			configs = append(configs, &connectOneConfig{
 				network:          network,
