@@ -23,6 +23,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestConnQueryNamedArgsDollarQuotedStrings(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for _, rewriter := range []pgx.QueryRewriter{pgx.NamedArgs{}, pgx.StrictNamedArgs{}} {
+			var literal string
+			err := conn.QueryRow(ctx, `select $$hello @world$$`, rewriter).Scan(&literal)
+			require.NoError(t, err)
+			assert.Equal(t, "hello @world", literal)
+		}
+		for _, rewriter := range []pgx.QueryRewriter{
+			pgx.NamedArgs{"world": "bound"},
+			pgx.StrictNamedArgs{"world": "bound"},
+			pgx.StructArgs(struct {
+				World string `db:"world"`
+			}{"bound"}),
+			pgx.StrictStructArgs(struct {
+				World string `db:"world"`
+			}{"bound"}),
+		} {
+			var anonymous, tagged, bound string
+			err := conn.QueryRow(ctx, `select $$hello @world$$, $tag$it's @world$tag$, @world::text`, rewriter).Scan(&anonymous, &tagged, &bound)
+			require.NoError(t, err)
+			assert.Equal(t, "hello @world", anonymous)
+			assert.Equal(t, "it's @world", tagged)
+			assert.Equal(t, "bound", bound)
+		}
+	})
+}
+
 func TestConnQueryScan(t *testing.T) {
 	t.Parallel()
 

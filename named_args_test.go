@@ -167,6 +167,68 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 	}
 }
 
+func TestNamedArgsDollarQuotedStrings(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"anonymous", `select $$hello @id$$, @id`, `select $$hello @id$$, $1`},
+		{"tagged", `select $tag_1$@missing$tag_1$, @id`, `select $tag_1$@missing$tag_1$, $1`},
+		{"unicode tag", `select $世界$@missing$世界$, @id`, `select $世界$@missing$世界$, $1`},
+		{"replacement character tag", `select $�$@missing$�$, @id`, `select $�$@missing$�$, $1`},
+		{"opaque contents", `select $$it's " -- /* @missing \ $$, @id`, `select $$it's " -- /* @missing \ $$, $1`},
+		{"different inner tags", `select $outer$$inner$@missing$inner$ $$ @missing$outer$, @id`, `select $outer$$inner$@missing$inner$ $$ @missing$outer$, $1`},
+		{"case sensitive tag", `select $tag$@missing$TAG$@missing$tag$, @id`, `select $tag$@missing$TAG$@missing$tag$, $1`},
+		{"multiple literals", `select @id, $$@missing$$, $tag$@id$tag$, @id`, `select $1, $$@missing$$, $tag$@id$tag$, $1`},
+		{"unterminated", `select @id, $tag$@missing`, `select $1, $tag$@missing`},
+		{"dollar in identifier", `select column$tag$, @id`, `select column$tag$, $1`},
+		{"dollars in identifier", `select column$$, @id`, `select column$$, $1`},
+		{"identifier starting with e", `select example$tag$, @id`, `select example$tag$, $1`},
+		{"unicode identifier", `select 世界$tag$, @id`, `select 世界$tag$, $1`},
+		{"invalid numeric tag", `select $1$ @id`, `select $1$ $1`},
+		{"invalid tag character", `select $bad-tag$ @id`, `select $bad-tag$ $1`},
+		{"lone dollar", `select @id, $`, `select $1, $`},
+		{"quoted delimiter", `select '$$' , @id`, `select '$$' , $1`},
+		{"commented delimiter", "select /* $$ */ @id -- $tag$", "select /* $$ */ $1 -- $tag$"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, rewriter := range []pgx.QueryRewriter{
+				pgx.NamedArgs{"id": 42},
+				pgx.StrictNamedArgs{"id": 42},
+				pgx.StructArgs(struct {
+					ID int `db:"id"`
+				}{42}),
+				pgx.StrictStructArgs(struct {
+					ID int `db:"id"`
+				}{42}),
+			} {
+				sql, args, err := rewriter.RewriteQuery(context.Background(), nil, tt.sql, nil)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, sql)
+				assert.Equal(t, []any{42}, args)
+			}
+		})
+	}
+
+	t.Run("no phantom arguments", func(t *testing.T) {
+		for _, rewriter := range []pgx.QueryRewriter{pgx.NamedArgs{}, pgx.StrictNamedArgs{}} {
+			const query = `select $$hello @world$$`
+			sql, args, err := rewriter.RewriteQuery(context.Background(), nil, query, nil)
+			require.NoError(t, err)
+			assert.Equal(t, query, sql)
+			assert.Empty(t, args)
+		}
+	})
+
+	t.Run("strict rejects argument used only in literal", func(t *testing.T) {
+		_, _, err := (pgx.StrictNamedArgs{"id": 42}).RewriteQuery(context.Background(), nil, `select $$@id$$`, nil)
+		require.EqualError(t, err, "argument id of StrictNamedArgs not found in sql query")
+	})
+}
+
 func TestStrictNamedArgsRewriteQuery(t *testing.T) {
 	t.Parallel()
 
