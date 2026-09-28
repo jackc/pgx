@@ -88,6 +88,10 @@ func (l LtreeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 type scanPlanBinaryLtreeToString struct{}
 
 func (scanPlanBinaryLtreeToString) Scan(src []byte, target any) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan NULL into %T", target)
+	}
+
 	version := src[0]
 	if version != 1 {
 		return fmt.Errorf("unsupported ltree version %d", version)
@@ -102,12 +106,17 @@ func (scanPlanBinaryLtreeToString) Scan(src []byte, target any) error {
 type scanPlanBinaryLtreeToTextScanner struct{}
 
 func (scanPlanBinaryLtreeToTextScanner) Scan(src []byte, target any) error {
+	scanner := target.(TextScanner)
+
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
 	version := src[0]
 	if version != 1 {
 		return fmt.Errorf("unsupported ltree version %d", version)
 	}
 
-	scanner := target.(TextScanner)
 	return scanner.ScanText(Text{String: string(src[1:]), Valid: true})
 }
 
