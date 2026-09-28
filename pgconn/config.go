@@ -257,8 +257,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // interdependent (e.g. TLSConfig needs knowledge of the host to validate the server certificate). These fields should
 // not be modified individually. They should all be modified or all left unchanged.
 //
-// ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
-// values that will be tried in order. This can be used as part of a high availability system. See
+// ParseConfig supports specifying multiple hosts in similar manner to libpq. Host, hostaddr, and port may include
+// comma-separated values that will be tried in order. This can be used as part of a high availability system. See
 // https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS for more information.
 //
 //	# Example URL
@@ -464,6 +464,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
 		hostSpecified = hostSpecified || serviceSettings["host"] != ""
 	}
+	// An explicit empty host can override a nonempty PGHOST or service host.
+	// Only the effective value should be treated as a supplied host list.
+	hostSpecified = hostSpecified && settings["host"] != ""
 
 	// Only fall back to the OS user account for the default PostgreSQL user
 	// name when it was not already supplied by the connection string,
