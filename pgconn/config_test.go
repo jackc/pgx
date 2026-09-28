@@ -53,7 +53,7 @@ func getDefaultUser(t *testing.T) string {
 	return osUserName
 }
 
-var pgEnvvars = []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
+var pgEnvvars = []string{"PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"}
 
 func clearPgEnvvars(t *testing.T) {
 	for _, env := range pgEnvvars {
@@ -853,6 +853,157 @@ func TestParseConfigHostPortCountMismatch(t *testing.T) {
 		_, err := pgconn.ParseConfig(connString)
 		require.Error(t, err, connString)
 		assert.Contains(t, err.Error(), "could not match 2 port numbers to", connString)
+	}
+}
+
+func TestParseConfigHostAddr(t *testing.T) {
+	t.Parallel()
+
+	// hostaddr is the address to dial; host keeps its meaning for server
+	// identity. Neither may reach the server as a run-time parameter: those are
+	// sent on startup, which rejects hostaddr as an unrecognized configuration
+	// parameter.
+	tests := []struct {
+		connString   string
+		wantHost     string
+		wantHostAddr string
+	}{
+		// The issue's example: dial the address, present the other name.
+		{
+			"postgresql://someuser@hostname.not.used:54320/somedb?sslmode=require&host=hostname.for.sni&hostaddr=192.168.1.100",
+			"hostname.for.sni",
+			"192.168.1.100",
+		},
+		{"postgres://example.com?hostaddr=63.1.2.4", "example.com", "63.1.2.4"},
+		{"host=example.com hostaddr=63.1.2.4", "example.com", "63.1.2.4"},
+		{"host=h1,h2 hostaddr=1.1.1.1,2.2.2.2", "h1", "1.1.1.1"},
+	}
+
+	for _, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		require.NoError(t, err, tt.connString)
+		assert.Equal(t, tt.wantHost, config.Host, tt.connString)
+		assert.Equal(t, tt.wantHostAddr, config.HostAddr, tt.connString)
+		assert.NotContains(t, config.RuntimeParams, "hostaddr", tt.connString)
+
+		require.NotNil(t, config.TLSConfig, tt.connString)
+		assert.Equal(t, tt.wantHost, config.TLSConfig.ServerName, tt.connString)
+	}
+}
+
+func TestParseConfigHostAddrWithoutHost(t *testing.T) {
+	t.Parallel()
+
+	// libpq connects to an address given without a host name and uses no name at
+	// all: the default socket directory must not stand in for the missing host,
+	// or it would end up as the TLS server name. The address list then also sets
+	// the host count, as it would if the names had been written out.
+	tests := []struct {
+		connString   string
+		wantHostAddr string
+	}{
+		{"postgres://?hostaddr=127.0.0.1", "127.0.0.1"},
+		{"hostaddr=127.0.0.1", "127.0.0.1"},
+		{"hostaddr=1.1.1.1,2.2.2.2", "1.1.1.1"},
+	}
+
+	for _, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		require.NoError(t, err, tt.connString)
+		assert.Empty(t, config.Host, tt.connString)
+		assert.Equal(t, tt.wantHostAddr, config.HostAddr, tt.connString)
+		assert.NotContains(t, config.RuntimeParams, "hostaddr", tt.connString)
+
+		require.NotNil(t, config.TLSConfig, tt.connString)
+		assert.Empty(t, config.TLSConfig.ServerName, tt.connString)
+	}
+}
+
+func TestParseConfigHostAddrWithHostFromEnvironment(t *testing.T) {
+	// A host name from the environment is still a host name the user supplied, so
+	// hostaddr must not displace it.
+	t.Setenv("PGHOST", "hostname.for.sni")
+
+	config, err := pgconn.ParseConfig("hostaddr=192.168.1.100")
+	require.NoError(t, err)
+	assert.Equal(t, "hostname.for.sni", config.Host)
+	assert.Equal(t, "192.168.1.100", config.HostAddr)
+}
+
+func TestParseConfigHostAddrFromEnvironment(t *testing.T) {
+	// PGHOSTADDR is the environment form of hostaddr, and behaves the same way:
+	// it addresses the server without naming it.
+	t.Setenv("PGHOST", "")
+	t.Setenv("PGHOSTADDR", "127.0.0.1")
+
+	config, err := pgconn.ParseConfig("")
+	require.NoError(t, err)
+	assert.Empty(t, config.Host)
+	assert.Equal(t, "127.0.0.1", config.HostAddr)
+	assert.NotContains(t, config.RuntimeParams, "hostaddr")
+}
+
+func TestParseConfigHostAddrWithEmptyElement(t *testing.T) {
+	t.Parallel()
+
+	// An empty element gives its slot no address, exactly as an empty host
+	// element gives it no name: the two lists stay parallel, so the default Unix
+	// domain socket is tried first and the supplied address second.
+	config, err := pgconn.ParseConfig("hostaddr=,127.0.0.1 sslmode=disable")
+	require.NoError(t, err)
+	require.Len(t, config.Fallbacks, 1)
+
+	assert.NotEmpty(t, config.Host, "the first slot must fall back to the default host")
+	assert.Empty(t, config.HostAddr, "the first slot must have no address")
+	assert.Empty(t, config.Fallbacks[0].Host, "a slot with an address carries no name")
+	assert.Equal(t, "127.0.0.1", config.Fallbacks[0].HostAddr)
+}
+
+func TestParseConfigHostAddrWithExplicitEmptyHost(t *testing.T) {
+	t.Setenv("PGHOST", "h1")
+	t.Setenv("PGHOSTADDR", "")
+
+	config, err := pgconn.ParseConfig("host='' hostaddr=127.0.0.1,127.0.0.2 sslmode=disable")
+	require.NoError(t, err)
+	require.Len(t, config.Fallbacks, 1)
+	assert.Empty(t, config.Host)
+	assert.Equal(t, "127.0.0.1", config.HostAddr)
+	assert.Empty(t, config.Fallbacks[0].Host)
+	assert.Equal(t, "127.0.0.2", config.Fallbacks[0].HostAddr)
+}
+
+func TestParseConfigHostAddrUsesHostAddrForPassfile(t *testing.T) {
+	t.Parallel()
+
+	// .pgpass is matched on the host name when one was written and on the
+	// address when it was not, so an address-only connection still finds its
+	// password in the file.
+	passfile := filepath.Join(t.TempDir(), "pgpass")
+	require.NoError(t, os.WriteFile(passfile, []byte("127.0.0.1:5432:mydb:testuser:secret\n"), 0o600))
+
+	config, err := pgconn.ParseConfig("hostaddr=127.0.0.1 dbname=mydb user=testuser passfile=" + passfile)
+	require.NoError(t, err)
+	assert.Empty(t, config.Host)
+	assert.Equal(t, "127.0.0.1", config.HostAddr)
+	assert.Equal(t, "secret", config.Password)
+}
+
+func TestParseConfigHostAddrCountMismatch(t *testing.T) {
+	t.Parallel()
+
+	// hostaddr is not port: it has no single-value form, so a single address is
+	// never broadcast over several hosts. Any count mismatch is rejected.
+	tests := []string{
+		"host=h1,h2,h3 hostaddr=1.1.1.1,2.2.2.2",
+		"host=h1 hostaddr=1.1.1.1,2.2.2.2",
+		"host=h1,h2 hostaddr=1.1.1.1",
+		"postgres://h1,h2,h3/mydb?hostaddr=1.1.1.1,2.2.2.2",
+		"hostaddr=1.1.1.1,2.2.2.2 port=5432,5433,5434",
+	}
+	for _, connString := range tests {
+		_, err := pgconn.ParseConfig(connString)
+		require.Error(t, err, connString)
+		assert.Contains(t, err.Error(), "could not match", connString)
 	}
 }
 
