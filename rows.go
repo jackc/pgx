@@ -458,9 +458,9 @@ type CollectableRow interface {
 type RowToFunc[T any] func(row CollectableRow) (T, error)
 
 // AppendRows iterates through rows, calling fn for each row, and appending the results into a slice of T.
-// Preallocating slice capacity with an expected row count avoids slice reallocations. For struct and map
-// scanning, closure factory functions such as [RowToStructByNamePlan] and [RowToMapPlan] precompute field
-// offsets and allocations once for the collection.
+// Preallocating slice capacity with an expected row count avoids slice reallocations. For repeated struct
+// scanning, closure factory functions such as [RowToStructByNamePlan] precompute field offsets and
+// allocations once for the collection.
 //
 // This function closes the rows automatically on return.
 func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
@@ -482,8 +482,8 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 }
 
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
-// For repeated row scanning into structs or maps, closure factory functions such as [RowToStructByNamePlan]
-// and [RowToMapPlan] precompute field offsets and allocations once for the collection.
+// For repeated struct scanning, closure factory functions such as [RowToStructByNamePlan] precompute field
+// offsets and allocations once for the collection.
 //
 // This function closes the rows automatically on return.
 func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
@@ -591,35 +591,6 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	return nil
 }
 
-// RowToMapPlan returns a RowToFunc that returns a map[string]any scanned from row.
-// Map keys and field descriptions are precomputed in a closure on the first row,
-// eliminating per-row column string allocations, map pre-sizing churn, and field descriptor iterations.
-func RowToMapPlan() RowToFunc[map[string]any] {
-	var keys []string
-	return func(row CollectableRow) (map[string]any, error) {
-		if keys == nil {
-			fldDescs := row.FieldDescriptions()
-			keys = make([]string, len(fldDescs))
-			for i, fd := range fldDescs {
-				keys[i] = fd.Name
-			}
-		}
-		values := make([]any, len(keys))
-		for i := range values {
-			values[i] = new(any)
-		}
-		err := row.Scan(values...)
-		if err != nil {
-			return nil, err
-		}
-		m := make(map[string]any, len(keys))
-		for i, key := range keys {
-			m[key] = *values[i].(*any)
-		}
-		return m, nil
-	}
-}
-
 // RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number of public fields as row
 // has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
@@ -642,18 +613,28 @@ func RowToAddrOfStructByPos[T any](row CollectableRow) (*T, error) {
 // public fields by position. Field offsets and scan targets are cached in a closure for the lifetime of
 // the collection, eliminating per-row struct field reflection and destination slice allocations.
 //
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
+//
 // T must be a struct. T must have the same number of public fields as row has fields.
 // If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByPosPlan[T any]() RowToFunc[T] {
 	var plan *structScanPlan
 	return func(row CollectableRow) (T, error) {
 		var value T
+		rawCount := len(row.RawValues())
 		if plan == nil {
 			var err error
-			plan, err = buildPositionalStructPlan(reflect.TypeFor[T](), len(row.RawValues()))
+			plan, err = buildPositionalStructPlan(reflect.TypeFor[T](), rawCount)
 			if err != nil {
 				return value, err
 			}
+			plan.lastRow = row
+		} else if row != plan.lastRow {
+			if rawCount != plan.numRawValues {
+				return value, fmt.Errorf("cannot reuse positional struct scan plan: expected %d values, got %d", plan.numRawValues, rawCount)
+			}
+			plan.lastRow = row
 		}
 		plan.populateTargets(reflect.ValueOf(&value).Elem())
 		return value, row.Scan(plan.targets...)
@@ -664,18 +645,28 @@ func RowToStructByPosPlan[T any]() RowToFunc[T] {
 // public fields by position. Field offsets and scan targets are cached in a closure for the lifetime of
 // the collection, eliminating per-row struct field reflection and destination slice allocations.
 //
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
+//
 // T must be a struct. T must have the same number of public fields as row has fields.
 // If the "db" struct tag is "-" then the field will be ignored.
 func RowToAddrOfStructByPosPlan[T any]() RowToFunc[*T] {
 	var plan *structScanPlan
 	return func(row CollectableRow) (*T, error) {
 		var value T
+		rawCount := len(row.RawValues())
 		if plan == nil {
 			var err error
-			plan, err = buildPositionalStructPlan(reflect.TypeFor[T](), len(row.RawValues()))
+			plan, err = buildPositionalStructPlan(reflect.TypeFor[T](), rawCount)
 			if err != nil {
 				return nil, err
 			}
+			plan.lastRow = row
+		} else if row != plan.lastRow {
+			if rawCount != plan.numRawValues {
+				return nil, fmt.Errorf("cannot reuse positional struct scan plan: expected %d values, got %d", plan.numRawValues, rawCount)
+			}
+			plan.lastRow = row
 		}
 		plan.populateTargets(reflect.ValueOf(&value).Elem())
 		return &value, row.Scan(plan.targets...)
@@ -691,7 +682,9 @@ func buildPositionalStructPlan(typ reflect.Type, numRawValues int) (*structScanP
 			len(fields),
 		)
 	}
-	return newStructScanPlan(fields, len(fields)), nil
+	plan := newStructScanPlan(fields, len(fields))
+	plan.numRawValues = numRawValues
+	return plan, nil
 }
 
 type directField struct {
@@ -712,9 +705,12 @@ type nestedField struct {
 // copying, while isolating the more expensive reflect.Value.FieldByIndex to only
 // genuinely embedded fields.
 type structScanPlan struct {
-	targets []any
-	direct  []directField
-	nested  []nestedField
+	targets      []any
+	direct       []directField
+	nested       []nestedField
+	lastRow      any
+	colLayout    string
+	numRawValues int
 }
 
 func newStructScanPlan(fields []structRowField, targetCount int) *structScanPlan {
@@ -753,12 +749,29 @@ type positionalStructRowScanner struct {
 
 func (rs *positionalStructRowScanner) ScanRow(rows CollectableRow) error {
 	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
-	plan, err := buildPositionalStructPlan(typ, len(rows.RawValues()))
-	if err != nil {
-		return err
+	fields := lookupStructFields(typ)
+	if len(rows.RawValues()) > len(fields) {
+		return fmt.Errorf(
+			"got %d values, but dst struct has only %d fields",
+			len(rows.RawValues()),
+			len(fields),
+		)
 	}
-	plan.populateTargets(reflect.ValueOf(rs.ptrToStruct).Elem())
-	return rows.Scan(plan.targets...)
+	scanTargets := setupStructScanTargets(rs.ptrToStruct, fields)
+	return rows.Scan(scanTargets...)
+}
+
+func setupStructScanTargets(receiver any, fields []structRowField) []any {
+	scanTargets := make([]any, len(fields))
+	v := reflect.ValueOf(receiver).Elem()
+	for i, f := range fields {
+		if len(f.path) == 1 {
+			scanTargets[i] = v.Field(f.path[0]).Addr().Interface()
+		} else if len(f.path) > 1 {
+			scanTargets[i] = v.FieldByIndex(f.path).Addr().Interface()
+		}
+	}
+	return scanTargets
 }
 
 // Map from reflect.Type -> []structRowField
@@ -845,12 +858,20 @@ func rowToNamedStructPlan[T any](lax bool) RowToFunc[T] {
 	var plan *structScanPlan
 	return func(row CollectableRow) (T, error) {
 		var value T
+		fldDescs := row.FieldDescriptions()
 		if plan == nil {
 			var err error
-			plan, err = buildNamedStructPlan(reflect.TypeFor[T](), row.FieldDescriptions(), lax)
+			plan, err = buildNamedStructPlan(reflect.TypeFor[T](), fldDescs, lax)
 			if err != nil {
 				return value, err
 			}
+			plan.lastRow = row
+		} else if row != plan.lastRow {
+			curLayout := joinFieldNames(fldDescs)
+			if curLayout != plan.colLayout {
+				return value, fmt.Errorf("cannot reuse struct scan plan across different column layouts: expected %q, got %q", plan.colLayout, curLayout)
+			}
+			plan.lastRow = row
 		}
 		plan.populateTargets(reflect.ValueOf(&value).Elem())
 		return value, row.Scan(plan.targets...)
@@ -861,12 +882,20 @@ func rowToAddrOfNamedStructPlan[T any](lax bool) RowToFunc[*T] {
 	var plan *structScanPlan
 	return func(row CollectableRow) (*T, error) {
 		var value T
+		fldDescs := row.FieldDescriptions()
 		if plan == nil {
 			var err error
-			plan, err = buildNamedStructPlan(reflect.TypeFor[T](), row.FieldDescriptions(), lax)
+			plan, err = buildNamedStructPlan(reflect.TypeFor[T](), fldDescs, lax)
 			if err != nil {
 				return nil, err
 			}
+			plan.lastRow = row
+		} else if row != plan.lastRow {
+			curLayout := joinFieldNames(fldDescs)
+			if curLayout != plan.colLayout {
+				return nil, fmt.Errorf("cannot reuse struct scan plan across different column layouts: expected %q, got %q", plan.colLayout, curLayout)
+			}
+			plan.lastRow = row
 		}
 		plan.populateTargets(reflect.ValueOf(&value).Elem())
 		return &value, row.Scan(plan.targets...)
@@ -876,7 +905,8 @@ func rowToAddrOfNamedStructPlan[T any](lax bool) RowToFunc[*T] {
 // RowToStructByNamePlan returns a RowToFunc that returns a T scanned from row, matching
 // public fields by name. Field offsets and scan targets are cached in a closure for the
 // lifetime of the collection, eliminating per-row struct field reflection, column name concatenation,
-// map lookups, and destination slice allocations.
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
 //
 // T must be a struct. T must have the same number of named public fields as row has fields.
 // The match is case-insensitive. The database column name can be overridden with a "db" struct tag.
@@ -889,6 +919,8 @@ func RowToStructByNamePlan[T any]() RowToFunc[T] {
 // matching public fields by name. Field offsets and scan targets are cached in a closure for the
 // lifetime of the collection, eliminating per-row struct field reflection, column name concatenation,
 // map lookups, and destination slice allocations.
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
 //
 // T must be a struct. T must have the same number of named public fields as row has fields.
 // The match is case-insensitive. The database column name can be overridden with a "db" struct tag.
@@ -901,6 +933,8 @@ func RowToAddrOfStructByNamePlan[T any]() RowToFunc[*T] {
 // by name with lax matching (unmapped struct fields are permitted). Field offsets and scan targets are
 // cached in a closure for the lifetime of the collection, eliminating per-row struct field reflection,
 // column name concatenation, map lookups, and destination slice allocations.
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
 //
 // T must be a struct. T must have greater than or equal number of named public fields as row has fields.
 // The match is case-insensitive. The database column name can be overridden with a "db" struct tag.
@@ -913,6 +947,8 @@ func RowToStructByNameLaxPlan[T any]() RowToFunc[T] {
 // matching public fields by name with lax matching (unmapped struct fields are permitted). Field offsets
 // and scan targets are cached in a closure for the lifetime of the collection, eliminating per-row struct
 // field reflection, column name concatenation, map lookups, and destination slice allocations.
+// The returned RowToFunc closure is stateful and caches the query plan. It must not be called concurrently.
+// Reusing it across queries with different column layouts will return an error.
 //
 // T must be a struct. T must have greater than or equal number of named public fields as row has fields.
 // The match is case-insensitive. The database column name can be overridden with a "db" struct tag.
@@ -929,7 +965,9 @@ func buildNamedStructPlan(typ reflect.Type, fldDescs []pgconn.FieldDescription, 
 	if !lax && namedStructFields.missingField != "" {
 		return nil, fmt.Errorf("cannot find field %s in returned row", namedStructFields.missingField)
 	}
-	return newStructScanPlan(namedStructFields.fields, len(fldDescs)), nil
+	plan := newStructScanPlan(namedStructFields.fields, len(fldDescs))
+	plan.colLayout = joinFieldNames(fldDescs)
+	return plan, nil
 }
 
 type namedStructRowScanner struct {
@@ -939,12 +977,16 @@ type namedStructRowScanner struct {
 
 func (rs *namedStructRowScanner) ScanRow(rows CollectableRow) error {
 	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
-	plan, err := buildNamedStructPlan(typ, rows.FieldDescriptions(), rs.lax)
+	fldDescs := rows.FieldDescriptions()
+	namedStructFields, err := lookupNamedStructFields(typ, fldDescs)
 	if err != nil {
 		return err
 	}
-	plan.populateTargets(reflect.ValueOf(rs.ptrToStruct).Elem())
-	return rows.Scan(plan.targets...)
+	if !rs.lax && namedStructFields.missingField != "" {
+		return fmt.Errorf("cannot find field %s in returned row", namedStructFields.missingField)
+	}
+	scanTargets := setupStructScanTargets(rs.ptrToStruct, namedStructFields.fields)
+	return rows.Scan(scanTargets...)
 }
 
 // Map from namedStructFieldMap -> *namedStructFields

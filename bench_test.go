@@ -1580,29 +1580,3 @@ func BenchmarkAppendRowsToStruct(b *testing.B) {
 		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToAddrOfStructByPosPlan[benchItem])
 	})
 }
-
-func BenchmarkAppendRowsToMap(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
-	defer closeConn(b, conn)
-
-	query := `
-		select
-			n as col0, 'str1' as col1, 'str2' as col2, n*2 as col3,
-			'str4' as col4, 'str5' as col5, n*3 as col6, 'str7' as col7,
-			'str8' as col8, n*4 as col9, 'str10' as col10, 'str11' as col11
-		from generate_series(1, $1::int) n
-	`
-
-	b.Run("1k/Unplanned", func(b *testing.B) {
-		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[map[string]any] { return pgx.RowToMap })
-	})
-	b.Run("1k/Planned", func(b *testing.B) {
-		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToMapPlan)
-	})
-	b.Run("1M/Unplanned", func(b *testing.B) {
-		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[map[string]any] { return pgx.RowToMap })
-	})
-	b.Run("1M/Planned", func(b *testing.B) {
-		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToMapPlan)
-	})
-}
