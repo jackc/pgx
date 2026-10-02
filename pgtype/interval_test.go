@@ -163,10 +163,32 @@ func TestIntervalTextEncode(t *testing.T) {
 // (for example ":05:06") must return an error instead of panicking with an
 // index out of range on timeParts[0][0].
 func TestIntervalScanMalformedTimeReturnsError(t *testing.T) {
-	for _, src := range []string{":05:06", "1 day :30:00"} {
+	for _, src := range []string{":05:06", "1 day :30:00", "00:00:01."} {
 		var v pgtype.Interval
 		if err := v.Scan(src); err == nil {
 			t.Errorf("Scan(%q): expected error, got nil", src)
+		}
+	}
+}
+
+func TestIntervalScanFractionPastMicrosecond(t *testing.T) {
+	cases := []struct {
+		src  string
+		want int64
+	}{
+		{"00:00:01.5", 1_500_000},
+		{"00:00:01.123456", 1_123_456},
+		{"00:00:01.0000001", 1_000_000},
+		{"00:00:01.1234567", 1_123_457},
+		{"-00:00:01.0000001", -1_000_000},
+	}
+	for _, c := range cases {
+		var v pgtype.Interval
+		if err := v.Scan(c.src); err != nil {
+			t.Fatalf("Scan(%q): %v", c.src, err)
+		}
+		if v.Microseconds != c.want {
+			t.Errorf("Scan(%q): microseconds %d, want %d", c.src, v.Microseconds, c.want)
 		}
 	}
 }
