@@ -959,12 +959,24 @@ func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target any) error {
 func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	// Avoid using reflect path for common types.
 	switch target := target.(type) {
+	case *[]int8:
+		return &wrapPtrSliceScanPlan[int8]{}, (*FlatArray[int8])(target), true
 	case *[]int16:
 		return &wrapPtrSliceScanPlan[int16]{}, (*FlatArray[int16])(target), true
 	case *[]int32:
 		return &wrapPtrSliceScanPlan[int32]{}, (*FlatArray[int32])(target), true
 	case *[]int64:
 		return &wrapPtrSliceScanPlan[int64]{}, (*FlatArray[int64])(target), true
+	case *[]int:
+		return &wrapPtrSliceScanPlan[int]{}, (*FlatArray[int])(target), true
+	case *[]uint16:
+		return &wrapPtrSliceScanPlan[uint16]{}, (*FlatArray[uint16])(target), true
+	case *[]uint32:
+		return &wrapPtrSliceScanPlan[uint32]{}, (*FlatArray[uint32])(target), true
+	case *[]uint64:
+		return &wrapPtrSliceScanPlan[uint64]{}, (*FlatArray[uint64])(target), true
+	case *[]uint:
+		return &wrapPtrSliceScanPlan[uint]{}, (*FlatArray[uint])(target), true
 	case *[]float32:
 		return &wrapPtrSliceScanPlan[float32]{}, (*FlatArray[float32])(target), true
 	case *[]float64:
@@ -973,6 +985,10 @@ func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextVa
 		return &wrapPtrSliceScanPlan[string]{}, (*FlatArray[string])(target), true
 	case *[]time.Time:
 		return &wrapPtrSliceScanPlan[time.Time]{}, (*FlatArray[time.Time])(target), true
+	case *[]bool:
+		return &wrapPtrSliceScanPlan[bool]{}, (*FlatArray[bool])(target), true
+	case *[][16]byte:
+		return &wrapPtrSliceScanPlan[[16]byte]{}, (*FlatArray[[16]byte])(target), true
 	}
 
 	targetType := reflect.TypeOf(target)
@@ -1831,12 +1847,24 @@ func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextVa
 
 	// Avoid using reflect path for common types.
 	switch value := value.(type) {
+	case []int8:
+		return &wrapSliceEncodePlan[int8]{}, FlatArray[int8](value), true
 	case []int16:
 		return &wrapSliceEncodePlan[int16]{}, FlatArray[int16](value), true
 	case []int32:
 		return &wrapSliceEncodePlan[int32]{}, FlatArray[int32](value), true
 	case []int64:
 		return &wrapSliceEncodePlan[int64]{}, FlatArray[int64](value), true
+	case []int:
+		return &wrapSliceEncodePlan[int]{}, FlatArray[int](value), true
+	case []uint16:
+		return &wrapSliceEncodePlan[uint16]{}, FlatArray[uint16](value), true
+	case []uint32:
+		return &wrapSliceEncodePlan[uint32]{}, FlatArray[uint32](value), true
+	case []uint64:
+		return &wrapSliceEncodePlan[uint64]{}, FlatArray[uint64](value), true
+	case []uint:
+		return &wrapSliceEncodePlan[uint]{}, FlatArray[uint](value), true
 	case []float32:
 		return &wrapSliceEncodePlan[float32]{}, FlatArray[float32](value), true
 	case []float64:
@@ -1845,6 +1873,10 @@ func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextVa
 		return &wrapSliceEncodePlan[string]{}, FlatArray[string](value), true
 	case []time.Time:
 		return &wrapSliceEncodePlan[time.Time]{}, FlatArray[time.Time](value), true
+	case []bool:
+		return &wrapSliceEncodePlan[bool]{}, FlatArray[bool](value), true
+	case [][16]byte:
+		return &wrapSliceEncodePlan[[16]byte]{}, FlatArray[[16]byte](value), true
 	}
 
 	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Slice {

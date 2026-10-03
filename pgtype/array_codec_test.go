@@ -50,6 +50,162 @@ func TestArrayCodec(t *testing.T) {
 			assert.NoErrorf(t, err, "%d", i)
 			assert.Equalf(t, tt.expected, actual, "%d", i)
 		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]uint16(nil)},
+			{[]uint16{}},
+			{[]uint16{1, 2, 3}},
+		} {
+			var actual []uint16
+			err := conn.QueryRow(
+				ctx,
+				"select $1::smallint[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]uint32(nil)},
+			{[]uint32{}},
+			{[]uint32{1, 2, 3}},
+		} {
+			var actual []uint32
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]uint64(nil)},
+			{[]uint64{}},
+			{[]uint64{1, 2, 3}},
+		} {
+			var actual []uint64
+			err := conn.QueryRow(
+				ctx,
+				"select $1::bigint[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected []uint64
+		}{
+			{[]uint64(nil)},
+			{[]uint64{}},
+			{[]uint64{1, 2, 3}},
+		} {
+			var actual []uint64
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]uint(nil)},
+			{[]uint{}},
+			{[]uint{1, 2, 3}},
+		} {
+			var actual []uint
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]int(nil)},
+			{[]int{}},
+			{[]int{-1, 0, 1, 2, 3}},
+		} {
+			var actual []int
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]int8(nil)},
+			{[]int8{}},
+			{[]int8{-128, -1, 0, 1, 127}},
+		} {
+			var actual []int8
+			err := conn.QueryRow(
+				ctx,
+				"select $1::smallint[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[]bool(nil)},
+			{[]bool{}},
+			{[]bool{true, false, true}},
+		} {
+			var actual []bool
+			err := conn.QueryRow(
+				ctx,
+				"select $1::bool[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{[][16]byte(nil)},
+			{[][16]byte{}},
+			{[][16]byte{
+				{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				{15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+			}},
+		} {
+			var actual [][16]byte
+			err := conn.QueryRow(
+				ctx,
+				"select $1::uuid[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
 	})
 }
 
