@@ -192,3 +192,24 @@ func TestIntervalScanFractionPastMicrosecond(t *testing.T) {
 		}
 	}
 }
+
+func TestIntervalScanMalformedFractionReturnsError(t *testing.T) {
+	for _, src := range []string{
+		"00:00:01.a",
+		"00:00:01.1.2",
+		"00:00:01.12345x",
+		"00:00:01.123456x",
+		"00:00:01.000001e2",
+		"00:00:01.000001_2",
+		"00:00:01.+1",
+		"00:00:01.-1",
+		"-00:00:01.a",
+	} {
+		t.Run(src, func(t *testing.T) {
+			var v pgtype.Interval
+			if err := v.Scan(src); err == nil {
+				t.Errorf("Scan(%q): expected error, got %+v", src, v)
+			}
+		})
+	}
+}

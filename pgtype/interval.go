@@ -260,6 +260,11 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 			if secFrac == "" {
 				return fmt.Errorf("bad interval decimal format: %s", secFrac)
 			}
+			for i := 0; i < len(secFrac); i++ {
+				if !isDigit(secFrac[i]) {
+					return fmt.Errorf("bad interval decimal format: %s", secFrac)
+				}
+			}
 			// Digits past the microsecond were left unscaled, so 1.0000001
 			// seconds became 1.000001 seconds. Same rounding as timestamps.
 			usec, err := roundFractionToMicroseconds([]byte(secFrac))
