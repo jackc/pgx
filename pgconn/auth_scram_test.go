@@ -277,6 +277,32 @@ func TestScramClientFinalMessage(t *testing.T) {
 	})
 }
 
+func TestScramClientPasswordPreparation(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name     string
+		password string
+		want     string
+	}{
+		{"ASCII", "secret", "secret"},
+		{"normalization", "A\u030a", "\u00c5"},
+		{"space mapping", "a\u00a0b", "a b"},
+		{"assigned supplementary character", "A\u030a\U00010400", "\u00c5\U00010400"},
+		{"prohibited character", "A\u030a\u0007", "A\u030a\u0007"},
+		{"unassigned BMP character", "A\u030a\u0221", "A\u030a\u0221"},
+		{"Unicode 16 character", "A\u030a\U0001fae9", "A\u030a\U0001fae9"},
+		{"Unicode 17 character", "A\u030a\U0001faea", "A\u030a\U0001faea"},
+		{"unassigned preserves space mapping", "a\u00a0\U0001faea", "a\u00a0\U0001faea"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			sc, err := newScramClient([]string{scramSHA256Name}, tt.password)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, sc.password)
+		})
+	}
+}
+
 func TestScramClientMechanismValidation(t *testing.T) {
 	t.Parallel()
 

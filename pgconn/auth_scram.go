@@ -28,6 +28,7 @@ import (
 	"hash"
 	"slices"
 	"strconv"
+	"unicode"
 
 	"github.com/jackc/pgx/v5/pgproto3"
 	"golang.org/x/text/secure/precis"
@@ -192,16 +193,10 @@ func newScramClient(serverAuthMechanisms []string, password string) (*scramClien
 		return nil, errors.New("server does not support SCRAM-SHA-256")
 	}
 
-	// precis.OpaqueString is equivalent to SASLprep for password.
-	var err error
-	sc.password, err = precis.OpaqueString.String(password)
-	if err != nil {
-		// PostgreSQL allows passwords invalid according to SCRAM / SASLprep.
-		sc.password = password
-	}
+	sc.password = normalizeScramPassword(password)
 
 	buf := make([]byte, clientNonceLen)
-	_, err = rand.Read(buf)
+	_, err := rand.Read(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +204,25 @@ func newScramClient(serverAuthMechanisms []string, password string) (*scramClien
 	base64.RawStdEncoding.Encode(sc.clientNonce, buf)
 
 	return sc, nil
+}
+
+// normalizeScramPassword preserves PostgreSQL's raw-password fallback for
+// characters that SASLprep considers unassigned. SASLprep uses Unicode 3.2,
+// while PRECIS uses newer Unicode tables that can change with x/text or Go
+// upgrades. Check the original password before PRECIS can change any bytes.
+func normalizeScramPassword(password string) string {
+	for _, r := range password {
+		if unicode.Is(saslprepUnassigned, r) {
+			return password
+		}
+	}
+
+	normalized, err := precis.OpaqueString.String(password)
+	if err != nil {
+		// PostgreSQL allows passwords invalid according to SCRAM / SASLprep.
+		return password
+	}
+	return normalized
 }
 
 func (sc *scramClient) clientFirstMessage() []byte {
