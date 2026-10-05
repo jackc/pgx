@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
@@ -91,7 +92,7 @@ type PgConn struct {
 
 	config *Config
 
-	status byte // One of connStatus* constants
+	status atomic.Uint32 // One of connStatus* constants
 
 	bufferingReceive    bool
 	bufferingReceiveMux sync.Mutex
@@ -107,7 +108,8 @@ type PgConn struct {
 	contextWatcher    *ctxwatch.ContextWatcher
 	fieldDescriptions [16]FieldDescription
 
-	cleanupDone chan struct{}
+	cleanupDone     chan struct{}
+	cleanupDoneOnce sync.Once
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or keyword/value
@@ -382,7 +384,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	defer pgConn.contextWatcher.Unwatch()
 
 	pgConn.parameterStatuses = make(map[string]string)
-	pgConn.status = connStatusConnecting
+	pgConn.status.Store(connStatusConnecting)
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
 		func() {
@@ -502,7 +504,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 			clientFinishedAuth = true
 		case *pgproto3.ReadyForQuery:
-			pgConn.status = connStatusIdle
+			pgConn.status.Store(connStatusIdle)
 			// The connect-phase deadline-only watcher is no longer needed; replace
 			// it with the application-supplied watcher so subsequent operations
 			// (including any queries run by ValidateConnect) use it.
@@ -660,7 +662,7 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 
 // receiveMessage receives a message without setting up context cancellation
 func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
-	if pgConn.status == connStatusClosed {
+	if pgConn.status.Load() == connStatusClosed {
 		return nil, &connLockError{status: "conn closed"}
 	}
 
@@ -678,9 +680,9 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	case *pgproto3.ErrorResponse:
 		err := ErrorResponseToPgError(msg)
 		if pgConn.config.OnPgError != nil && !pgConn.config.OnPgError(pgConn, err) {
-			pgConn.status = connStatusClosed
+			pgConn.status.Store(connStatusClosed)
 			pgConn.conn.Close() // Ignore error as the connection is already broken and there is already an error to return.
-			close(pgConn.cleanupDone)
+			pgConn.closeCleanupDone()
 			return nil, err
 		}
 	case *pgproto3.NoticeResponse:
@@ -734,12 +736,11 @@ func (pgConn *PgConn) Frontend() *pgproto3.Frontend {
 // sending the exit message to PostgreSQL. However, this could block so ctx is available to limit the time to wait. The
 // underlying net.Conn.Close() will always be called regardless of any other errors.
 func (pgConn *PgConn) Close(ctx context.Context) error {
-	if pgConn.status == connStatusClosed {
+	if pgConn.status.Swap(connStatusClosed) == connStatusClosed {
 		return nil
 	}
-	pgConn.status = connStatusClosed
 
-	defer close(pgConn.cleanupDone)
+	defer pgConn.closeCleanupDone()
 	defer pgConn.conn.Close()
 
 	if ctx != context.Background() {
@@ -768,13 +769,12 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 // asyncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
 // connection.
 func (pgConn *PgConn) asyncClose() {
-	if pgConn.status == connStatusClosed {
+	if pgConn.status.Swap(connStatusClosed) == connStatusClosed {
 		return
 	}
-	pgConn.status = connStatusClosed
 
 	go func() {
-		defer close(pgConn.cleanupDone)
+		defer pgConn.closeCleanupDone()
 		defer pgConn.conn.Close()
 
 		deadline := time.Now().Add(time.Second * 15)
@@ -813,40 +813,52 @@ func (pgConn *PgConn) CleanupDone() chan (struct{}) {
 	return pgConn.cleanupDone
 }
 
+func (pgConn *PgConn) closeCleanupDone() {
+	pgConn.cleanupDoneOnce.Do(func() {
+		if pgConn.cleanupDone != nil {
+			close(pgConn.cleanupDone)
+		}
+	})
+}
+
 // IsClosed reports if the connection has been closed.
 //
 // CleanupDone() can be used to determine if all cleanup has been completed.
 func (pgConn *PgConn) IsClosed() bool {
-	return pgConn.status < connStatusIdle
+	return pgConn.status.Load() < connStatusIdle
 }
 
 // IsBusy reports if the connection is busy.
 func (pgConn *PgConn) IsBusy() bool {
-	return pgConn.status == connStatusBusy
+	return pgConn.status.Load() == connStatusBusy
 }
 
 // lock locks the connection.
 func (pgConn *PgConn) lock() error {
-	switch pgConn.status {
+	if pgConn.status.CompareAndSwap(connStatusIdle, connStatusBusy) {
+		return nil
+	}
+
+	switch pgConn.status.Load() {
 	case connStatusBusy:
 		return &connLockError{status: "conn busy"} // This only should be possible in case of an application bug.
 	case connStatusClosed:
 		return &connLockError{status: "conn closed"}
 	case connStatusUninitialized:
 		return &connLockError{status: "conn uninitialized"}
+	default:
+		return &connLockError{status: "conn busy"}
 	}
-	pgConn.status = connStatusBusy
-	return nil
 }
 
 func (pgConn *PgConn) unlock() {
-	switch pgConn.status {
-	case connStatusBusy:
-		pgConn.status = connStatusIdle
-	case connStatusClosed:
-	default:
-		panic("BUG: cannot unlock unlocked connection") // This should only be possible if there is a bug in this package.
+	if pgConn.status.CompareAndSwap(connStatusBusy, connStatusIdle) {
+		return
 	}
+	if pgConn.status.Load() == connStatusClosed {
+		return
+	}
+	panic("BUG: cannot unlock unlocked connection") // This should only be possible if there is a bug in this package.
 }
 
 // ParameterStatus returns the value of a parameter reported by the server (e.g.
@@ -1521,9 +1533,9 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			// the goroutine. So instead check pgConn.bufferingReceiveErr which will have been set by the signalMessage. If an
 			// error is found then forcibly close the connection without sending the Terminate message.
 			if err := pgConn.bufferingReceiveErr; err != nil {
-				pgConn.status = connStatusClosed
+				pgConn.status.Store(connStatusClosed)
 				pgConn.conn.Close()
-				close(pgConn.cleanupDone)
+				pgConn.closeCleanupDone()
 				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
 			// peekMessage never returns err in the bufferingReceive mode - it only forwards the bufferingReceive variables.
@@ -2258,7 +2270,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 	if err := pgConn.lock(); err != nil {
 		return nil, err
 	}
-	pgConn.status = connStatusClosed
+	pgConn.status.Store(connStatusClosed)
 
 	return &HijackedConn{
 		Conn:              pgConn.conn,
@@ -2292,10 +2304,9 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		config:            hc.Config,
 		customData:        hc.CustomData,
 
-		status: connStatusIdle,
-
 		cleanupDone: make(chan struct{}),
 	}
+	pgConn.status.Store(connStatusIdle)
 
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)

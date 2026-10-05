@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -5608,5 +5609,62 @@ func TestConnectProtocolVersion32(t *testing.T) {
 		assert.Len(t, secretKey, 4)
 	} else {
 		assert.Len(t, secretKey, 32)
+	}
+}
+
+func TestConcurrentCloseDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	for i := range 20 {
+		ln, err := net.Listen("tcp", "127.0.0.1:")
+		require.NoError(t, err)
+
+		go func() {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+			backend := pgproto3.NewBackend(conn, conn)
+			_, _ = backend.ReceiveStartupMessage()
+			backend.Send(&pgproto3.AuthenticationOk{})
+			backend.Send(&pgproto3.BackendKeyData{ProcessID: 1, SecretKey: []byte{0, 0, 0, 0}})
+			backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+			_ = backend.Flush()
+			_, _ = io.Copy(io.Discard, conn)
+		}()
+
+		host, port, _ := strings.Cut(ln.Addr().String(), ":")
+		connStr := fmt.Sprintf("sslmode=disable host=%s port=%s user=test database=test", host, port)
+		config, err := pgconn.ParseConfig(connStr)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		conn, err := pgconn.ConnectConfig(ctx, config)
+		cancel()
+		require.NoError(t, err)
+
+		const numGoroutines = 50
+		var wg sync.WaitGroup
+		wg.Add(numGoroutines)
+
+		for g := 0; g < numGoroutines; g++ {
+			go func() {
+				defer wg.Done()
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer closeCancel()
+				_ = conn.Close(closeCtx)
+			}()
+		}
+
+		wg.Wait()
+		_ = ln.Close()
+
+		select {
+		case <-conn.CleanupDone():
+		case <-time.After(5 * time.Second):
+			t.Fatalf("iteration %d: CleanupDone channel was not closed", i)
+		}
+		require.True(t, conn.IsClosed())
 	}
 }
