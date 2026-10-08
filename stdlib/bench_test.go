@@ -93,7 +93,7 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
-			br := &BenchRowSimple{}
+			br := &BenchRowNull{}
 			for b.Loop() {
 				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100000, 100000 +  $1) n", rowCount)
 				if err != nil {
