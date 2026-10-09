@@ -2,7 +2,9 @@
 package bgreader
 
 import (
+	"errors"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
@@ -76,7 +78,18 @@ func (r *BGReader) bgRead() {
 		*buf = (*buf)[:n]
 
 		r.cond.L.Lock()
-		r.readResults = append(r.readResults, readResult{buf: buf, err: err})
+		// A timeout belongs to the deadline that was in effect for this read, not to the data stream. It is not buffered
+		// because a later Read could receive it after the deadline has already been cleared. The background reader stops
+		// instead and the next Read goes to the underlying reader, which returns a fresh timeout if the deadline is still
+		// in effect.
+		switch {
+		case !isTimeout(err):
+			r.readResults = append(r.readResults, readResult{buf: buf, err: err})
+		case n > 0:
+			r.readResults = append(r.readResults, readResult{buf: buf})
+		default:
+			iobufpool.Put(buf)
+		}
 		if r.status == StatusStopping || err != nil {
 			r.status = StatusStopped
 			keepReading = false
@@ -91,20 +104,22 @@ func (r *BGReader) Read(p []byte) (int, error) {
 	r.cond.L.Lock()
 	defer r.cond.L.Unlock()
 
+	// Wait for results from the background reader
+	for len(r.readResults) == 0 && r.status != StatusStopped {
+		r.cond.Wait()
+	}
+
 	if len(r.readResults) > 0 {
 		return r.readFromReadResults(p)
 	}
 
 	// There are no unread background read results and the background reader is stopped.
-	if r.status == StatusStopped {
-		return r.r.Read(p)
-	}
+	return r.r.Read(p)
+}
 
-	// Wait for results from the background reader
-	for len(r.readResults) == 0 {
-		r.cond.Wait()
-	}
-	return r.readFromReadResults(p)
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 // readBackgroundResults reads a result previously read by the background reader. r.cond.L must be held.

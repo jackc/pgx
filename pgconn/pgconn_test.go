@@ -1318,6 +1318,79 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// cancelDuringWriteConn delays returning from Write until the context has been canceled and the background reader's
+// read has been interrupted by the resulting deadline, after the response to the write was already received.
+type cancelDuringWriteConn struct {
+	net.Conn
+	armed  atomic.Bool
+	cancel context.CancelFunc
+	reads  chan error
+}
+
+func (c *cancelDuringWriteConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if c.armed.Load() {
+		c.reads <- err
+	}
+	return n, err
+}
+
+func (c *cancelDuringWriteConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	if c.armed.Load() {
+		if readErr := <-c.reads; readErr != nil {
+			return n, fmt.Errorf("expected response before cancel: %w", readErr)
+		}
+		c.cancel()
+		if readErr := <-c.reads; readErr == nil {
+			return n, errors.New("expected background read to be interrupted after cancel")
+		}
+		c.armed.Store(false)
+	}
+	return n, err
+}
+
+// https://github.com/jackc/pgx/issues/2673
+func TestConnExecParamsContextCanceledAfterResponseBuffered(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var conn *cancelDuringWriteConn
+	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		netConn, err := net.Dial(network, address)
+		if err != nil {
+			return nil, err
+		}
+		conn = &cancelDuringWriteConn{Conn: netConn, reads: make(chan error, 2)}
+		return conn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	queryCtx, queryCancel := context.WithCancel(ctx)
+	defer queryCancel()
+	conn.cancel = queryCancel
+	conn.armed.Store(true)
+
+	result := pgConn.ExecParams(queryCtx, "select 1", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.False(t, pgConn.IsClosed())
+
+	result = pgConn.ExecParams(ctx, "select 2", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Equal(t, "2", string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecParams(t *testing.T) {
 	t.Parallel()
 

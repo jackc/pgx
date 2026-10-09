@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math/rand/v2"
+	"os"
 	"testing"
 	"time"
 
@@ -92,6 +93,45 @@ func TestBGReaderErrorWhenStopped(t *testing.T) {
 	buf, err := io.ReadAll(bgr)
 	require.Equal(t, []byte("foobarbaz"), buf)
 	require.EqualError(t, err, "oops")
+}
+
+func TestBGReaderTimeoutErrorIsNotBuffered(t *testing.T) {
+	rr := &mockReader{
+		readFuncs: []mockReadFunc{
+			func(p []byte) (int, error) { return copy(p, []byte("foo")), nil },
+			func(p []byte) (int, error) { return 0, os.ErrDeadlineExceeded },
+			func(p []byte) (int, error) { return copy(p, []byte("bar")), nil },
+		},
+	}
+
+	bgr := bgreader.New(rr)
+	bgr.Start()
+
+	buf := make([]byte, 3)
+	n, err := bgr.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, []byte("foo"), buf[:n])
+
+	n, err = bgr.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, []byte("bar"), buf[:n])
+}
+
+func TestBGReaderTimeoutErrorWhileReadWaiting(t *testing.T) {
+	rr := &mockReader{
+		readFuncs: []mockReadFunc{
+			func(p []byte) (int, error) { time.Sleep(100 * time.Millisecond); return 0, os.ErrDeadlineExceeded },
+			func(p []byte) (int, error) { return copy(p, []byte("foo")), nil },
+		},
+	}
+
+	bgr := bgreader.New(rr)
+	bgr.Start()
+
+	buf := make([]byte, 3)
+	n, err := bgr.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, []byte("foo"), buf[:n])
 }
 
 type numberReader struct {
