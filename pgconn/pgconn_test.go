@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -1322,15 +1323,35 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 // read has been interrupted by the resulting deadline, after the response to the write was already received.
 type cancelDuringWriteConn struct {
 	net.Conn
-	armed  atomic.Bool
-	cancel context.CancelFunc
-	reads  chan error
+	armed    atomic.Bool
+	cancel   context.CancelFunc
+	reads    chan error
+	readSize int
+	response []byte
 }
 
 func (c *cancelDuringWriteConn) Read(p []byte) (int, error) {
+	if c.armed.Load() && c.readSize > 0 && len(p) > c.readSize {
+		p = p[:c.readSize]
+	}
 	n, err := c.Conn.Read(p)
 	if c.armed.Load() {
-		c.reads <- err
+		// Socket reads can split both message headers and bodies. Only signal the writer once the complete response,
+		// including ReadyForQuery, has arrived. This wrapper must be used with TLS disabled so it sees protocol messages.
+		c.response = append(c.response, p[:n]...)
+		for len(c.response) >= 5 {
+			messageLen := 1 + int(binary.BigEndian.Uint32(c.response[1:5]))
+			if len(c.response) < messageLen {
+				break
+			}
+			if c.response[0] == 'Z' { // ReadyForQuery
+				c.reads <- nil
+			}
+			c.response = c.response[messageLen:]
+		}
+		if err != nil {
+			c.reads <- err
+		}
 	}
 	return n, err
 }
@@ -1338,14 +1359,17 @@ func (c *cancelDuringWriteConn) Read(p []byte) (int, error) {
 func (c *cancelDuringWriteConn) Write(p []byte) (int, error) {
 	n, err := c.Conn.Write(p)
 	if c.armed.Load() {
+		defer c.armed.Store(false)
+		if err != nil {
+			return n, err
+		}
 		if readErr := <-c.reads; readErr != nil {
 			return n, fmt.Errorf("expected response before cancel: %w", readErr)
 		}
 		c.cancel()
-		if readErr := <-c.reads; readErr == nil {
-			return n, errors.New("expected background read to be interrupted after cancel")
+		if readErr := <-c.reads; !errors.Is(readErr, os.ErrDeadlineExceeded) {
+			return n, fmt.Errorf("expected background read deadline after cancel, got %v", readErr)
 		}
-		c.armed.Store(false)
 	}
 	return n, err
 }
@@ -1354,41 +1378,57 @@ func (c *cancelDuringWriteConn) Write(p []byte) (int, error) {
 func TestConnExecParamsContextCanceledAfterResponseBuffered(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+	for _, tt := range []struct {
+		name     string
+		readSize int
+	}{
+		{name: "normal reads"},
+		{name: "one-byte reads", readSize: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
+			config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+			// The connection wrapper inspects PostgreSQL message boundaries before the frontend reads the buffered response.
+			config.TLSConfig = nil
+			config.Fallbacks = nil
 
-	var conn *cancelDuringWriteConn
-	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		netConn, err := net.Dial(network, address)
-		if err != nil {
-			return nil, err
-		}
-		conn = &cancelDuringWriteConn{Conn: netConn, reads: make(chan error, 2)}
-		return conn, nil
+			var conn *cancelDuringWriteConn
+			config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				netConn, err := (&net.Dialer{}).DialContext(ctx, network, address)
+				if err != nil {
+					return nil, err
+				}
+				conn = &cancelDuringWriteConn{Conn: netConn, reads: make(chan error, 2), readSize: tt.readSize}
+				return conn, nil
+			}
+
+			pgConn, err := pgconn.ConnectConfig(ctx, config)
+			require.NoError(t, err)
+			defer closeConn(t, pgConn)
+
+			queryCtx, queryCancel := context.WithCancel(ctx)
+			defer queryCancel()
+			conn.cancel = queryCancel
+			conn.armed.Store(true)
+
+			result := pgConn.ExecParams(queryCtx, "select 1", nil, nil, nil, nil).Read()
+			require.NoError(t, result.Err)
+			require.Len(t, result.Rows, 1)
+			require.Equal(t, "1", string(result.Rows[0][0]))
+			require.ErrorIs(t, queryCtx.Err(), context.Canceled)
+			require.False(t, pgConn.IsClosed())
+
+			result = pgConn.ExecParams(ctx, "select 2", nil, nil, nil, nil).Read()
+			require.NoError(t, result.Err)
+			require.Len(t, result.Rows, 1)
+			require.Equal(t, "2", string(result.Rows[0][0]))
+
+			ensureConnValid(t, pgConn)
+		})
 	}
-
-	pgConn, err := pgconn.ConnectConfig(ctx, config)
-	require.NoError(t, err)
-	defer closeConn(t, pgConn)
-
-	queryCtx, queryCancel := context.WithCancel(ctx)
-	defer queryCancel()
-	conn.cancel = queryCancel
-	conn.armed.Store(true)
-
-	result := pgConn.ExecParams(queryCtx, "select 1", nil, nil, nil, nil).Read()
-	require.NoError(t, result.Err)
-	require.False(t, pgConn.IsClosed())
-
-	result = pgConn.ExecParams(ctx, "select 2", nil, nil, nil, nil).Read()
-	require.NoError(t, result.Err)
-	require.Len(t, result.Rows, 1)
-	require.Equal(t, "2", string(result.Rows[0][0]))
-
-	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecParams(t *testing.T) {

@@ -3,8 +3,10 @@ package bgreader_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -115,6 +117,53 @@ func TestBGReaderTimeoutErrorIsNotBuffered(t *testing.T) {
 	n, err = bgr.Read(buf)
 	require.NoError(t, err)
 	require.Equal(t, []byte("bar"), buf[:n])
+}
+
+func TestBGReaderTimeoutWithDataIsNotBuffered(t *testing.T) {
+	for _, timeout := range []error{os.ErrDeadlineExceeded, fmt.Errorf("wrapped: %w", os.ErrDeadlineExceeded)} {
+		t.Run(timeout.Error(), func(t *testing.T) {
+			finalErr := errors.New("non-timeout read error")
+			rr := &mockReader{
+				readFuncs: []mockReadFunc{
+					func(p []byte) (int, error) { return copy(p, []byte("foo")), timeout },
+					func(p []byte) (int, error) { return copy(p, []byte("bar")), finalErr },
+				},
+			}
+			bgr := bgreader.New(rr)
+			bgr.Start()
+			require.Eventually(t, func() bool { return bgr.Status() == bgreader.StatusStopped }, time.Second, time.Millisecond)
+
+			// Read the buffered result in pieces to verify that dropping its timeout does not discard any bytes.
+			buf := make([]byte, 2)
+			n, err := bgr.Read(buf)
+			require.NoError(t, err)
+			require.Equal(t, "fo", string(buf[:n]))
+			n, err = bgr.Read(buf)
+			require.NoError(t, err)
+			require.Equal(t, "o", string(buf[:n]))
+
+			buf = make([]byte, 3)
+			n, err = bgr.Read(buf)
+			require.ErrorIs(t, err, finalErr)
+			require.Equal(t, "bar", string(buf[:n]))
+		})
+	}
+}
+
+func TestBGReaderTimeoutWithActiveDeadline(t *testing.T) {
+	conn, peer := net.Pipe()
+	defer conn.Close()
+	defer peer.Close()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(-time.Second)))
+
+	bgr := bgreader.New(conn)
+	bgr.Start()
+	require.Eventually(t, func() bool { return bgr.Status() == bgreader.StatusStopped }, time.Second, time.Millisecond)
+
+	// The discarded background timeout must not hide a deadline that is still in effect.
+	n, err := bgr.Read(make([]byte, 1))
+	require.Zero(t, n)
+	require.ErrorIs(t, err, os.ErrDeadlineExceeded)
 }
 
 func TestBGReaderTimeoutErrorWhileReadWaiting(t *testing.T) {
