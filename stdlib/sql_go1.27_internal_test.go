@@ -12,6 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type valueScanner struct{}
+
+func (valueScanner) Scan(any) error { return nil }
+
+type valueScannerPointer *valueScanner
+
+type embedsNullStringPointer struct{ *sql.NullString }
+
 func TestIsSQLScanDestination(t *testing.T) {
 	type namedString string
 	type pointerCycle *pointerCycle
@@ -21,19 +29,36 @@ func TestIsSQLScanDestination(t *testing.T) {
 		want bool
 	}{
 		{reflect.TypeFor[*int64](), true},
+		{reflect.TypeFor[*string](), true},
+		{reflect.TypeFor[**string](), true},
+		{reflect.TypeFor[*namedString](), true},
 		{reflect.TypeFor[**namedString](), true},
 		{reflect.TypeFor[*any](), true},
 		{reflect.TypeFor[*[]byte](), true},
 		{reflect.TypeFor[*sql.RawBytes](), true},
 		{reflect.TypeFor[*time.Time](), true},
+		{reflect.TypeFor[**time.Time](), true},
 		{reflect.TypeFor[*sql.NullString](), true},
 		{reflect.TypeFor[**sql.NullString](), true},
+		// The struct gets Scan from the embedded pointer.
+		{reflect.TypeFor[*embedsNullStringPointer](), true},
+		// A defined pointer type has no methods, but its element implements sql.Scanner.
+		{reflect.TypeFor[valueScannerPointer](), true},
+		{reflect.TypeFor[*valueScannerPointer](), true},
+		// Interface elements can implement interfaces that pointers to them do not.
+		{reflect.TypeFor[*sql.Scanner](), true},
+		{reflect.TypeFor[*pgtype.ArraySetter](), false},
+		{reflect.TypeFor[*pgtype.BytesScanner](), false},
+		{reflect.TypeFor[*[]int32](), false},
 		{reflect.TypeFor[*[]string](), false},
 		{reflect.TypeFor[*pgtype.FlatArray[byte]](), false},
 		{reflect.TypeFor[**pgtype.FlatArray[byte]](), false},
+		{reflect.TypeFor[*pgtype.FlatArray[string]](), false},
+		{reflect.TypeFor[**pgtype.FlatArray[string]](), false},
 		{reflect.TypeFor[*pgtype.PreallocBytes](), false},
 		{reflect.TypeFor[*pgtype.Range[int32]](), false},
 		{reflect.TypeFor[pointerCycle](), false},
+		{reflect.TypeFor[*pointerCycle](), false},
 	} {
 		t.Run(tt.typ.String(), func(t *testing.T) {
 			var wg sync.WaitGroup
