@@ -58,15 +58,9 @@ func TestDriverBytes(t *testing.T) {
 		defer rows.Close()
 
 		rowCount := 0
-		resultBuf := argBuf
-		detectedResultMutation := false
+		var resultBuf []byte
 		for rows.Next() {
 			rowCount++
-
-			// At some point the buffer should be reused and change.
-			if !bytes.Equal(argBuf, resultBuf) {
-				detectedResultMutation = true
-			}
 
 			err = rows.Scan((*pgtype.DriverBytes)(&resultBuf))
 			require.NoError(t, err)
@@ -74,9 +68,12 @@ func TestDriverBytes(t *testing.T) {
 			require.Len(t, resultBuf, len(argBuf))
 			require.Equal(t, resultBuf, argBuf)
 			require.Equalf(t, cap(resultBuf), len(resultBuf), "cap(resultBuf) is larger than len(resultBuf)")
-		}
 
-		require.True(t, detectedResultMutation)
+			// resultBuf must be the driver's memory and not a copy of it. Waiting for the read buffer to be reused and for
+			// resultBuf to change would also show that, but whether that is ever observed depends on how the connection
+			// happens to split the stream into reads.
+			require.Same(t, &rows.RawValues()[0][0], &resultBuf[0])
+		}
 
 		err = rows.Err()
 		require.NoError(t, err)
