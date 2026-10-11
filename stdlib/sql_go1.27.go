@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -69,10 +70,23 @@ func (r *Rows) ScanColumn(scanCtx driver.ScanContext, index int, dest any) error
 	return m.Scan(fd.DataTypeOID, fd.Format, src, dest)
 }
 
+// Map from reflect.Type -> bool.
+var sqlScanDestinationCache sync.Map
+
 // isSQLScanDestination includes named scalar types and nullable pointers to
 // database/sql destinations. Select the conversion before scanning: retrying a
 // failed scan could call user code twice or discard its error.
 func isSQLScanDestination(t reflect.Type) bool {
+	if cached, ok := sqlScanDestinationCache.Load(t); ok {
+		return cached.(bool)
+	}
+
+	result := isSQLScanDestinationUncached(t)
+	sqlScanDestinationCache.Store(t, result)
+	return result
+}
+
+func isSQLScanDestinationUncached(t reflect.Type) bool {
 	var namedPointers map[reflect.Type]bool
 	for {
 		if t.Implements(reflect.TypeFor[sql.Scanner]()) {
