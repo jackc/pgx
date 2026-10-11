@@ -1453,3 +1453,130 @@ func BenchmarkSelectRowsRawPrepared(b *testing.B) {
 		})
 	}
 }
+
+func runBenchmarkAppendRows[T any](b *testing.B, conn *pgx.Conn, query string, n int, makeFn func() pgx.RowToFunc[T]) {
+	b.ReportAllocs()
+	items := make([]T, 0, n)
+	for b.Loop() {
+		items = items[:0]
+		rows, err := conn.Query(context.Background(), query, n)
+		if err != nil {
+			b.Fatal(err)
+		}
+		items, err = pgx.AppendRows(items, rows, makeFn())
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(items) != n {
+			b.Fatalf("expected %d items, got %d", n, len(items))
+		}
+	}
+}
+
+func BenchmarkAppendRowsToStruct(b *testing.B) {
+	type benchItem struct {
+		Col0  int32  `db:"col0"`
+		Col1  string `db:"col1"`
+		Col2  string `db:"col2"`
+		Col3  int32  `db:"col3"`
+		Col4  string `db:"col4"`
+		Col5  string `db:"col5"`
+		Col6  int32  `db:"col6"`
+		Col7  string `db:"col7"`
+		Col8  string `db:"col8"`
+		Col9  int32  `db:"col9"`
+		Col10 string `db:"col10"`
+		Col11 string `db:"col11"`
+	}
+
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	query := `
+		select
+			n as col0, 'str1' as col1, 'str2' as col2, n*2 as col3,
+			'str4' as col4, 'str5' as col5, n*3 as col6, 'str7' as col7,
+			'str8' as col8, n*4 as col9, 'str10' as col10, 'str11' as col11
+		from generate_series(1, $1::int) n
+	`
+
+	// Value scanners (1k)
+	b.Run("ByName/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByName[benchItem] })
+	})
+	b.Run("ByName/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToStructByNamePlan[benchItem])
+	})
+	b.Run("ByNameLax/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByNameLax[benchItem] })
+	})
+	b.Run("ByNameLax/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToStructByNameLaxPlan[benchItem])
+	})
+	b.Run("ByPos/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByPos[benchItem] })
+	})
+	b.Run("ByPos/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToStructByPosPlan[benchItem])
+	})
+
+	// Pointer scanners (AddrOf, 1k)
+	b.Run("AddrOfByName/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByName[benchItem] })
+	})
+	b.Run("AddrOfByName/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToAddrOfStructByNamePlan[benchItem])
+	})
+	b.Run("AddrOfByNameLax/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByNameLax[benchItem] })
+	})
+	b.Run("AddrOfByNameLax/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToAddrOfStructByNameLaxPlan[benchItem])
+	})
+	b.Run("AddrOfByPos/1k/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByPos[benchItem] })
+	})
+	b.Run("AddrOfByPos/1k/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000, pgx.RowToAddrOfStructByPosPlan[benchItem])
+	})
+
+	// 1M scale (Value scanners)
+	b.Run("ByName/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByName[benchItem] })
+	})
+	b.Run("ByName/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToStructByNamePlan[benchItem])
+	})
+	b.Run("ByNameLax/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByNameLax[benchItem] })
+	})
+	b.Run("ByNameLax/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToStructByNameLaxPlan[benchItem])
+	})
+	b.Run("ByPos/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[benchItem] { return pgx.RowToStructByPos[benchItem] })
+	})
+	b.Run("ByPos/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToStructByPosPlan[benchItem])
+	})
+
+	// 1M scale (Pointer scanners, AddrOf)
+	b.Run("AddrOfByName/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByName[benchItem] })
+	})
+	b.Run("AddrOfByName/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToAddrOfStructByNamePlan[benchItem])
+	})
+	b.Run("AddrOfByNameLax/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByNameLax[benchItem] })
+	})
+	b.Run("AddrOfByNameLax/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToAddrOfStructByNameLaxPlan[benchItem])
+	})
+	b.Run("AddrOfByPos/1M/Unplanned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, func() pgx.RowToFunc[*benchItem] { return pgx.RowToAddrOfStructByPos[benchItem] })
+	})
+	b.Run("AddrOfByPos/1M/Planned", func(b *testing.B) {
+		runBenchmarkAppendRows(b, conn, query, 1000000, pgx.RowToAddrOfStructByPosPlan[benchItem])
+	})
+}
