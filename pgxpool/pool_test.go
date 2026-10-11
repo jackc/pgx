@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -39,6 +40,119 @@ func TestConnectConfig(t *testing.T) {
 	require.NoError(t, err)
 	assertConfigsEqual(t, config, pool.Config(), "Pool.Config() returns original config")
 	pool.Close()
+}
+
+func TestPoolBackgroundConnectionsContext(t *testing.T) {
+	for _, minimum := range []string{"MinConns", "MinIdleConns"} {
+		for _, cancellation := range []string{"before NewWithConfig", "after NewWithConfig", "deadline"} {
+			t.Run(minimum+"/"+cancellation, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					ctx := context.WithValue(context.Background(), ctxKey("pool constructor"), "value")
+					ctx, cancel := context.WithTimeout(ctx, time.Second)
+					defer cancel()
+					if cancellation == "before NewWithConfig" {
+						cancel()
+					}
+
+					config, err := pgxpool.ParseConfig("")
+					require.NoError(t, err)
+					config.MaxConns = 1
+					config.HealthCheckPeriod = time.Hour
+					if minimum == "MinConns" {
+						config.MinConns = 1
+					} else {
+						config.MinIdleConns = 1
+					}
+
+					hookContexts := make(chan context.Context, 1)
+					hookErrors := make(chan error, 1)
+					config.BeforeConnect = func(ctx context.Context, _ *pgx.ConnConfig) error {
+						hookContexts <- ctx
+						<-ctx.Done()
+						hookErrors <- ctx.Err()
+						return ctx.Err()
+					}
+
+					start := time.Now()
+					pool, err := pgxpool.NewWithConfig(ctx, config)
+					require.NoError(t, err)
+					defer pool.Close()
+					hookCtx := <-hookContexts
+					if cancellation == "after NewWithConfig" {
+						cancel()
+					}
+
+					require.Equal(t, "value", hookCtx.Value(ctxKey("pool constructor")))
+					deadline, ok := hookCtx.Deadline()
+					require.True(t, ok)
+					require.Equal(t, start.Add(time.Minute), deadline)
+
+					time.Sleep(59 * time.Second)
+					synctest.Wait()
+					require.Error(t, ctx.Err())
+					require.NoError(t, hookCtx.Err())
+					require.EqualValues(t, 1, pool.Stat().ConstructingConns())
+
+					time.Sleep(time.Second)
+					synctest.Wait()
+					require.ErrorIs(t, <-hookErrors, context.DeadlineExceeded)
+					require.Zero(t, pool.Stat().TotalConns())
+
+					// The health check retries with a fresh 60-second timeout after the startup attempt fails.
+					time.Sleep(config.HealthCheckPeriod)
+					synctest.Wait()
+					hookCtx = <-hookContexts
+					deadline, ok = hookCtx.Deadline()
+					require.True(t, ok)
+					require.Equal(t, time.Now().Add(time.Minute), deadline)
+					time.Sleep(59 * time.Second)
+					synctest.Wait()
+					require.NoError(t, hookCtx.Err())
+					require.EqualValues(t, 1, pool.Stat().ConstructingConns())
+					time.Sleep(time.Second)
+					synctest.Wait()
+					require.ErrorIs(t, <-hookErrors, context.DeadlineExceeded)
+					require.Zero(t, pool.Stat().TotalConns())
+				})
+			})
+		}
+	}
+}
+
+func TestPoolInitialConnectionError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		config, err := pgxpool.ParseConfig("")
+		require.NoError(t, err)
+		config.MinConns = 1
+		config.MaxConns = 1
+		config.HealthCheckPeriod = time.Hour
+
+		initialErr := errors.New("initial connection failed")
+		acquireErr := errors.New("acquired connection failed")
+		finishInitial := make(chan struct{})
+		var attempts atomic.Int32
+		config.BeforeConnect = func(ctx context.Context, _ *pgx.ConnConfig) error {
+			if attempts.Add(1) == 1 {
+				<-finishInitial
+				return initialErr
+			}
+			return acquireErr
+		}
+
+		pool, err := pgxpool.NewWithConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer pool.Close()
+		synctest.Wait()
+		require.EqualValues(t, 1, pool.Stat().ConstructingConns())
+		close(finishInitial)
+		synctest.Wait()
+		require.Zero(t, pool.Stat().TotalConns())
+
+		// The initial error is discarded. Acquire makes a new attempt and returns its error.
+		_, err = pool.Acquire(context.Background())
+		require.ErrorIs(t, err, acquireErr)
+		require.EqualValues(t, 2, attempts.Load())
+	})
 }
 
 func TestParseConfigExtractsPoolArguments(t *testing.T) {

@@ -181,6 +181,7 @@ type Config struct {
 	// MinConns is the minimum size of the pool. After connection closes, the pool might dip below MinConns. A low
 	// number of MinConns might mean the pool is empty after MaxConnLifetime until the health check has a chance
 	// to create new connections.
+	// Each background attempt to satisfy MinConns and MinIdleConns has a 60-second timeout, including connection hooks.
 	MinConns int32
 
 	// MinIdleConns is the minimum number of idle connections in the pool. You can increase this to ensure that
@@ -210,7 +211,8 @@ func (c *Config) Copy() *Config {
 // ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
-// New creates a new Pool. See [ParseConfig] for information on connString format.
+// New creates a new Pool. See [ParseConfig] for information on connString format and
+// [NewWithConfig] for how connections are established in the background.
 func New(ctx context.Context, connString string) (*Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -221,6 +223,10 @@ func New(ctx context.Context, connString string) (*Pool, error) {
 }
 
 // NewWithConfig creates a new [Pool]. config must have been created by [ParseConfig].
+// Connections to satisfy MinConns and MinIdleConns are established in the background.
+// The startup attempt uses ctx's values but ignores its cancellation and deadline.
+// Connection errors are not returned by NewWithConfig. Acquire a connection to check if a
+// connection can be established.
 func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
@@ -336,7 +342,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	go func() {
 		targetIdleResources := max(int(p.minConns), int(p.minIdleConns))
-		p.createIdleResources(ctx, targetIdleResources)
+		p.createIdleResources(context.WithoutCancel(ctx), targetIdleResources)
 		p.backgroundHealthCheck()
 	}()
 
@@ -586,7 +592,7 @@ func (p *Pool) checkMinConns() error {
 }
 
 func (p *Pool) createIdleResources(parentCtx context.Context, targetResources int) error {
-	ctx, cancel := context.WithCancel(parentCtx)
+	ctx, cancel := context.WithTimeout(parentCtx, time.Minute)
 	defer cancel()
 
 	errs := make(chan error, targetResources)
