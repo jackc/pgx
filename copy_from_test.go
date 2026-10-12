@@ -937,6 +937,276 @@ func TestConnCopyFromAutomaticStringConversionArray(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+// TestConnCopyFromTextFormatFallback tests that CopyFrom falls back to text format when a column type does not support
+// binary encoding (e.g., jsonpath which uses TextFormatOnlyCodec).
+func TestConnCopyFromTextFormatFallback(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not support jsonpath")
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b jsonpath,
+		c text
+	)`)
+
+	inputRows := [][]any{
+		{int32(1), "$.store.book[*].author", "hello"},
+		{int32(2), "$.store.price", "world"},
+		{int32(3), "$[0]", "test"},
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, _ := conn.Query(ctx, "select a, b::text, c from foo order by a")
+	outputRows, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) ([]any, error) {
+		var a int32
+		var b, c string
+		err := row.Scan(&a, &b, &c)
+		return []any{a, b, c}, err
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, [][]any{
+		{int32(1), "$.\"store\".\"book\"[*].\"author\"", "hello"},
+		{int32(2), "$.\"store\".\"price\"", "world"},
+		{int32(3), "$[0]", "test"},
+	}, outputRows)
+
+	ensureConnValid(t, conn)
+}
+
+// TestConnCopyFromTextFormatFallbackWithNulls tests text format fallback with NULL values across columns.
+func TestConnCopyFromTextFormatFallbackWithNulls(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not support jsonpath")
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b jsonpath,
+		c text
+	)`)
+
+	inputRows := [][]any{
+		{int32(1), "$.x", "hello"},
+		{int32(2), nil, nil},
+		{nil, "$.y", nil},
+		{nil, nil, nil},
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, _ := conn.Query(ctx, "select a, b::text, c from foo order by a nulls last")
+	outputRows, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) ([]any, error) {
+		var a *int32
+		var b, c *string
+		err := row.Scan(&a, &b, &c)
+		return []any{a, b, c}, err
+	})
+	require.NoError(t, err)
+	require.Len(t, outputRows, 4)
+
+	ensureConnValid(t, conn)
+}
+
+// TestConnCopyFromTextFormatSpecialCharEscaping tests that text format properly escapes special characters.
+func TestConnCopyFromTextFormatSpecialCharEscaping(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not support jsonpath")
+
+	mustExec(t, conn, `create temporary table foo(
+		a jsonpath,
+		b text
+	)`)
+
+	inputRows := [][]any{
+		{"$.a", "tab\there"},
+		{"$.b", "new\nline"},
+		{"$.c", "carriage\rreturn"},
+		{"$.d", "back\\slash"},
+		{"$.e", "mixed\t\n\r\\all"},
+		{"$.f", ""},
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, _ := conn.Query(ctx, "select b from foo order by a::text")
+	texts, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+
+	require.Equal(t, []string{
+		"tab\there",
+		"new\nline",
+		"carriage\rreturn",
+		"back\\slash",
+		"mixed\t\n\r\\all",
+		"",
+	}, texts)
+
+	ensureConnValid(t, conn)
+}
+
+// TestConnCopyFromTextFormatLarge tests text format fallback with a large number of rows to exercise buffer management.
+func TestConnCopyFromTextFormatLarge(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not support jsonpath")
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b jsonpath,
+		c text
+	)`)
+
+	const rowCount = 10_000
+	inputRows := make([][]any, rowCount)
+	for i := range rowCount {
+		inputRows[i] = []any{int32(i), "$.x", fmt.Sprintf("row-%d", i)}
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, rowCount, copyCount)
+
+	var count int64
+	err = conn.QueryRow(ctx, "select count(*) from foo").Scan(&count)
+	require.NoError(t, err)
+	require.EqualValues(t, rowCount, count)
+
+	ensureConnValid(t, conn)
+}
+
+// TestConnCopyFromTextFormatAllQueryExecModes tests that text format fallback works with all query exec modes.
+func TestConnCopyFromTextFormatAllQueryExecModes(t *testing.T) {
+	for _, mode := range pgxtest.AllQueryExecModes {
+		t.Run(mode.String(), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
+
+			cfg := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+			cfg.DefaultQueryExecMode = mode
+			conn := mustConnect(t, cfg)
+			defer closeConn(t, conn)
+
+			pgxtest.SkipCockroachDB(t, conn, "CockroachDB does not support jsonpath")
+
+			mustExec(t, conn, `create temporary table foo(
+				a int4,
+				b jsonpath
+			)`)
+
+			inputRows := [][]any{
+				{int32(1), "$.x"},
+				{int32(2), "$.y"},
+			}
+
+			copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
+			require.NoError(t, err)
+			require.EqualValues(t, len(inputRows), copyCount)
+
+			var count int64
+			err = conn.QueryRow(ctx, "select count(*) from foo").Scan(&count)
+			require.NoError(t, err)
+			require.EqualValues(t, len(inputRows), count)
+
+			ensureConnValid(t, conn)
+		})
+	}
+}
+
+// TestConnCopyFromTextFormatStringToInt tests that string values for integer columns trigger text format fallback and
+// PostgreSQL parses them correctly.
+func TestConnCopyFromTextFormatStringToInt(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b text
+	)`)
+
+	inputRows := [][]any{
+		{"42", "hello"},
+		{"7", "world"},
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, _ := conn.Query(ctx, "select a, b from foo order by a")
+	outputRows, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) ([]any, error) {
+		var a int64
+		var b string
+		err := row.Scan(&a, &b)
+		return []any{a, b}, err
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, [][]any{
+		{int64(7), "world"},
+		{int64(42), "hello"},
+	}, outputRows)
+
+	ensureConnValid(t, conn)
+}
+
+// TestConnCopyFromEmptyRows tests that CopyFrom handles zero rows correctly in both binary and text paths.
+func TestConnCopyFromEmptyRows(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(a int4)`)
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows([][]any{}))
+	require.NoError(t, err)
+	require.EqualValues(t, 0, copyCount)
+
+	ensureConnValid(t, conn)
+}
+
 func TestCopyFromFunc(t *testing.T) {
 	t.Parallel()
 
