@@ -937,6 +937,79 @@ func TestConnCopyFromAutomaticStringConversionArray(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+// https://github.com/jackc/pgx/issues/2385
+func TestConnCopyFromPreservesMultidimensionalArrayString(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support nested arrays")
+
+	mustExec(t, conn, `create temporary table foo(
+		id int primary key,
+		a text[],
+		b text[][]
+	)`)
+
+	// Reference row inserted with Exec, which sends the array literal in text format.
+	_, err := conn.Exec(ctx, `insert into foo (id, a, b) values (1, '{x,NULL,y}', '{{1,2},{3,NULL}}')`)
+	require.NoError(t, err)
+
+	// The same values as strings inserted with CopyFrom, which sends them in binary format.
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"id", "a", "b"}, pgx.CopyFromRows([][]any{
+		{2, "{x,NULL,y}", "{{1,2},{3,NULL}}"},
+		{3, nil, nil},
+	}))
+	require.NoError(t, err)
+	require.EqualValues(t, 2, copyCount)
+
+	// CopyFrom must store the same dimensions and elements as Exec, including NULLs.
+	expectedA := pgtype.Array[any]{
+		Elements: []any{"x", nil, "y"},
+		Dims:     []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
+		Valid:    true,
+	}
+	expectedB := pgtype.Array[any]{
+		Elements: []any{"1", "2", "3", nil},
+		Dims: []pgtype.ArrayDimension{
+			{Length: 2, LowerBound: 1},
+			{Length: 2, LowerBound: 1},
+		},
+		Valid: true,
+	}
+
+	for _, id := range []int{1, 2} {
+		var gotA, gotB pgtype.Array[any]
+		err = conn.QueryRow(ctx, `select a, b from foo where id = $1`, id).Scan(&gotA, &gotB)
+		require.NoError(t, err)
+		require.Equal(t, expectedA, gotA, "row %d column a", id)
+		require.Equal(t, expectedB, gotB, "row %d column b", id)
+	}
+
+	// Dimensions are also visible through the PostgreSQL array inspection functions.
+	var ndims int
+	var dims string
+	var length int
+	err = conn.QueryRow(ctx, `select array_ndims(b), array_dims(b), array_length(b, 1) from foo where id = 2`).Scan(&ndims, &dims, &length)
+	require.NoError(t, err)
+	require.Equal(t, 2, ndims)
+	require.Equal(t, "[1:2][1:2]", dims)
+	require.Equal(t, 2, length)
+
+	// NULL values stay NULL.
+	var aNull, bNull bool
+	err = conn.QueryRow(ctx, `select a is null, b is null from foo where id = 3`).Scan(&aNull, &bNull)
+	require.NoError(t, err)
+	require.True(t, aNull)
+	require.True(t, bNull)
+
+	ensureConnValid(t, conn)
+}
+
 func TestCopyFromFunc(t *testing.T) {
 	t.Parallel()
 
