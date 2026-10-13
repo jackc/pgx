@@ -655,18 +655,32 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
-			err := func() error {
-				pingCtx := ctx
+			pingErrChan := make(chan error, 1)
+			go func() {
+				pingCtx := context.WithoutCancel(ctx)
 				if p.pingTimeout > 0 {
 					var cancel context.CancelFunc
-					pingCtx, cancel = context.WithTimeout(ctx, p.pingTimeout)
+					pingCtx, cancel = context.WithTimeout(pingCtx, p.pingTimeout)
 					defer cancel()
 				}
-				return cr.conn.Ping(pingCtx)
+				pingErrChan <- cr.conn.Ping(pingCtx)
 			}()
-			if err != nil {
-				res.Destroy()
-				continue
+
+			select {
+			case err := <-pingErrChan:
+				if err != nil {
+					res.Destroy()
+					continue
+				}
+			case <-ctx.Done():
+				go func() {
+					if err := <-pingErrChan; err != nil {
+						res.Destroy()
+					} else {
+						res.Release()
+					}
+				}()
+				return nil, ctx.Err()
 			}
 		}
 

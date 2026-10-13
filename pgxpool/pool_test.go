@@ -1582,3 +1582,41 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	assert.NotSame(t, originalConn, newConn,
 		"Expected new connection due to ping timeout, but got same connection")
 }
+
+// https://github.com/jackc/pgx/issues/2680
+func TestPoolAcquireCanceledDuringPingKeepsConn(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.ConnConfig.DialFunc = newDelayProxyDialFunc(200 * time.Millisecond)
+	config.ShouldPing = func(context.Context, pgxpool.ShouldPingParams) bool { return true }
+	config.MaxConns = 1
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	originalConn := c.Conn()
+	c.Release()
+
+	acquireCtx, acquireCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer acquireCancel()
+	c, err = pool.Acquire(acquireCtx)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Nil(t, c)
+
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	newConn := c.Conn()
+	c.Release()
+
+	require.Same(t, originalConn, newConn)
+	require.EqualValues(t, 1, pool.Stat().NewConnsCount())
+}
