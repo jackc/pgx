@@ -53,8 +53,6 @@ func tryScanStringCopyValueThenEncode(m *pgtype.Map, buf []byte, oid uint32, arg
 		s = string(textBuf)
 	}
 
-
-
 	// Check if this is an array type. If so, use an ArraySetter to preserve
 	// array dimensions during CopyFrom.
 	if typ, ok := m.TypeForOID(oid); ok {
