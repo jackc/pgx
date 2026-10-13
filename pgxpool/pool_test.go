@@ -1606,10 +1606,11 @@ func TestPoolAcquireCanceledDuringPingKeepsConn(t *testing.T) {
 	originalConn := c.Conn()
 	c.Release()
 
-	acquireCtx, acquireCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	acquireCtx, acquireCancel := context.WithCancel(ctx)
 	defer acquireCancel()
+	time.AfterFunc(50*time.Millisecond, acquireCancel)
 	c, err = pool.Acquire(acquireCtx)
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, context.Canceled)
 	require.Nil(t, c)
 
 	c, err = pool.Acquire(ctx)

@@ -658,6 +658,11 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			pingErrChan := make(chan error, 1)
 			go func() {
 				pingCtx := context.WithoutCancel(ctx)
+				if deadline, ok := ctx.Deadline(); ok {
+					var cancel context.CancelFunc
+					pingCtx, cancel = context.WithDeadline(pingCtx, deadline)
+					defer cancel()
+				}
 				if p.pingTimeout > 0 {
 					var cancel context.CancelFunc
 					pingCtx, cancel = context.WithTimeout(pingCtx, p.pingTimeout)
