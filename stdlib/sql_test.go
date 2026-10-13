@@ -151,6 +151,16 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 	require.NoError(t, err)
 }
 
+func TestDriverName(t *testing.T) {
+	// Test that the public DriverName constant exists and has the expected value
+	require.Equal(t, "pgx", stdlib.DriverName)
+
+	// Test that DriverName can be used with sql.Open
+	db, err := sql.Open(stdlib.DriverName, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	closeDB(t, db)
+}
+
 func TestSQLOpen(t *testing.T) {
 	tests := []struct {
 		driverName string
