@@ -981,7 +981,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
-		return nil, err
+		return nil, normalizeTimeoutError(ctx, err)
 	}
 
 	psd := &StatementDescription{Name: name, SQL: sql}
@@ -1046,7 +1046,7 @@ func (pgConn *PgConn) Deallocate(ctx context.Context, name string) error {
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
-		return err
+		return normalizeTimeoutError(ctx, err)
 	}
 
 	for {
@@ -1237,7 +1237,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		pgConn.asyncClose()
 		pgConn.contextWatcher.Unwatch()
 		multiResult.closed = true
-		multiResult.err = err
+		multiResult.err = normalizeTimeoutError(ctx, err)
 		pgConn.unlock()
 		return multiResult
 	}
@@ -1382,7 +1382,7 @@ func (pgConn *PgConn) execExtendedSuffix(result *ResultReader, statementDescript
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
-		result.concludeCommand(CommandTag{}, err)
+		result.concludeCommand(CommandTag{}, normalizeTimeoutError(result.ctx, err))
 		pgConn.contextWatcher.Unwatch()
 		result.closed = true
 		pgConn.unlock()
@@ -1416,7 +1416,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	if err != nil {
 		pgConn.asyncClose()
 		pgConn.unlock()
-		return CommandTag{}, err
+		return CommandTag{}, normalizeTimeoutError(ctx, err)
 	}
 
 	// Read results
@@ -1473,7 +1473,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
-		return CommandTag{}, err
+		return CommandTag{}, normalizeTimeoutError(ctx, err)
 	}
 
 	// Send copy data
@@ -1559,7 +1559,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	err = pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
-		return CommandTag{}, err
+		return CommandTag{}, normalizeTimeoutError(ctx, err)
 	}
 
 	// Read results
