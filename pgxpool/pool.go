@@ -655,11 +655,25 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
+			// If the caller already cancelled before we got here there is no
+			// point pinging: the acquire will have to fail with that error
+			// anyway, and running the ping with a cancelled context would
+			// trip the connection's context watcher and destroy a connection
+			// the pool had no reason to lose. Release and return early.
+			if err := ctx.Err(); err != nil {
+				res.Release()
+				return nil, err
+			}
+
+			// Detach the ping from the caller's context so a cancellation
+			// mid-ping cannot break the socket (the pgconn context watcher
+			// would send a cancel request and tear down the connection).
+			// pingTimeout still bounds how long we wait.
 			err := func() error {
-				pingCtx := ctx
+				pingCtx := context.WithoutCancel(ctx)
 				if p.pingTimeout > 0 {
 					var cancel context.CancelFunc
-					pingCtx, cancel = context.WithTimeout(ctx, p.pingTimeout)
+					pingCtx, cancel = context.WithTimeout(pingCtx, p.pingTimeout)
 					defer cancel()
 				}
 				return cr.conn.Ping(pingCtx)
@@ -667,6 +681,14 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 			if err != nil {
 				res.Destroy()
 				continue
+			}
+
+			// The ping succeeded, but the caller may have cancelled while
+			// it was in flight. The connection is still healthy, so put it
+			// back and surface the caller's error without destroying it.
+			if err := ctx.Err(); err != nil {
+				res.Release()
+				return nil, err
 			}
 		}
 

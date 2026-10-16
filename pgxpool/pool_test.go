@@ -385,6 +385,59 @@ func TestPoolAcquireChecksIdleConnsWithShouldPing(t *testing.T) {
 	c.Release()
 }
 
+
+// Regression test: https://github.com/jackc/pgx/issues/2680
+// If the caller cancels its context during the liveness ping, the pool must
+// not destroy a healthy connection. Previously the ping used the caller's
+// context, so cancellation tripped the connection's context watcher, the
+// ping failed, and res.Destroy() was called even though the connection was
+// fine.
+func TestPoolAcquirePingDoesNotDestroyOnCallerCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	config.MaxConns = 1
+	// Force the ping on every acquire so the race is deterministic.
+	config.ShouldPing = func(context.Context, pgxpool.ShouldPingParams) bool { return true }
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Prime the pool so a backend PID exists to compare against.
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	pidBefore := c.Conn().PgConn().PID()
+	c.Release()
+
+	before := pool.Stat()
+
+	// Cancel the acquire context immediately so the caller is already done
+	// by the time the pool starts (or finishes) the ping.
+	cancelCtx, cancelAcquire := context.WithCancel(ctx)
+	cancelAcquire()
+	_, err = pool.Acquire(cancelCtx)
+	require.ErrorIs(t, err, context.Canceled, "caller should still see context.Canceled")
+
+	after := pool.Stat()
+
+	// The pool must not have thrown away a connection just because the caller
+	// cancelled. If NewConnsCount went up or the backend PID changed, the
+	// bug has regressed.
+	assert.Equal(t, before.NewConnsCount(), after.NewConnsCount(),
+		"pool created a new connection; the previous one was destroyed on caller cancel")
+
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, pidBefore, c.Conn().PgConn().PID(),
+		"backend PID changed; the pool destroyed a healthy connection")
+	c.Release()
+}
+
 // https://github.com/jackc/pgx/issues/2379
 func TestPoolAcquireWithMaxConnsEqualsMaxInt32(t *testing.T) {
 	t.Parallel()
