@@ -1407,7 +1407,7 @@ func TestConnExecParamsContextCanceledAfterResponseBuffered(t *testing.T) {
 
 			pgConn, err := pgconn.ConnectConfig(ctx, config)
 			require.NoError(t, err)
-			defer pgConn.Close(context.Background())
+			defer closeConn(t, pgConn)
 
 			queryCtx, queryCancel := context.WithCancel(ctx)
 			defer queryCancel()
@@ -5705,7 +5705,7 @@ func TestCancelRequestContextWatcherHandler(t *testing.T) {
 
 			pgConn, err := pgconn.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			defer pgConn.Close(context.Background())
+			defer closeConn(t, pgConn)
 
 			for range 20 {
 				func() {
