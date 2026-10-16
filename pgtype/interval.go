@@ -135,19 +135,19 @@ func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte,
 		buf = append(buf, " day "...)
 	}
 
-	absMicroseconds := interval.Microseconds
-	if absMicroseconds < 0 {
+	absMicroseconds := uint64(interval.Microseconds)
+	if interval.Microseconds < 0 {
 		absMicroseconds = -absMicroseconds
 		buf = append(buf, '-')
 	}
 
-	hours := absMicroseconds / microsecondsPerHour
-	minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
-	seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
+	hours := int64(absMicroseconds / microsecondsPerHour)
+	minutes := int64((absMicroseconds % microsecondsPerHour) / microsecondsPerMinute)
+	seconds := int64((absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond)
 
 	buf = appendTimeText(buf, hours, minutes, seconds)
 
-	microseconds := absMicroseconds % microsecondsPerSecond
+	microseconds := int64(absMicroseconds % microsecondsPerSecond)
 	if microseconds != 0 {
 		buf = append(buf, '.')
 		buf = appendZeroPaddedInt64(buf, microseconds, 6)
