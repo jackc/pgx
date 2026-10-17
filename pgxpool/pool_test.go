@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/pgmock"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
@@ -1581,4 +1584,128 @@ func TestPoolAcquirePingTimeout(t *testing.T) {
 	assert.Nil(t, ctx.Err())
 	assert.NotSame(t, originalConn, newConn,
 		"Expected new connection due to ping timeout, but got same connection")
+}
+
+// https://github.com/jackc/pgx/issues/2680
+func TestPoolAcquireCanceledDuringPingKeepsConn(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.ConnConfig.DialFunc = newDelayProxyDialFunc(200 * time.Millisecond)
+	config.ShouldPing = func(context.Context, pgxpool.ShouldPingParams) bool { return true }
+	config.MaxConns = 1
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	originalConn := c.Conn()
+	c.Release()
+
+	acquireCtx, acquireCancel := context.WithCancel(ctx)
+	defer acquireCancel()
+	time.AfterFunc(50*time.Millisecond, acquireCancel)
+	c, err = pool.Acquire(acquireCtx)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, c)
+
+	c, err = pool.Acquire(ctx)
+	require.NoError(t, err)
+	newConn := c.Conn()
+	c.Release()
+
+	require.Same(t, originalConn, newConn)
+	require.EqualValues(t, 1, pool.Stat().NewConnsCount())
+}
+
+func TestPoolAcquireCanceledDuringStalledPing(t *testing.T) {
+	for _, pingTimeout := range []time.Duration{0, 10 * time.Second} {
+		t.Run(pingTimeout.String(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				client, server := net.Pipe()
+				defer client.Close()
+				defer server.Close()
+				pingStarted := make(chan struct{})
+				serverDone := make(chan error, 1)
+				go func() {
+					defer server.Close()
+					backend := pgproto3.NewBackend(server, server)
+					script := pgmock.Script{Steps: append(pgmock.AcceptUnauthenticatedConnRequestSteps(),
+						pgmock.ExpectAnyMessage(&pgproto3.Query{}))}
+					if err := script.Run(backend); err != nil {
+						serverDone <- err
+						close(pingStarted)
+						return
+					}
+					close(pingStarted)
+					// Never answer the ping. Only connection cleanup can finish this.
+					serverDone <- pgmock.WaitForClose().Step(backend)
+				}()
+
+				config, err := pgxpool.ParseConfig("host=127.0.0.1 sslmode=disable")
+				require.NoError(t, err)
+				config.MaxConns = 1
+				config.HealthCheckPeriod = time.Hour
+				config.PingTimeout = pingTimeout
+				config.ShouldPing = func(context.Context, pgxpool.ShouldPingParams) bool { return true }
+				var dialed bool
+				config.ConnConfig.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+					if dialed {
+						return nil, errors.New("no additional connections")
+					}
+					dialed = true
+					return client, nil
+				}
+				pool, err := pgxpool.NewWithConfig(context.Background(), config)
+				require.NoError(t, err)
+				defer func() {
+					client.Close()
+					server.Close()
+					pool.Close()
+				}()
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				acquireDone := make(chan error, 1)
+				go func() {
+					c, err := pool.Acquire(ctx)
+					if c != nil {
+						c.Release()
+					}
+					acquireDone <- err
+				}()
+				<-pingStarted
+				cancel()
+				require.ErrorIs(t, <-acquireDone, context.Canceled)
+				synctest.Wait()
+				require.EqualValues(t, 1, pool.Stat().AcquiredConns())
+
+				closeDone := make(chan struct{})
+				go func() { pool.Close(); close(closeDone) }()
+				timeout := time.Minute
+				if pingTimeout > 0 {
+					timeout = pingTimeout
+				}
+				time.Sleep(timeout - time.Second)
+				synctest.Wait()
+				require.EqualValues(t, 1, pool.Stat().AcquiredConns())
+				time.Sleep(time.Second)
+				synctest.Wait()
+				require.Zero(t, pool.Stat().TotalConns())
+				select {
+				case <-closeDone:
+				default:
+					t.Fatal("Close is still waiting for the abandoned ping")
+				}
+				require.NoError(t, <-serverDone)
+			})
+		})
+	}
 }
