@@ -60,8 +60,10 @@ type Config struct {
 	SSLNegotiation string // sslnegotiation=postgres or sslnegotiation=direct
 
 	// SSLCertMode controls client certificate usage. Valid values are "disable", "allow", and "require".
-	// The default is "allow". "disable" prevents sending a certificate, even if TLSConfig supplies one.
+	// The default is "allow"; an empty field is also treated as "allow".
+	// "disable" prevents sending a certificate, even if TLSConfig supplies one.
 	// "require" rejects successful authentication unless the server requested and the client sent a certificate.
+	// TLS session resumption is disabled in "require" mode so that every connection exchanges a certificate.
 	// It does not guarantee that the server validated the certificate.
 	SSLCertMode string
 
@@ -487,8 +489,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		},
 	}
 
+	sslCertMode, present := settings["sslcertmode"]
+	if !present {
+		sslCertMode = "allow"
+	}
 	var err error
-	config.SSLCertMode, err = parseSSLCertMode(settings["sslcertmode"])
+	config.SSLCertMode, err = parseSSLCertMode(sslCertMode)
 	if err != nil {
 		return nil, &ParseConfigError{ConnString: connString, msg: "invalid sslcertmode", err: err}
 	}
@@ -743,8 +749,9 @@ func parseEnvSettings() map[string]string {
 	}
 
 	for envname, realname := range nameMap {
-		value := os.Getenv(envname)
-		if value != "" {
+		value, present := os.LookupEnv(envname)
+		// Preserve an explicitly empty sslcertmode so it is rejected, like libpq.
+		if value != "" || (present && realname == "sslcertmode") {
 			settings[realname] = value
 		}
 	}
@@ -1123,6 +1130,8 @@ func prepareTLSConfigForConnect(config *tls.Config, mode string) (*tls.Config, *
 		state := new(sslCertState)
 		original := config
 		config = config.Clone()
+		// Resumed sessions skip the certificate exchange and its callback.
+		config.ClientSessionCache = nil
 		config.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			state.requested = true
 			var cert *tls.Certificate
@@ -1151,8 +1160,6 @@ func prepareTLSConfigForConnect(config *tls.Config, mode string) (*tls.Config, *
 
 func parseSSLCertMode(s string) (string, error) {
 	switch s {
-	case "":
-		return "allow", nil
 	case "disable", "allow", "require":
 		return s, nil
 	default:

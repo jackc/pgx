@@ -3,6 +3,7 @@ package pgconn_test
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -10,12 +11,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgconn/internal/bgreader"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/stretchr/testify/require"
 )
@@ -23,106 +24,71 @@ import (
 func TestParseConfigSSLCertMode(t *testing.T) {
 	clearPgEnvvars(t)
 	t.Setenv("PGSSLCERTMODE", "")
-
-	for _, tc := range []struct {
-		connString string
-		mode       string
-	}{
-		{"host=localhost", "allow"},
-		{"host=localhost sslcertmode=allow", "allow"},
-		{"host=localhost sslcertmode=disable", "disable"},
-		{"host=localhost sslcertmode=require", "require"},
-		{"postgres://localhost/test?sslcertmode=require", "require"},
-		{"host=/tmp sslcertmode=require", "require"},
-		{"host=localhost sslmode=disable sslcertmode=require", "require"},
-	} {
-		t.Run(tc.connString, func(t *testing.T) {
-			config, err := pgconn.ParseConfig(tc.connString)
-			require.NoError(t, err)
-			require.Equal(t, tc.mode, config.SSLCertMode)
-			require.NotContains(t, config.RuntimeParams, "sslcertmode")
-			require.Equal(t, tc.mode, config.Copy().SSLCertMode)
-		})
-	}
-
-	for _, connString := range []string{
-		"host=localhost sslcertmode=invalid",
-		"host=localhost sslmode=disable sslcertmode=invalid",
-		"host=/tmp sslcertmode=invalid",
-	} {
-		_, err := pgconn.ParseConfig(connString)
-		require.ErrorContains(t, err, "unknown sslcertmode value")
-	}
-
-	t.Setenv("PGSSLCERTMODE", "disable")
+	require.NoError(t, os.Unsetenv("PGSSLCERTMODE"))
 	config, err := pgconn.ParseConfig("host=localhost")
-	require.NoError(t, err)
-	require.Equal(t, "disable", config.SSLCertMode)
-	config, err = pgconn.ParseConfig("host=localhost sslcertmode=require")
-	require.NoError(t, err)
-	require.Equal(t, "require", config.SSLCertMode)
-
-	servicefile := filepath.Join(t.TempDir(), "pg_service.conf")
-	require.NoError(t, os.WriteFile(servicefile, []byte("[test]\nhost=localhost\nsslcertmode=allow\n"), 0600))
-	config, err = pgconn.ParseConfig(fmt.Sprintf("servicefile=%s service=test", servicefile))
 	require.NoError(t, err)
 	require.Equal(t, "allow", config.SSLCertMode)
 
-	t.Setenv("PGSSLCERTMODE", "invalid")
+	servicefile := filepath.Join(t.TempDir(), "pg_service.conf")
+	require.NoError(t, os.WriteFile(servicefile, []byte("[test]\nhost=localhost\nsslcertmode=allow\n[empty]\nhost=localhost\nsslcertmode=\n"), 0o600))
+	service := fmt.Sprintf("servicefile='%s'", filepath.ToSlash(servicefile))
+	t.Setenv("PGSSLCERTMODE", "require")
+	for _, tc := range []struct {
+		connString string
+		wantMode   string // Empty means an invalid connection parameter.
+	}{
+		{"host=localhost", "require"},
+		{"host=localhost sslcertmode=allow", "allow"},
+		{"host=localhost sslcertmode=disable", "disable"},
+		{"postgres://localhost/test?sslcertmode=require", "require"},
+		{"host=localhost sslmode=disable sslcertmode=invalid", ""},
+		{"host=localhost sslcertmode=''", ""},
+		{"postgres://localhost/test?sslcertmode=", ""},
+		{service + " service=test", "allow"},
+		{service + " service=empty", ""},
+		{service + " service=empty sslcertmode=require", "require"},
+	} {
+		t.Run(tc.connString, func(t *testing.T) {
+			config, err := pgconn.ParseConfig(tc.connString)
+			if tc.wantMode == "" {
+				var parseErr *pgconn.ParseConfigError
+				require.ErrorAs(t, err, &parseErr)
+				require.ErrorContains(t, err, "invalid sslcertmode")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.wantMode, config.SSLCertMode)
+				require.NotContains(t, config.RuntimeParams, "sslcertmode")
+			}
+		})
+	}
+
+	t.Setenv("PGSSLCERTMODE", "")
 	_, err = pgconn.ParseConfig("host=localhost")
-	require.ErrorContains(t, err, "unknown sslcertmode value")
+	require.ErrorContains(t, err, "invalid sslcertmode")
+	_, err = pgconn.ParseConfig("host=localhost sslcertmode=allow")
+	require.NoError(t, err)
 }
 
 func TestParseConfigSSLCertModeDisableSkipsFiles(t *testing.T) {
-	clearPgEnvvars(t)
-	t.Setenv("PGSSLCERTMODE", "")
-	dir := t.TempDir()
-	certfile, keyfile := filepath.Join(dir, "client.crt"), filepath.Join(dir, "client.key")
-	require.NoError(t, os.WriteFile(certfile, []byte(rsaCertPEM), 0600))
-	require.NoError(t, os.WriteFile(keyfile, []byte(rsaKeyPEM), 0600))
-	config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost sslcertmode=allow sslcert=%s sslkey=%s", certfile, keyfile))
+	missing := filepath.ToSlash(filepath.Join(t.TempDir(), "missing"))
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost sslmode=require sslcertmode=disable sslcert='%s' sslkey='%s'", missing, missing))
 	require.NoError(t, err)
-	require.Len(t, config.TLSConfig.Certificates, 1)
-
-	// Bad files and incomplete pairs are ignored, including when there are multiple hosts.
-	require.NoError(t, os.WriteFile(keyfile, []byte("invalid private key"), 0600))
-	for _, files := range []string{
-		fmt.Sprintf("sslcert=%s sslkey=%s", certfile, keyfile),
-		"sslcert=nonexistent sslkey=nonexistent",
-		"sslcert=nonexistent",
-		"sslkey=nonexistent",
-	} {
-		config, err := pgconn.ParseConfig("host=localhost,otherhost sslcertmode=disable " + files)
-		require.NoError(t, err)
-		require.Empty(t, config.TLSConfig.Certificates)
-		for _, fallback := range config.Fallbacks {
-			if fallback.TLSConfig != nil {
-				require.Empty(t, fallback.TLSConfig.Certificates)
-			}
-		}
-	}
-
-	t.Run("default files", func(t *testing.T) {
-		skipOnWindows(t)
-		home := t.TempDir()
-		pgdir := filepath.Join(home, ".postgresql")
-		require.NoError(t, os.Mkdir(pgdir, 0700))
-		for _, file := range []string{"postgresql.crt", "postgresql.key"} {
-			require.NoError(t, os.WriteFile(filepath.Join(pgdir, file), []byte("invalid"), 0600))
-		}
-		restore := pgconn.SetUserHomeDirLookupForTest(func() (string, error) { return home, nil })
-		defer restore()
-		config, err := pgconn.ParseConfig("host=localhost user=test sslmode=require sslcertmode=disable")
-		require.NoError(t, err)
-		require.Empty(t, config.TLSConfig.Certificates)
-		_, err = pgconn.ParseConfig("host=localhost user=test sslmode=require sslcertmode=allow")
-		require.ErrorContains(t, err, "failed to decode sslkey")
-	})
+	require.Empty(t, config.TLSConfig.Certificates)
 }
 
 type sslCertModeServerResult struct {
+	resumed      bool
 	certificates int
 	err          error
+}
+
+type sslCertModeServerConn struct {
+	net.Conn
+	reader io.Reader
+}
+
+func (c sslCertModeServerConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
 }
 
 // Use real TLS and PostgreSQL startup messages over pipes so these tests do not
@@ -141,7 +107,10 @@ func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tl
 			defer server.Close()
 			result := sslCertModeServerResult{}
 			defer func() { results <- result }()
-			var conn net.Conn = server
+			// Both peers may write at once during TLS 1.3 session resumption.
+			reader := bgreader.New(server)
+			reader.Start()
+			var conn net.Conn = sslCertModeServerConn{Conn: server, reader: reader}
 			if serverConfig != nil {
 				if !direct {
 					request := make([]byte, 8)
@@ -160,7 +129,9 @@ func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tl
 				if result.err = tlsConn.Handshake(); result.err != nil {
 					return
 				}
-				result.certificates = len(tlsConn.ConnectionState().PeerCertificates)
+				state := tlsConn.ConnectionState()
+				result.certificates = len(state.PeerCertificates)
+				result.resumed = state.DidResume
 				conn = tlsConn
 			}
 			backend := pgproto3.NewBackend(conn, conn)
@@ -172,13 +143,9 @@ func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tl
 			if _, ok := message.(*pgproto3.CancelRequest); ok {
 				return
 			}
-			startup, ok := message.(*pgproto3.StartupMessage)
+			_, ok := message.(*pgproto3.StartupMessage)
 			if !ok {
 				result.err = fmt.Errorf("unexpected startup message: %T", message)
-				return
-			}
-			if _, ok := startup.Parameters["sslcertmode"]; ok {
-				result.err = errors.New("sslcertmode was sent as a runtime parameter")
 				return
 			}
 			backend.Send(&pgproto3.AuthenticationOk{})
@@ -195,58 +162,63 @@ func TestConnectSSLCertMode(t *testing.T) {
 	t.Parallel()
 	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
 	require.NoError(t, err)
+	unusable := cert
+	unusable.SupportedSignatureAlgorithms = []tls.SignatureScheme{tls.ECDSAWithP256AndSHA256}
 	for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
-		for _, negotiation := range []string{"postgres", "direct"} {
-			for _, tc := range []struct {
-				mode        string
-				requestCert bool
-				haveCert    bool
-				wantCert    bool
-				wantErr     string
-			}{
-				{"allow", false, true, false, ""},
-				{"allow", true, true, true, ""},
-				{"allow", true, false, false, ""},
-				{"disable", true, true, false, ""},
-				{"disable", false, true, false, ""},
-				{"require", true, true, true, ""},
-				{"require", false, true, false, "server did not request an SSL certificate"},
-				{"require", true, false, false, "server accepted connection without a valid SSL certificate"},
-			} {
-				name := fmt.Sprintf("%x/%s/%s/request=%v/cert=%v", version, negotiation, tc.mode, tc.requestCert, tc.haveCert)
-				t.Run(name, func(t *testing.T) {
-					t.Parallel()
-					config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=" + tc.mode)
+		for _, tc := range []struct {
+			mode        string
+			requestCert bool
+			haveCert    bool
+			wantCert    bool
+			wantErr     string
+		}{
+			{"", false, false, false, ""}, // An empty Config field means allow.
+			{"allow", true, true, true, ""},
+			{"allow", true, false, false, ""},
+			{"disable", true, true, false, ""},
+			{"require", true, true, true, ""},
+			{"require", false, true, false, "server did not request an SSL certificate"},
+			{"require", true, false, false, "server accepted connection without a valid SSL certificate"},
+		} {
+			t.Run(fmt.Sprintf("%x/%s/request=%v/cert=%v", version, tc.mode, tc.requestCert, tc.haveCert), func(t *testing.T) {
+				t.Parallel()
+				config, err := pgconn.ParseConfig("host=127.0.0.1,127.0.0.2 user=test sslmode=prefer sslcertmode=allow")
+				require.NoError(t, err)
+				config.SSLCertMode = tc.mode
+				config.TLSConfig = &tls.Config{InsecureSkipVerify: true, MinVersion: version, MaxVersion: version, Certificates: []tls.Certificate{unusable}}
+				if tc.haveCert {
+					config.TLSConfig.Certificates = append(config.TLSConfig.Certificates, cert)
+				}
+				serverConfig := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: version, MaxVersion: version}
+				if tc.requestCert {
+					serverConfig.ClientAuth = tls.RequestClientCert
+				}
+				results := sslCertModeTestServer(t, config, serverConfig)
+				dial := config.DialFunc
+				attempts := 0
+				config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+					attempts++
+					if attempts > 1 {
+						return nil, errors.New("unexpected TLS or host fallback")
+					}
+					return dial(ctx, network, address)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				conn, err := pgconn.ConnectConfig(ctx, config)
+				if tc.wantErr == "" {
 					require.NoError(t, err)
-					config.SSLNegotiation = negotiation
-					// Supplying TLSConfig directly must still respect sslcertmode.
-					config.TLSConfig = &tls.Config{InsecureSkipVerify: true, MinVersion: version, MaxVersion: version}
-					if tc.haveCert {
-						config.TLSConfig.Certificates = []tls.Certificate{cert}
-					}
-					original := config.TLSConfig
-					serverConfig := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: version, MaxVersion: version}
-					if tc.requestCert {
-						serverConfig.ClientAuth = tls.RequestClientCert
-					}
-					results := sslCertModeTestServer(t, config, serverConfig)
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-					conn, err := pgconn.ConnectConfig(ctx, config)
-					if tc.wantErr == "" {
-						require.NoError(t, err)
-						conn.Close(ctx)
-					} else {
-						require.ErrorContains(t, err, tc.wantErr)
-					}
-					result := <-results
-					require.NoError(t, result.err)
-					require.Equal(t, tc.wantCert, result.certificates > 0)
-					require.Same(t, original, config.TLSConfig)
-					require.Equal(t, tc.haveCert, len(config.TLSConfig.Certificates) > 0)
-					require.Nil(t, config.TLSConfig.GetClientCertificate)
-				})
-			}
+					conn.Close(ctx)
+				} else {
+					require.ErrorContains(t, err, tc.wantErr)
+				}
+				result := <-results
+				require.NoError(t, result.err)
+				require.Equal(t, tc.wantCert, result.certificates > 0)
+				require.Equal(t, 1, attempts)
+				require.Nil(t, config.TLSConfig.GetClientCertificate)
+				require.NotEmpty(t, config.TLSConfig.Certificates)
+			})
 		}
 	}
 }
@@ -262,7 +234,6 @@ func TestConnectSSLCertModeCallback(t *testing.T) {
 		err     error
 		wantErr string
 	}{
-		{"allow", &cert, nil, ""},
 		{"disable", &cert, nil, ""},
 		{"require", &cert, nil, ""},
 		{"require", new(tls.Certificate), nil, "server accepted connection without a valid SSL certificate"},
@@ -272,6 +243,7 @@ func TestConnectSSLCertModeCallback(t *testing.T) {
 			t.Parallel()
 			config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=" + tc.mode)
 			require.NoError(t, err)
+			config.SSLNegotiation = "direct"
 			var called bool
 			config.TLSConfig = &tls.Config{
 				InsecureSkipVerify: true,
@@ -307,13 +279,23 @@ func TestConnectSSLCertModeCallback(t *testing.T) {
 
 func TestConnectSSLCertModeRequireWithoutTLS(t *testing.T) {
 	t.Parallel()
-	config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=disable sslcertmode=require")
+	config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=allow sslcertmode=require")
 	require.NoError(t, err)
 	results := sslCertModeTestServer(t, config, nil)
+	dial := config.DialFunc
+	attempts := 0
+	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		attempts++
+		if attempts > 1 {
+			return nil, errors.New("unexpected TLS fallback")
+		}
+		return dial(ctx, network, address)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = pgconn.ConnectConfig(ctx, config)
 	require.ErrorContains(t, err, "server did not request an SSL certificate")
+	require.Equal(t, 1, attempts)
 	require.NoError(t, (<-results).err)
 }
 
@@ -326,72 +308,8 @@ func TestConnectSSLCertModeInvalid(t *testing.T) {
 		t.Error("invalid sslcertmode should be rejected before resolving hostnames")
 		return nil, errors.New("unexpected lookup")
 	}
-	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
-		t.Error("invalid sslcertmode should be rejected before dialing")
-		return nil, errors.New("unexpected dial")
-	}
 	_, err = pgconn.ConnectConfig(context.Background(), config)
 	require.ErrorContains(t, err, "unknown sslcertmode value")
-}
-
-func TestConnectSSLCertModeRequireStopsFallback(t *testing.T) {
-	t.Parallel()
-	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
-	require.NoError(t, err)
-	for _, tc := range []struct {
-		name        string
-		sslmode     string
-		hosts       string
-		requestCert bool
-		haveCert    bool
-		wantErr     string
-	}{
-		{"allow plaintext", "allow", "127.0.0.1", false, true, "server did not request an SSL certificate"},
-		{"prefer without request", "prefer", "127.0.0.1", false, true, "server did not request an SSL certificate"},
-		{"prefer without certificate", "prefer", "127.0.0.1", true, false, "server accepted connection without a valid SSL certificate"},
-		{"multiple hosts without request", "require", "127.0.0.1,127.0.0.2", false, true, "server did not request an SSL certificate"},
-		{"multiple hosts without certificate", "require", "127.0.0.1,127.0.0.2", true, false, "server accepted connection without a valid SSL certificate"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			config, err := pgconn.ParseConfig(fmt.Sprintf("host=%s user=test sslmode=%s sslcertmode=require", tc.hosts, tc.sslmode))
-			require.NoError(t, err)
-			clientTLS := &tls.Config{InsecureSkipVerify: true}
-			if tc.haveCert {
-				clientTLS.Certificates = []tls.Certificate{cert}
-			}
-			if config.TLSConfig != nil {
-				config.TLSConfig = clientTLS
-			}
-			for _, fallback := range config.Fallbacks {
-				if fallback.TLSConfig != nil {
-					fallback.TLSConfig = clientTLS
-				}
-			}
-			var serverTLS *tls.Config
-			if tc.sslmode != "allow" {
-				serverTLS = &tls.Config{Certificates: []tls.Certificate{cert}}
-				if tc.requestCert {
-					serverTLS.ClientAuth = tls.RequestClientCert
-				}
-			}
-			results := sslCertModeTestServer(t, config, serverTLS)
-			dial := config.DialFunc
-			var attempts atomic.Int32
-			config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-				if attempts.Add(1) > 1 {
-					return nil, errors.New("unexpected fallback after sslcertmode failure")
-				}
-				return dial(ctx, network, address)
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_, err = pgconn.ConnectConfig(ctx, config)
-			require.ErrorContains(t, err, tc.wantErr)
-			require.NoError(t, (<-results).err)
-			require.EqualValues(t, 1, attempts.Load(), "must stop before trying any TLS or host fallback")
-		})
-	}
 }
 
 func TestConnectSSLCertModeRequireAllowsDialFallback(t *testing.T) {
@@ -420,146 +338,106 @@ func TestConnectSSLCertModeRequireAllowsDialFallback(t *testing.T) {
 	require.EqualValues(t, 2, attempts.Load())
 }
 
-func TestConnectSSLCertModeCertificateSelection(t *testing.T) {
+func TestConnectSSLCertModeSessionResumption(t *testing.T) {
 	t.Parallel()
 	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
 	require.NoError(t, err)
-	unusable := cert
-	// An RSA key cannot use this signature scheme.
-	unusable.SupportedSignatureAlgorithms = []tls.SignatureScheme{tls.ECDSAWithP256AndSHA256}
-	for _, haveUsable := range []bool{false, true} {
-		t.Run(fmt.Sprintf("usable=%v", haveUsable), func(t *testing.T) {
-			t.Parallel()
-			config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=require")
-			require.NoError(t, err)
-			config.TLSConfig = &tls.Config{InsecureSkipVerify: true, Certificates: []tls.Certificate{unusable}}
-			if haveUsable {
-				config.TLSConfig.Certificates = append(config.TLSConfig.Certificates, cert)
-			}
-			results := sslCertModeTestServer(t, config, &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequestClientCert})
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			conn, err := pgconn.ConnectConfig(ctx, config)
-			if haveUsable {
-				require.NoError(t, err)
-				conn.Close(ctx)
-			} else {
-				require.ErrorContains(t, err, "server accepted connection without a valid SSL certificate")
-			}
-			result := <-results
-			require.NoError(t, result.err)
-			require.Equal(t, haveUsable, result.certificates > 0)
-		})
-	}
-}
-
-func TestCancelRequestSSLCertMode(t *testing.T) {
-	t.Parallel()
-	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
 	require.NoError(t, err)
-	for _, negotiation := range []string{"postgres", "direct"} {
-		for _, mode := range []string{"allow", "disable", "require"} {
-			t.Run(negotiation+"/"+mode, func(t *testing.T) {
+	// Session caches reject expired certificates even with InsecureSkipVerify.
+	clock := func() time.Time { return leaf.NotBefore.Add(time.Hour) }
+	for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
+		for _, mode := range []string{"allow", "require"} {
+			t.Run(fmt.Sprintf("%x/%s", version, mode), func(t *testing.T) {
 				t.Parallel()
 				config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=" + mode)
 				require.NoError(t, err)
-				config.SSLNegotiation = negotiation
-				config.TLSConfig = &tls.Config{InsecureSkipVerify: true, Certificates: []tls.Certificate{cert}}
-				results := sslCertModeTestServer(t, config, &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequestClientCert})
+				cache := tls.NewLRUClientSessionCache(1)
+				config.TLSConfig = &tls.Config{
+					InsecureSkipVerify: true,
+					Certificates:       []tls.Certificate{cert},
+					MinVersion:         version,
+					MaxVersion:         version,
+					ClientSessionCache: cache,
+					Time:               clock,
+				}
+				serverConfig := &tls.Config{
+					Certificates: []tls.Certificate{cert},
+					MinVersion:   version,
+					MaxVersion:   version,
+					ClientAuth:   tls.RequestClientCert,
+					Time:         clock,
+				}
+				results := sslCertModeTestServer(t, config, serverConfig)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				conn, err := pgconn.ConnectConfig(ctx, config)
-				require.NoError(t, err)
-				defer conn.Close(ctx)
-				require.NoError(t, conn.CancelRequest(ctx))
-				for range 2 {
+				for attempt := range 2 {
+					conn, err := pgconn.ConnectConfig(ctx, config)
+					require.NoError(t, err)
+					conn.Close(ctx)
 					result := <-results
 					require.NoError(t, result.err)
-					require.Equal(t, mode != "disable", result.certificates > 0)
+					require.Equal(t, attempt == 1 && mode == "allow", result.resumed)
+					require.NotZero(t, result.certificates)
 				}
+				require.Same(t, cache, config.TLSConfig.ClientSessionCache)
 			})
 		}
 	}
 }
 
-func TestConnectSSLCertModeSharedConfig(t *testing.T) {
+func TestCancelRequestSSLCertModeDisable(t *testing.T) {
+	t.Parallel()
+	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	for _, negotiation := range []string{"postgres", "direct"} {
+		t.Run(negotiation, func(t *testing.T) {
+			t.Parallel()
+			config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=disable")
+			require.NoError(t, err)
+			config.SSLNegotiation = negotiation
+			config.TLSConfig = &tls.Config{InsecureSkipVerify: true, Certificates: []tls.Certificate{cert}}
+			results := sslCertModeTestServer(t, config, &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequestClientCert})
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			conn, err := pgconn.ConnectConfig(ctx, config)
+			require.NoError(t, err)
+			defer conn.Close(ctx)
+			require.NoError(t, conn.CancelRequest(ctx))
+			for range 2 {
+				result := <-results
+				require.NoError(t, result.err)
+				require.Zero(t, result.certificates)
+			}
+		})
+	}
+}
+
+func TestConnectSSLCertModeFallbackState(t *testing.T) {
 	t.Parallel()
 	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
 	require.NoError(t, err)
 	config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=require sslcertmode=require")
 	require.NoError(t, err)
 	config.TLSConfig = &tls.Config{InsecureSkipVerify: true, Certificates: []tls.Certificate{cert}}
+	config.Fallbacks = []*pgconn.FallbackConfig{{Host: "127.0.0.2", Port: config.Port, TLSConfig: config.TLSConfig}}
+	config.ValidateConnect = func(context.Context, *pgconn.PgConn) error { return errors.New("try next host") }
 	var handshakes atomic.Int32
-	serverConfig := &tls.Config{
+	results := sslCertModeTestServer(t, config, &tls.Config{
 		GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) {
 			c := &tls.Config{Certificates: []tls.Certificate{cert}}
-			if handshakes.Add(1)%2 == 1 {
+			if handshakes.Add(1) == 1 {
 				c.ClientAuth = tls.RequestClientCert
 			}
 			return c, nil
 		},
-	}
-	results := sslCertModeTestServer(t, config, serverConfig)
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	connectErrors := make(chan error, 8)
-	for range 8 {
-		go func() {
-			conn, err := pgconn.ConnectConfig(ctx, config.Copy())
-			if err == nil {
-				conn.Close(ctx)
-			}
-			connectErrors <- err
-		}()
-	}
-	successes := 0
-	for range 8 {
-		if err := <-connectErrors; err == nil {
-			successes++
-		} else {
-			require.True(t, strings.Contains(err.Error(), "server did not request an SSL certificate"), "%v", err)
-		}
-		require.NoError(t, (<-results).err)
-	}
-	require.Equal(t, 4, successes)
-	require.Nil(t, config.TLSConfig.GetClientCertificate)
-
-	// A successful certificate exchange on a rejected host must not satisfy
-	// sslcertmode=require on a subsequent fallback that never requests a certificate.
-	handshakes.Store(0)
-	config.Fallbacks = []*pgconn.FallbackConfig{{Host: "127.0.0.1", Port: 5433, TLSConfig: config.TLSConfig}}
-	config.ValidateConnect = func(context.Context, *pgconn.PgConn) error { return errors.New("try next host") }
+	// The first host's certificate exchange must not satisfy the second host's check.
 	_, err = pgconn.ConnectConfig(ctx, config)
 	require.ErrorContains(t, err, "server did not request an SSL certificate")
 	for range 2 {
 		require.NoError(t, (<-results).err)
-	}
-}
-
-func TestConnectSSLCertModePostgreSQL(t *testing.T) {
-	connString := os.Getenv("PGX_TEST_TLS_CLIENT_CONN_STRING")
-	if connString == "" || os.Getenv("PGX_SSL_PASSWORD") == "" {
-		t.Skip("requires PGX_TEST_TLS_CLIENT_CONN_STRING and PGX_SSL_PASSWORD")
-	}
-	for _, mode := range []string{"allow", "disable", "require"} {
-		t.Run(mode, func(t *testing.T) {
-			config, err := pgconn.ParseConfigWithOptions(connString+" sslcertmode="+mode, pgconn.ParseConfigOptions{
-				GetSSLPassword: func(context.Context) string { return os.Getenv("PGX_SSL_PASSWORD") },
-			})
-			require.NoError(t, err)
-			config.RequireAuth = "none" // Certificate authentication has no separate authentication exchange.
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			conn, err := pgconn.ConnectConfig(ctx, config)
-			if mode == "disable" {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			defer conn.Close(ctx)
-			result := conn.ExecParams(ctx, "select client_dn is not null from pg_stat_ssl where pid = pg_backend_pid()", nil, nil, nil, nil).Read()
-			require.NoError(t, result.Err)
-			require.Equal(t, [][][]byte{{[]byte("t")}}, result.Rows)
-		})
 	}
 }

@@ -42,6 +42,8 @@ The disable mode prevents sending a certificate, including certificates supplied
 loading sslcert and sslkey files. The require mode fails if the server successfully authenticates the client without
 requesting and receiving a client certificate. It does not guarantee that the server validated the certificate.
 If this check fails, no further TLS or host fallbacks are tried.
+TLS session resumption is disabled in require mode so every connection exchanges a certificate.
+An explicitly empty sslcertmode parameter or PGSSLCERTMODE environment variable is invalid.
 This parameter is independent of sslmode, which controls TLS and server certificate verification.
 
 Executing a Query

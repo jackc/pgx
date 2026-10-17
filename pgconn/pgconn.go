@@ -148,8 +148,10 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 	}
 
 	// Config may have been modified after ParseConfig. Validate before resolving hosts.
-	if _, err := parseSSLCertMode(config.SSLCertMode); err != nil {
-		return nil, &ConnectError{Config: config, err: fmt.Errorf("invalid sslcertmode: %w", err)}
+	if config.SSLCertMode != "" {
+		if _, err := parseSSLCertMode(config.SSLCertMode); err != nil {
+			return nil, &ConnectError{Config: config, err: fmt.Errorf("invalid sslcertmode: %w", err)}
+		}
 	}
 
 	var allErrors []error
