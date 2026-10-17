@@ -523,6 +523,13 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 			clientFinishedAuth = true
 		case *pgproto3.ReadyForQuery:
+			// A server may omit AuthenticationOk, so enforce the requirement here too.
+			if config.SSLCertMode == "require" {
+				if err := sslCert.checkRequired(); err != nil {
+					pgConn.conn.Close()
+					return nil, newPerDialConnectError("sslcertmode check failed", err)
+				}
+			}
 			pgConn.status = connStatusIdle
 			// The connect-phase deadline-only watcher is no longer needed; replace
 			// it with the application-supplied watcher so subsequent operations

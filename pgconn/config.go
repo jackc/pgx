@@ -1101,7 +1101,7 @@ type sslCertState struct {
 	sent      bool
 }
 
-// checkRequired verifies the certificate exchange after successful authentication.
+// checkRequired verifies the required certificate exchange during connection startup.
 // In require mode, a nil state means that no TLS connection was made.
 func (s *sslCertState) checkRequired() error {
 	if s == nil || !s.requested {
@@ -1114,7 +1114,7 @@ func (s *sslCertState) checkRequired() error {
 }
 
 // prepareTLSConfigForConnect prepares the TLS config for one connection's sslcertmode.
-// In require mode, the returned state must be checked when AuthenticationOk is received.
+// In require mode, the returned state must be checked before accepting AuthenticationOk or ReadyForQuery.
 // Configs may be shared by concurrent connection attempts, so any callback state must
 // belong to a clone made for this attempt, not the original config.
 func prepareTLSConfigForConnect(config *tls.Config, mode string) (*tls.Config, *sslCertState) {

@@ -93,8 +93,15 @@ func (c sslCertModeServerConn) Read(p []byte) (int, error) {
 
 // Use real TLS and PostgreSQL startup messages over pipes so these tests do not
 // depend on a database, external certificates, or listening sockets.
-func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tls.Config) <-chan sslCertModeServerResult {
+func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tls.Config, startupMessages ...pgproto3.BackendMessage) <-chan sslCertModeServerResult {
 	t.Helper()
+	if len(startupMessages) == 0 {
+		startupMessages = []pgproto3.BackendMessage{
+			&pgproto3.AuthenticationOk{},
+			&pgproto3.BackendKeyData{ProcessID: 1, SecretKey: []byte{1, 2, 3, 4}},
+			&pgproto3.ReadyForQuery{TxStatus: 'I'},
+		}
+	}
 	results := make(chan sslCertModeServerResult, 32)
 	direct := config.SSLNegotiation == "direct"
 	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
@@ -148,9 +155,9 @@ func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tl
 				result.err = fmt.Errorf("unexpected startup message: %T", message)
 				return
 			}
-			backend.Send(&pgproto3.AuthenticationOk{})
-			backend.Send(&pgproto3.BackendKeyData{ProcessID: 1, SecretKey: []byte{1, 2, 3, 4}})
-			backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+			for _, msg := range startupMessages {
+				backend.Send(msg)
+			}
 			result.err = backend.Flush()
 		}()
 		return client, nil
@@ -279,24 +286,43 @@ func TestConnectSSLCertModeCallback(t *testing.T) {
 
 func TestConnectSSLCertModeRequireWithoutTLS(t *testing.T) {
 	t.Parallel()
-	config, err := pgconn.ParseConfig("host=127.0.0.1 user=test sslmode=allow sslcertmode=require")
-	require.NoError(t, err)
-	results := sslCertModeTestServer(t, config, nil)
-	dial := config.DialFunc
-	attempts := 0
-	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		attempts++
-		if attempts > 1 {
-			return nil, errors.New("unexpected TLS fallback")
-		}
-		return dial(ctx, network, address)
+	for _, tc := range []struct {
+		sslmode              string
+		skipAuthenticationOk bool
+	}{
+		{"allow", false},
+		{"allow", true},
+		{"disable", true},
+	} {
+		t.Run(fmt.Sprintf("%s/skipAuthenticationOk=%v", tc.sslmode, tc.skipAuthenticationOk), func(t *testing.T) {
+			config, err := pgconn.ParseConfig("host=127.0.0.1,127.0.0.2 user=test sslcertmode=require sslmode=" + tc.sslmode)
+			require.NoError(t, err)
+			var startupMessages []pgproto3.BackendMessage
+			if tc.skipAuthenticationOk {
+				startupMessages = []pgproto3.BackendMessage{&pgproto3.ReadyForQuery{TxStatus: 'I'}}
+			}
+			results := sslCertModeTestServer(t, config, nil, startupMessages...)
+			config.ValidateConnect = func(context.Context, *pgconn.PgConn) error {
+				t.Error("certificate requirement must be checked before ValidateConnect")
+				return nil
+			}
+			dial := config.DialFunc
+			attempts := 0
+			config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				attempts++
+				if attempts > 1 {
+					return nil, errors.New("unexpected TLS or host fallback")
+				}
+				return dial(ctx, network, address)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, err = pgconn.ConnectConfig(ctx, config)
+			require.ErrorContains(t, err, "server did not request an SSL certificate")
+			require.Equal(t, 1, attempts)
+			require.NoError(t, (<-results).err)
+		})
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err = pgconn.ConnectConfig(ctx, config)
-	require.ErrorContains(t, err, "server did not request an SSL certificate")
-	require.Equal(t, 1, attempts)
-	require.NoError(t, (<-results).err)
 }
 
 func TestConnectSSLCertModeInvalid(t *testing.T) {
