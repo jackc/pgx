@@ -34,6 +34,18 @@ explicitly:
 These parameters may also be set via the PGSSLMODE, PGSSLROOTCERT, PGCHANNELBINDING, and PGREQUIREAUTH environment
 variables.
 
+Client Certificates
+
+The sslcertmode connection parameter (or PGSSLCERTMODE environment variable) controls whether a client certificate
+is sent. The default, allow, sends a certificate if the server requests one and a suitable certificate is available.
+The disable mode prevents sending a certificate, including certificates supplied through Config.TLSConfig, and skips
+loading sslcert and sslkey files. The require mode fails if the server successfully authenticates the client without
+requesting and receiving a client certificate. It does not guarantee that the server validated the certificate.
+If this check fails, no further TLS or host fallbacks are tried.
+TLS session resumption is disabled in require mode so every connection exchanges a certificate.
+An explicitly empty sslcertmode parameter or PGSSLCERTMODE environment variable is invalid.
+This parameter is independent of sslmode, which controls TLS and server certificate verification.
+
 Executing a Query
 
 ExecParams and ExecPrepared execute a single query. They return readers that iterate over each row. The Read method

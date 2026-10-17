@@ -360,7 +360,7 @@ func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_SSL_PASSWORD")
 	}
 
-	connString += " sslpassword=" + os.Getenv("PGX_SSL_PASSWORD")
+	connString += " sslcertmode=require sslpassword=" + os.Getenv("PGX_SSL_PASSWORD")
 
 	conn, err := pgconn.Connect(ctx, connString)
 	require.NoError(t, err)

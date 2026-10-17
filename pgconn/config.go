@@ -59,6 +59,14 @@ type Config struct {
 
 	SSLNegotiation string // sslnegotiation=postgres or sslnegotiation=direct
 
+	// SSLCertMode controls client certificate usage. Valid values are "disable", "allow", and "require".
+	// The default is "allow"; an empty field is also treated as "allow".
+	// "disable" prevents sending a certificate, even if TLSConfig supplies one.
+	// "require" rejects successful authentication unless the server requested and the client sent a certificate.
+	// TLS session resumption is disabled in "require" mode so that every connection exchanges a certificate.
+	// It does not guarantee that the server validated the certificate.
+	SSLCertMode string
+
 	// AfterNetConnect is called after the network connection, including TLS if applicable, is established but before any
 	// PostgreSQL protocol communication. It takes the established net.Conn and returns a net.Conn that will be used in
 	// its place. It can be used to wrap the net.Conn (e.g. for logging, diagnostics, or testing). Its functionality has
@@ -481,6 +489,16 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		},
 	}
 
+	sslCertMode, present := settings["sslcertmode"]
+	if !present {
+		sslCertMode = "allow"
+	}
+	var err error
+	config.SSLCertMode, err = parseSSLCertMode(sslCertMode)
+	if err != nil {
+		return nil, &ParseConfigError{ConnString: connString, msg: "invalid sslcertmode", err: err}
+	}
+
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
 		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
@@ -506,6 +524,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"sslmode":              {},
 		"sslkey":               {},
 		"sslcert":              {},
+		"sslcertmode":          {},
 		"sslrootcert":          {},
 		"sslnegotiation":       {},
 		"sslpassword":          {},
@@ -713,6 +732,7 @@ func parseEnvSettings() map[string]string {
 		"PGSSLMODE":            "sslmode",
 		"PGSSLKEY":             "sslkey",
 		"PGSSLCERT":            "sslcert",
+		"PGSSLCERTMODE":        "sslcertmode",
 		"PGSSLSNI":             "sslsni",
 		"PGSSLROOTCERT":        "sslrootcert",
 		"PGSSLPASSWORD":        "sslpassword",
@@ -729,8 +749,9 @@ func parseEnvSettings() map[string]string {
 	}
 
 	for envname, realname := range nameMap {
-		value := os.Getenv(envname)
-		if value != "" {
+		value, present := os.LookupEnv(envname)
+		// Preserve an explicitly empty sslcertmode so it is rejected, like libpq.
+		if value != "" || (present && realname == "sslcertmode") {
 			settings[realname] = value
 		}
 	}
@@ -886,6 +907,10 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	sslrootcert := settings["sslrootcert"]
 	sslcert := settings["sslcert"]
 	sslkey := settings["sslkey"]
+	if settings["sslcertmode"] == "disable" {
+		// Like libpq, do not read client certificate or key files in this mode.
+		sslcert, sslkey = "", ""
+	}
 	sslpassword := settings["sslpassword"]
 	sslsni := settings["sslsni"]
 	sslnegotiation := settings["sslnegotiation"]
@@ -1068,6 +1093,77 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		return []*tls.Config{tlsConfig}, nil
 	default:
 		panic("BUG: bad sslmode should already have been caught")
+	}
+}
+
+type sslCertState struct {
+	requested bool
+	sent      bool
+}
+
+// checkRequired verifies the required certificate exchange during connection startup.
+// In require mode, a nil state means that no TLS connection was made.
+func (s *sslCertState) checkRequired() error {
+	if s == nil || !s.requested {
+		return &sslCertModeError{msg: "server did not request an SSL certificate"}
+	}
+	if !s.sent {
+		return &sslCertModeError{msg: "server accepted connection without a valid SSL certificate"}
+	}
+	return nil
+}
+
+// prepareTLSConfigForConnect prepares the TLS config for one connection's sslcertmode.
+// In require mode, the returned state must be checked before accepting AuthenticationOk or ReadyForQuery.
+// Configs may be shared by concurrent connection attempts, so any callback state must
+// belong to a clone made for this attempt, not the original config.
+func prepareTLSConfigForConnect(config *tls.Config, mode string) (*tls.Config, *sslCertState) {
+	switch mode {
+	case "disable":
+		config = config.Clone()
+		config.Certificates = nil
+		config.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return new(tls.Certificate), nil
+		}
+		return config, nil
+	case "require":
+		state := new(sslCertState)
+		original := config
+		config = config.Clone()
+		// Resumed sessions skip the certificate exchange and its callback.
+		config.ClientSessionCache = nil
+		config.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			state.requested = true
+			var cert *tls.Certificate
+			var err error
+			if original.GetClientCertificate != nil {
+				cert, err = original.GetClientCertificate(cri)
+			} else {
+				// Preserve crypto/tls's default certificate selection, including its
+				// signature scheme and acceptable CA checks.
+				cert = new(tls.Certificate)
+				for i := range original.Certificates {
+					if cri.SupportsCertificate(&original.Certificates[i]) == nil {
+						cert = &original.Certificates[i]
+						break
+					}
+				}
+			}
+			state.sent = err == nil && cert != nil && len(cert.Certificate) > 0
+			return cert, err
+		}
+		return config, state
+	default:
+		return config, nil
+	}
+}
+
+func parseSSLCertMode(s string) (string, error) {
+	switch s {
+	case "disable", "allow", "require":
+		return s, nil
+	default:
+		return "", fmt.Errorf("unknown sslcertmode value: %v", s)
 	}
 }
 

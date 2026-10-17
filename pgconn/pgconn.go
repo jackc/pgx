@@ -147,6 +147,13 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 		panic("config must be created by ParseConfig")
 	}
 
+	// Config may have been modified after ParseConfig. Validate before resolving hosts.
+	if config.SSLCertMode != "" {
+		if _, err := parseSSLCertMode(config.SSLCertMode); err != nil {
+			return nil, &ConnectError{Config: config, err: fmt.Errorf("invalid sslcertmode: %w", err)}
+		}
+	}
+
 	var allErrors []error
 
 	connectConfigs, errs := buildConnectOneConfigs(ctx, config)
@@ -270,6 +277,11 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 
 		allErrors = append(allErrors, err)
 
+		var sslCertErr *sslCertModeError
+		if errors.As(err, &sslCertErr) {
+			return nil, allErrors
+		}
+
 		var pgErr *PgError
 		if errors.As(err, &pgErr) {
 			// pgx will try next host even if libpq does not in certain cases (see #2246)
@@ -341,7 +353,10 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return nil, newPerDialConnectError("dial error", err)
 	}
 
+	var sslCert *sslCertState
 	if connectConfig.tlsConfig != nil {
+		tlsConfig, state := prepareTLSConfigForConnect(connectConfig.tlsConfig, config.SSLCertMode)
+		sslCert = state
 		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
 		pgConn.contextWatcher.Watch(ctx)
 		var (
@@ -349,9 +364,9 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			err     error
 		)
 		if config.SSLNegotiation == "direct" {
-			tlsConn = tls.Client(pgConn.conn, connectConfig.tlsConfig)
+			tlsConn = tls.Client(pgConn.conn, tlsConfig)
 		} else {
-			tlsConn, err = startTLS(pgConn.conn, connectConfig.tlsConfig)
+			tlsConn, err = startTLS(pgConn.conn, tlsConfig)
 		}
 		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
 		if err != nil {
@@ -447,6 +462,12 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			pgConn.secretKey = msg.SecretKey
 
 		case *pgproto3.AuthenticationOk:
+			if config.SSLCertMode == "require" {
+				if err := sslCert.checkRequired(); err != nil {
+					pgConn.conn.Close()
+					return nil, newPerDialConnectError("sslcertmode check failed", err)
+				}
+			}
 			if requireAuthPolicy.authRequired && !clientFinishedAuth {
 				return requireAuthFail(requireAuthPolicy.check(authMethodNone))
 			}
@@ -502,6 +523,13 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 			clientFinishedAuth = true
 		case *pgproto3.ReadyForQuery:
+			// A server may omit AuthenticationOk, so enforce the requirement here too.
+			if config.SSLCertMode == "require" {
+				if err := sslCert.checkRequired(); err != nil {
+					pgConn.conn.Close()
+					return nil, newPerDialConnectError("sslcertmode check failed", err)
+				}
+			}
 			pgConn.status = connStatusIdle
 			// The connect-phase deadline-only watcher is no longer needed; replace
 			// it with the application-supplied watcher so subsequent operations
@@ -1140,11 +1168,13 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// cancel connection. The legacy unencrypted path is still used when the primary connection is
 	// plaintext (e.g. unix sockets or sslmode=disable).
 	if pgConn.tlsConfig != nil {
+		// Cancel requests have no AuthenticationOk, so only the prepared TLS config is needed.
+		tlsConfig, _ := prepareTLSConfigForConnect(pgConn.tlsConfig, pgConn.config.SSLCertMode)
 		var tlsCancelConn net.Conn
 		if pgConn.config.SSLNegotiation == "direct" {
-			tlsCancelConn = tls.Client(cancelConn, pgConn.tlsConfig)
+			tlsCancelConn = tls.Client(cancelConn, tlsConfig)
 		} else {
-			tlsCancelConn, err = startTLS(cancelConn, pgConn.tlsConfig)
+			tlsCancelConn, err = startTLS(cancelConn, tlsConfig)
 			if err != nil {
 				return fmt.Errorf("tls error on cancel connection: %w", err)
 			}

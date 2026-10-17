@@ -92,6 +92,16 @@ func (e *perDialConnectError) Unwrap() error {
 	return e.err
 }
 
+// sslCertModeError is a client-side authentication failure that must stop
+// connection fallback, matching libpq's sslcertmode=require behavior.
+type sslCertModeError struct {
+	msg string
+}
+
+func (e *sslCertModeError) Error() string {
+	return e.msg
+}
+
 // ErrConnClosed is returned (possibly wrapped) when an operation is attempted
 // on a connection that the driver has already closed, e.g. because a prior
 // query was cancelled mid-flight or the underlying socket went away. Use
