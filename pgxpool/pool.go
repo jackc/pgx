@@ -172,7 +172,8 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 
 	// PingTimeout is the maximum amount of time to wait for a connection to pong before considering it as unhealthy and
-	// destroying it. If zero, the default is no timeout.
+	// destroying it. If zero, the default is no timeout. After the acquiring caller cancels,
+	// a ping is allowed at most one more minute to complete before it is canceled.
 	PingTimeout time.Duration
 
 	// MaxConns is the maximum size of the pool. The default is the greater of 4 or runtime.NumCPU().
@@ -656,8 +657,9 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 		shouldPingParams := ShouldPingParams{Conn: cr.conn, IdleDuration: res.IdleDuration()}
 		if p.shouldPing(ctx, shouldPingParams) {
 			pingErrChan := make(chan error, 1)
+			pingCtx, cancelPing := context.WithCancel(context.WithoutCancel(ctx))
 			go func() {
-				pingCtx := context.WithoutCancel(ctx)
+				defer cancelPing()
 				if deadline, ok := ctx.Deadline(); ok {
 					var cancel context.CancelFunc
 					pingCtx, cancel = context.WithDeadline(pingCtx, deadline)
@@ -679,6 +681,10 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 				}
 			case <-ctx.Done():
 				go func() {
+					// Let a healthy ping finish, but do not retain an abandoned
+					// resource forever when neither context has a deadline.
+					timer := time.AfterFunc(time.Minute, cancelPing)
+					defer timer.Stop()
 					if err := <-pingErrChan; err != nil {
 						res.Destroy()
 					} else {
