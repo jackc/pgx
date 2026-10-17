@@ -907,34 +907,52 @@ func TestConnCopyFromAutomaticStringConversion(t *testing.T) {
 func TestConnCopyFromAutomaticStringConversionArray(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+	for _, tt := range []struct {
+		name             string
+		multidimensional bool
+		inputRows        [][]any
+		want             [][]int64
+	}{
+		{
+			name:      "one-dimensional",
+			inputRows: [][]any{{[]string{"42"}}, {[]string{"7"}}, {[]string{"8", "9"}}},
+			want:      [][]int64{{42}, {7}, {8, 9}},
+		},
+		{
+			name:             "multidimensional",
+			multidimensional: true,
+			inputRows:        [][]any{{[][]string{{"10", "11"}, {"12", "13"}}}},
+			want:             [][]int64{{10, 11, 12, 13}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
 
-	mustExec(t, conn, `create temporary table foo(
-		a numeric[]
-	)`)
+			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+			defer closeConn(t, conn)
 
-	inputRows := [][]any{
-		{[]string{"42"}},
-		{[]string{"7"}},
-		{[]string{"8", "9"}},
-		{[][]string{{"10", "11"}, {"12", "13"}}},
+			if tt.multidimensional {
+				pgxtest.SkipCockroachDB(t, conn, "Server does not support nested arrays")
+			}
+
+			mustExec(t, conn, `create temporary table foo(a numeric[])`)
+
+			copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(tt.inputRows))
+			require.NoError(t, err)
+			require.EqualValues(t, len(tt.inputRows), copyCount)
+
+			// Test reads as int64 and flattened array for simplicity.
+			rows, _ := conn.Query(ctx, "select * from foo")
+			nums, err := pgx.CollectRows(rows, pgx.RowTo[[]int64])
+			require.NoError(t, err)
+			require.Equal(t, tt.want, nums)
+
+			ensureConnValid(t, conn)
+		})
 	}
-
-	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
-	require.NoError(t, err)
-	require.EqualValues(t, len(inputRows), copyCount)
-
-	// Test reads as int64 and flattened array for simplicity.
-	rows, _ := conn.Query(ctx, "select * from foo")
-	nums, err := pgx.CollectRows(rows, pgx.RowTo[[]int64])
-	require.NoError(t, err)
-	require.Equal(t, [][]int64{{42}, {7}, {8, 9}, {10, 11, 12, 13}}, nums)
-
-	ensureConnValid(t, conn)
 }
 
 // https://github.com/jackc/pgx/issues/2385
