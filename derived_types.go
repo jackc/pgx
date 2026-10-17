@@ -85,6 +85,8 @@ UNION ALL
 -- Now construct a recursive query which includes a 'depth' element.
 -- This is used to ensure that the "youngest" children are registered before
 -- their parents.
+-- Deduplicate relationships at each depth so shared dependencies do not
+-- multiply the work at every level of a nested composite type.
 relationships(parent, child, depth) AS (
     SELECT DISTINCT 0::OID, selected_types.oid, 0
     FROM selected_types
@@ -93,7 +95,7 @@ UNION ALL
     FROM selected_classes c
     inner join pg_type ON (c.reltype = pg_type.oid)
     inner join pg_attribute on (c.oid = pg_attribute.attrelid)
-UNION ALL
+UNION
     SELECT pc.parent, pc.child, relationships.depth + 1
     FROM pc
     INNER JOIN relationships ON (pc.parent = relationships.child)
