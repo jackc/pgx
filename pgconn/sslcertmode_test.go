@@ -334,6 +334,92 @@ func TestConnectSSLCertModeInvalid(t *testing.T) {
 	require.ErrorContains(t, err, "unknown sslcertmode value")
 }
 
+func TestConnectSSLCertModeRequireStopsFallback(t *testing.T) {
+	t.Parallel()
+	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name        string
+		sslmode     string
+		hosts       string
+		requestCert bool
+		haveCert    bool
+		wantErr     string
+	}{
+		{"allow plaintext", "allow", "127.0.0.1", false, true, "server did not request an SSL certificate"},
+		{"prefer without request", "prefer", "127.0.0.1", false, true, "server did not request an SSL certificate"},
+		{"prefer without certificate", "prefer", "127.0.0.1", true, false, "server accepted connection without a valid SSL certificate"},
+		{"multiple hosts without request", "require", "127.0.0.1,127.0.0.2", false, true, "server did not request an SSL certificate"},
+		{"multiple hosts without certificate", "require", "127.0.0.1,127.0.0.2", true, false, "server accepted connection without a valid SSL certificate"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config, err := pgconn.ParseConfig(fmt.Sprintf("host=%s user=test sslmode=%s sslcertmode=require", tc.hosts, tc.sslmode))
+			require.NoError(t, err)
+			clientTLS := &tls.Config{InsecureSkipVerify: true}
+			if tc.haveCert {
+				clientTLS.Certificates = []tls.Certificate{cert}
+			}
+			if config.TLSConfig != nil {
+				config.TLSConfig = clientTLS
+			}
+			for _, fallback := range config.Fallbacks {
+				if fallback.TLSConfig != nil {
+					fallback.TLSConfig = clientTLS
+				}
+			}
+			var serverTLS *tls.Config
+			if tc.sslmode != "allow" {
+				serverTLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+				if tc.requestCert {
+					serverTLS.ClientAuth = tls.RequestClientCert
+				}
+			}
+			results := sslCertModeTestServer(t, config, serverTLS)
+			dial := config.DialFunc
+			var attempts atomic.Int32
+			config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				if attempts.Add(1) > 1 {
+					return nil, errors.New("unexpected fallback after sslcertmode failure")
+				}
+				return dial(ctx, network, address)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, err = pgconn.ConnectConfig(ctx, config)
+			require.ErrorContains(t, err, tc.wantErr)
+			require.NoError(t, (<-results).err)
+			require.EqualValues(t, 1, attempts.Load(), "must stop before trying any TLS or host fallback")
+		})
+	}
+}
+
+func TestConnectSSLCertModeRequireAllowsDialFallback(t *testing.T) {
+	t.Parallel()
+	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	config, err := pgconn.ParseConfig("host=127.0.0.1,127.0.0.2 user=test sslmode=require sslcertmode=require")
+	require.NoError(t, err)
+	config.TLSConfig = &tls.Config{InsecureSkipVerify: true, Certificates: []tls.Certificate{cert}}
+	config.Fallbacks[0].TLSConfig = config.TLSConfig
+	results := sslCertModeTestServer(t, config, &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequestClientCert})
+	dial := config.DialFunc
+	var attempts atomic.Int32
+	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		if attempts.Add(1) == 1 {
+			return nil, errors.New("first host unavailable")
+		}
+		return dial(ctx, network, address)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+	require.NoError(t, (<-results).err)
+	require.EqualValues(t, 2, attempts.Load())
+}
+
 func TestConnectSSLCertModeCertificateSelection(t *testing.T) {
 	t.Parallel()
 	cert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))

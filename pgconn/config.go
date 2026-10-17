@@ -1098,10 +1098,10 @@ type sslCertState struct {
 // In require mode, a nil state means that no TLS connection was made.
 func (s *sslCertState) checkRequired() error {
 	if s == nil || !s.requested {
-		return errors.New("server did not request an SSL certificate")
+		return &sslCertModeError{msg: "server did not request an SSL certificate"}
 	}
 	if !s.sent {
-		return errors.New("server accepted connection without a valid SSL certificate")
+		return &sslCertModeError{msg: "server accepted connection without a valid SSL certificate"}
 	}
 	return nil
 }

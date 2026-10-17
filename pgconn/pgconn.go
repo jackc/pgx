@@ -275,6 +275,11 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 
 		allErrors = append(allErrors, err)
 
+		var sslCertErr *sslCertModeError
+		if errors.As(err, &sslCertErr) {
+			return nil, allErrors
+		}
+
 		var pgErr *PgError
 		if errors.As(err, &pgErr) {
 			// pgx will try next host even if libpq does not in certain cases (see #2246)

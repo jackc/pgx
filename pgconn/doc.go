@@ -41,6 +41,7 @@ is sent. The default, allow, sends a certificate if the server requests one and 
 The disable mode prevents sending a certificate, including certificates supplied through Config.TLSConfig, and skips
 loading sslcert and sslkey files. The require mode fails if the server successfully authenticates the client without
 requesting and receiving a client certificate. It does not guarantee that the server validated the certificate.
+If this check fails, no further TLS or host fallbacks are tried.
 This parameter is independent of sslmode, which controls TLS and server certificate verification.
 
 Executing a Query
