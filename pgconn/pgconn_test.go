@@ -2229,6 +2229,73 @@ func TestConnExecBatchWriteError(t *testing.T) {
 	require.True(t, pgConn.IsClosed())
 }
 
+// https://github.com/jackc/pgx/issues/2687
+func TestConnContextCanceledDuringWrite(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		run  func(ctx context.Context, pgConn *pgconn.PgConn) error
+	}{
+		{name: "Exec", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.Exec(ctx, "select 1").ReadAll()
+			return err
+		}},
+		{name: "ExecParams", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.ExecParams(ctx, "select 1", nil, nil, nil, nil).Close()
+			return err
+		}},
+		{name: "ExecPrepared", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Close()
+			return err
+		}},
+		{name: "Prepare", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.Prepare(ctx, "ps1", "select 1", nil)
+			return err
+		}},
+		{name: "Deallocate", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			return pgConn.Deallocate(ctx, "ps1")
+		}},
+		{name: "CopyTo", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.CopyTo(ctx, io.Discard, "copy (select 1) to stdout")
+			return err
+		}},
+		{name: "CopyFrom", run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+			_, err := pgConn.CopyFrom(ctx, strings.NewReader("1\n"), "copy foo from stdin")
+			return err
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable")
+			require.NoError(t, err)
+
+			clientConn, serverConn := net.Pipe()
+			defer serverConn.Close()
+
+			pgConn, err := pgconn.Construct(&pgconn.HijackedConn{
+				Conn:              clientConn,
+				TxStatus:          'I',
+				ParameterStatuses: map[string]string{},
+				Config:            config,
+			})
+			require.NoError(t, err)
+			defer pgConn.Close(context.Background())
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() {
+				// Nobody reads the rest of the message so the write stays blocked until the context is canceled.
+				serverConn.Read(make([]byte, 1))
+				cancel()
+			}()
+
+			err = tt.run(ctx, pgConn)
+			require.ErrorIs(t, err, context.Canceled)
+		})
+	}
+}
+
 func TestConnExecBatchDeferredError(t *testing.T) {
 	t.Parallel()
 
