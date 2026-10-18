@@ -239,6 +239,9 @@ func TestStmtExec(t *testing.T) {
 	require.EqualValues(t, 1, n)
 	closeStmt(t, insertStmt)
 
+	err = tx.Rollback()
+	require.NoError(t, err)
+
 	ensureDBValid(t, db)
 }
 
