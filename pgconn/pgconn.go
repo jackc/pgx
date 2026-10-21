@@ -530,6 +530,11 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 					return nil, newPerDialConnectError("sslcertmode check failed", err)
 				}
 			}
+			// A server can omit AuthenticationOk. Enforce authentication completion
+			// before exposing the connection to ValidateConnect or the caller.
+			if requireAuthPolicy.authRequired && !clientFinishedAuth {
+				return requireAuthFail(requireAuthPolicy.check(authMethodNone))
+			}
 			pgConn.status = connStatusIdle
 			// The connect-phase deadline-only watcher is no longer needed; replace
 			// it with the application-supplied watcher so subsequent operations
