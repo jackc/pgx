@@ -445,6 +445,11 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return nil, newPerDialConnectError("require_auth check failed", err)
 	}
 	clientFinishedAuth := false
+	channelBound := false
+	channelBindingFail := func() (*PgConn, error) {
+		pgConn.conn.Close()
+		return nil, newPerDialConnectError("channel binding check failed", errors.New("channel binding required but server did not authenticate using channel binding"))
+	}
 
 	for {
 		msg, err := pgConn.receiveMessage()
@@ -454,6 +459,18 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				return nil, newPerDialConnectError("server error", err)
 			}
 			return nil, newPerDialConnectError("failed to receive message", err)
+		}
+
+		if config.ChannelBinding == "require" {
+			switch msg.(type) {
+			case *pgproto3.AuthenticationCleartextPassword, *pgproto3.AuthenticationMD5Password, *pgproto3.AuthenticationGSS:
+				// Reject incompatible methods before sending credentials.
+				return channelBindingFail()
+			case *pgproto3.AuthenticationOk, *pgproto3.ReadyForQuery:
+				if !channelBound {
+					return channelBindingFail()
+				}
+			}
 		}
 
 		switch msg := msg.(type) {
@@ -497,6 +514,9 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			serverSupportsOAuthBearer := slices.Contains(msg.AuthMechanisms, "OAUTHBEARER")
 
 			if serverSupportsOAuthBearer && pgConn.config.OAuthTokenProvider != nil {
+				if config.ChannelBinding == "require" {
+					return channelBindingFail()
+				}
 				if err := requireAuthPolicy.check(authMethodOAuth); err != nil {
 					return requireAuthFail(err)
 				}
@@ -505,7 +525,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				if err := requireAuthPolicy.check(authMethodSCRAMSHA256); err != nil {
 					return requireAuthFail(err)
 				}
-				err = pgConn.scramAuth(msg.AuthMechanisms)
+				channelBound, err = pgConn.scramAuth(msg.AuthMechanisms)
 			}
 			if err != nil {
 				pgConn.conn.Close()
