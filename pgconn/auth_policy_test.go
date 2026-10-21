@@ -74,7 +74,8 @@ func TestConnectRequireAuthCompletion(t *testing.T) {
 				config, err := ParseConfig("host=127.0.0.1 user=test password=test sslmode=disable")
 				require.NoError(t, err)
 				config.RequireAuth = policy
-				mustReject := policy == "scram-sha-256" || policy == "password" || policy == "!none"
+				authRequired := policy == "scram-sha-256" || policy == "password" || policy == "!none"
+				mustReject := authRequired || !authOK
 				validated := false
 				config.ValidateConnect = func(context.Context, *PgConn) error { validated = true; return nil }
 				err = connectAuthTest(t, config, func(b *pgproto3.Backend) error {
@@ -96,7 +97,11 @@ func TestConnectRequireAuthCompletion(t *testing.T) {
 					return nil
 				})
 				if mustReject {
-					require.ErrorContains(t, err, "server did not complete authentication")
+					if authOK {
+						require.ErrorContains(t, err, "server did not complete authentication")
+					} else {
+						require.ErrorContains(t, err, "received ReadyForQuery before AuthenticationOk")
+					}
 					require.False(t, validated)
 				} else {
 					require.NoError(t, err)
@@ -107,30 +112,71 @@ func TestConnectRequireAuthCompletion(t *testing.T) {
 	}
 }
 
-func TestConnectRequireAuthPasswordCompleted(t *testing.T) {
-	config, err := ParseConfig("host=127.0.0.1 user=test password=test sslmode=disable require_auth=password")
-	require.NoError(t, err)
-	err = connectAuthTest(t, config, func(b *pgproto3.Backend) error {
-		b.Send(&pgproto3.AuthenticationCleartextPassword{})
-		if err := b.Flush(); err != nil {
-			return err
+func TestConnectAuthenticationOk(t *testing.T) {
+	for _, method := range []string{"password", "md5", "oauth"} {
+		for _, authOK := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/authOK=%v", method, authOK), func(t *testing.T) {
+				config, err := ParseConfig("host=127.0.0.1 user=test password=test sslmode=disable require_auth=" + method)
+				require.NoError(t, err)
+				config.OAuthTokenProvider = func(context.Context) (string, error) { return "token", nil }
+				validated := false
+				config.ValidateConnect = func(context.Context, *PgConn) error { validated = true; return nil }
+				err = connectAuthTest(t, config, func(b *pgproto3.Backend) error {
+					switch method {
+					case "password":
+						b.Send(&pgproto3.AuthenticationCleartextPassword{})
+					case "md5":
+						b.Send(&pgproto3.AuthenticationMD5Password{})
+					case "oauth":
+						b.SetAuthType(pgproto3.AuthTypeSASL)
+						b.Send(&pgproto3.AuthenticationSASL{AuthMechanisms: []string{"OAUTHBEARER"}})
+					}
+					if err := b.Flush(); err != nil {
+						return err
+					}
+					msg, err := b.Receive()
+					if err != nil {
+						return err
+					}
+					if method == "oauth" {
+						response, ok := msg.(*pgproto3.SASLInitialResponse)
+						if !ok || response.AuthMechanism != "OAUTHBEARER" {
+							return fmt.Errorf("expected OAuth response, got %T", msg)
+						}
+					} else if _, ok := msg.(*pgproto3.PasswordMessage); !ok {
+						return fmt.Errorf("expected password response, got %T", msg)
+					}
+					if authOK {
+						b.Send(&pgproto3.AuthenticationOk{})
+					}
+					b.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+					if err := b.Flush(); err != nil {
+						return err
+					}
+					msg, err = b.Receive()
+					if !authOK {
+						if err != io.EOF && err != io.ErrUnexpectedEOF {
+							return fmt.Errorf("expected EOF, got %T: %v", msg, err)
+						}
+					} else if _, ok := msg.(*pgproto3.Terminate); !ok {
+						return fmt.Errorf("expected Terminate, got %T: %v", msg, err)
+					}
+					return nil
+				})
+				if authOK {
+					require.NoError(t, err)
+					require.True(t, validated)
+				} else {
+					if method == "oauth" {
+						require.ErrorContains(t, err, "unexpected message type during OAuth auth")
+					} else {
+						require.ErrorContains(t, err, "received ReadyForQuery before AuthenticationOk")
+					}
+					require.False(t, validated)
+				}
+			})
 		}
-		msg, err := b.Receive()
-		if password, ok := msg.(*pgproto3.PasswordMessage); !ok || password.Password != "test" {
-			return fmt.Errorf("expected password, got %T: %v", msg, err)
-		}
-		b.Send(&pgproto3.AuthenticationOk{})
-		b.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
-		if err := b.Flush(); err != nil {
-			return err
-		}
-		msg, err = b.Receive()
-		if _, ok := msg.(*pgproto3.Terminate); !ok {
-			return fmt.Errorf("expected Terminate, got %T: %v", msg, err)
-		}
-		return nil
-	})
-	require.NoError(t, err)
+	}
 }
 
 func TestConnectChannelBindingRequired(t *testing.T) {
@@ -167,7 +213,11 @@ func TestConnectChannelBindingRequired(t *testing.T) {
 					}
 					return nil
 				})
-				require.ErrorContains(t, err, "channel binding required")
+				if tc.name == "ready" {
+					require.ErrorContains(t, err, "received ReadyForQuery before AuthenticationOk")
+				} else {
+					require.ErrorContains(t, err, "channel binding required")
+				}
 				require.False(t, tokenRequested)
 				require.False(t, validated)
 			})
@@ -177,8 +227,14 @@ func TestConnectChannelBindingRequired(t *testing.T) {
 
 func TestConnectChannelBindingSCRAM(t *testing.T) {
 	for _, mode := range []string{"require", "prefer", "disable"} {
-		for _, invalidSignature := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/invalidSignature=%v", mode, invalidSignature), func(t *testing.T) {
+		for _, tc := range []struct {
+			name                         string
+			invalidSignature, omitAuthOK bool
+		}{
+			{name: "success"}, {name: "invalidSignature", invalidSignature: true}, {name: "missingAuthOK", omitAuthOK: true},
+		} {
+			invalidSignature, omitAuthOK := tc.invalidSignature, tc.omitAuthOK
+			t.Run(mode+"/"+tc.name, func(t *testing.T) {
 				config, err := ParseConfig("host=127.0.0.1 user=test password=test sslmode=require channel_binding=" + mode + " require_auth=scram-sha-256")
 				require.NoError(t, err)
 				validated := false
@@ -240,13 +296,15 @@ func TestConnectChannelBindingSCRAM(t *testing.T) {
 						signature = []byte("invalid")
 					}
 					b.Send(&pgproto3.AuthenticationSASLFinal{Data: append([]byte("v="), signature...)})
-					b.Send(&pgproto3.AuthenticationOk{})
+					if !omitAuthOK {
+						b.Send(&pgproto3.AuthenticationOk{})
+					}
 					b.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
 					if err := b.Flush(); err != nil {
 						return err
 					}
 					msg, err = b.Receive()
-					if invalidSignature {
+					if invalidSignature || omitAuthOK {
 						if err != io.EOF && err != io.ErrUnexpectedEOF {
 							return fmt.Errorf("expected EOF, got %T: %v", msg, err)
 						}
@@ -258,11 +316,56 @@ func TestConnectChannelBindingSCRAM(t *testing.T) {
 				if invalidSignature {
 					require.ErrorContains(t, err, "invalid SCRAM ServerSignature")
 					require.False(t, validated)
+				} else if omitAuthOK {
+					require.ErrorContains(t, err, "received ReadyForQuery before AuthenticationOk")
+					require.False(t, validated)
 				} else {
 					require.NoError(t, err)
 					require.True(t, validated)
 				}
 			})
 		}
+	}
+}
+
+func TestConnectOAuthServerErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		message   pgproto3.BackendMessage
+		wantError string
+	}{
+		{"rejected", &pgproto3.AuthenticationSASLContinue{Data: []byte(`{"status":"invalid_token"}`)}, "OAuth authentication failed: invalid_token"},
+		{"invalidJSON", &pgproto3.AuthenticationSASLContinue{Data: []byte(`{`)}, "invalid OAuth error response from server"},
+		{"serverError", &pgproto3.ErrorResponse{Severity: "FATAL", Code: "28000", Message: "OAuth rejected"}, "OAuth rejected"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := ParseConfig("host=127.0.0.1 user=test sslmode=disable require_auth=oauth")
+			require.NoError(t, err)
+			config.OAuthTokenProvider = func(context.Context) (string, error) { return "token", nil }
+			validated := false
+			config.ValidateConnect = func(context.Context, *PgConn) error { validated = true; return nil }
+			err = connectAuthTest(t, config, func(b *pgproto3.Backend) error {
+				b.SetAuthType(pgproto3.AuthTypeSASL)
+				b.Send(&pgproto3.AuthenticationSASL{AuthMechanisms: []string{"OAUTHBEARER"}})
+				if err := b.Flush(); err != nil {
+					return err
+				}
+				msg, err := b.Receive()
+				if _, ok := msg.(*pgproto3.SASLInitialResponse); !ok {
+					return fmt.Errorf("expected SASLInitialResponse, got %T: %v", msg, err)
+				}
+				b.Send(tc.message)
+				if err := b.Flush(); err != nil {
+					return err
+				}
+				msg, err = b.Receive()
+				if err != io.EOF && err != io.ErrUnexpectedEOF {
+					return fmt.Errorf("expected EOF, got %T: %v", msg, err)
+				}
+				return nil
+			})
+			require.ErrorContains(t, err, tc.wantError)
+			require.False(t, validated)
+		})
 	}
 }
