@@ -227,7 +227,7 @@ func (c Uint64Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	if err != nil {
 		return nil, err
 	}
-	return int64(n), nil
+	return (Uint64{Uint64: n, Valid: true}).Value()
 }
 
 func (c Uint64Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
