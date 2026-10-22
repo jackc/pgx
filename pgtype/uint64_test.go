@@ -63,3 +63,22 @@ func TestUint64CodecSQLScanner(t *testing.T) {
 		}
 	}
 }
+
+func TestOID8(t *testing.T) {
+	skipCockroachDB(t, "Server does not support oid8")
+	skipPostgreSQLVersionLessThan(t, 19)
+
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "oid8", []pgxtest.ValueRoundTripTest{
+		{Param: uint64(0), Result: new(uint64), Test: isExpectedEq(uint64(0))},
+		{Param: uint64(1<<64 - 1), Result: new(uint64), Test: isExpectedEq(uint64(1<<64 - 1))},
+		{
+			Param:  pgtype.Uint64{Uint64: 1<<64 - 1, Valid: true},
+			Result: new(pgtype.Uint64),
+			Test:   isExpectedEq(pgtype.Uint64{Uint64: 1<<64 - 1, Valid: true}),
+		},
+		{Param: pgtype.Uint64{}, Result: new(pgtype.Uint64), Test: isExpectedEq(pgtype.Uint64{})},
+		{Param: nil, Result: new(pgtype.Uint64), Test: isExpectedEq(pgtype.Uint64{})},
+		{Param: nil, Result: new(*uint64), Test: isExpectedEq((*uint64)(nil))},
+		{Param: "18446744073709551615", Result: new(string), Test: isExpectedEq("18446744073709551615")},
+	})
+}

@@ -209,6 +209,23 @@ func TestArrayCodec(t *testing.T) {
 	})
 }
 
+func TestOID8Array(t *testing.T) {
+	skipCockroachDB(t, "Server does not support oid8")
+	skipPostgreSQLVersionLessThan(t, 19)
+
+	max := uint64(1<<64 - 1)
+	zero := uint64(0)
+	values := []*uint64{&max, nil, &zero}
+	queryModes := []pgx.QueryExecMode{pgx.QueryExecModeDescribeExec, pgx.QueryExecModeSimpleProtocol}
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, queryModes, "oid8[]", []pgxtest.ValueRoundTripTest{
+		{
+			Param:  values,
+			Result: new([]*uint64),
+			Test:   func(v any) bool { return reflect.DeepEqual(values, v) },
+		},
+	})
+}
+
 func TestArrayCodecFlatArrayString(t *testing.T) {
 	testCases := []struct {
 		input []string
