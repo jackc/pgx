@@ -29,6 +29,41 @@ func TestUint64Codec(t *testing.T) {
 	})
 }
 
+func TestUint64CodecSQLScanner(t *testing.T) {
+	m := pgtype.NewMap()
+	for _, format := range []int16{pgtype.TextFormatCode, pgtype.BinaryFormatCode} {
+		for i, tt := range []struct {
+			value any
+			want  any
+		}{
+			{uint64(1<<63 - 1), int64(1<<63 - 1)},
+			{uint64(1 << 63), "9223372036854775808"},
+			{uint64(1<<64 - 1), "18446744073709551615"},
+			{nil, nil},
+		} {
+			buf, err := m.Encode(pgtype.XID8OID, format, tt.value, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			called := false
+			err = m.Scan(pgtype.XID8OID, format, buf, sqlScannerFunc(func(src any) error {
+				called = true
+				if src != tt.want {
+					t.Errorf("%d. format %d: got %v (%T), want %v (%T)", i, format, src, src, tt.want, tt.want)
+				}
+				return nil
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !called {
+				t.Fatal("sql.Scanner was not called")
+			}
+		}
+	}
+}
+
 func TestOID8(t *testing.T) {
 	skipCockroachDB(t, "Server does not support oid8")
 	skipPostgreSQLVersionLessThan(t, 19)
