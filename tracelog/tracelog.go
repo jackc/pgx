@@ -91,26 +91,26 @@ func LogLevelFromString(s string) (LogLevel, error) {
 	}
 }
 
-func logQueryArgs(args []any) []any {
+const defaultMaxLogArgsLen = 64
+
+func logQueryArgs(args []any, maxLen int) []any {
+	if maxLen <= 0 {
+		maxLen = defaultMaxLogArgsLen
+	}
+
 	logArgs := make([]any, 0, len(args))
 
 	for _, a := range args {
 		switch v := a.(type) {
 		case []byte:
-			if len(v) < 64 {
+			if len(v) <= maxLen {
 				a = hex.EncodeToString(v)
 			} else {
-				a = fmt.Sprintf("%x (truncated %d bytes)", v[:64], len(v)-64)
+				a = truncateBytes(v, maxLen)
 			}
 		case string:
-			if len(v) > 64 {
-				l := 0
-				for w := 0; l < 64; l += w {
-					_, w = utf8.DecodeRuneInString(v[l:])
-				}
-				if len(v) > l {
-					a = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
-				}
+			if len(v) > maxLen {
+				a = truncateString(v, maxLen)
 			}
 		}
 		logArgs = append(logArgs, a)
@@ -119,15 +119,64 @@ func logQueryArgs(args []any) []any {
 	return logArgs
 }
 
-// TraceLogConfig holds the configuration for key names
+func truncationSuffix(truncatedBytes int) string {
+	return fmt.Sprintf(" (truncated %d bytes)", truncatedBytes)
+}
+
+func utf8PrefixLen(s string, maxLen int) int {
+	length := 0
+	for length < maxLen {
+		_, width := utf8.DecodeRuneInString(s[length:])
+		if length+width > maxLen {
+			break
+		}
+		length += width
+	}
+	return length
+}
+
+func truncateString(s string, maxLen int) string {
+	length := utf8PrefixLen(s, maxLen)
+
+	for {
+		suffix := truncationSuffix(len(s) - length)
+		if length+len(suffix) < len(s) || length == 0 {
+			return s[:length] + suffix
+		}
+
+		length--
+		for length > 0 && !utf8.RuneStart(s[length]) {
+			length--
+		}
+	}
+}
+
+func truncateBytes(b []byte, maxLen int) string {
+	length := maxLen
+
+	for {
+		suffix := truncationSuffix(len(b) - length)
+		if length*2+len(suffix) < len(b)*2 || length == 0 {
+			return hex.EncodeToString(b[:length]) + suffix
+		}
+
+		length--
+	}
+}
+
+// TraceLogConfig holds the configuration for key names and query argument logging.
 type TraceLogConfig struct {
 	TimeKey string
+	// MaxLogArgsLen is the maximum number of bytes of a query argument included in logs before truncation.
+	// Non-positive values use the default.
+	MaxLogArgsLen int
 }
 
 // DefaultTraceLogConfig returns the default configuration for TraceLog
 func DefaultTraceLogConfig() *TraceLogConfig {
 	return &TraceLogConfig{
-		TimeKey: "time",
+		TimeKey:       "time",
+		MaxLogArgsLen: defaultMaxLogArgsLen,
 	}
 }
 
@@ -188,13 +237,13 @@ func (tl *TraceLog) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.
 
 	if data.Err != nil {
 		if tl.shouldLog(LogLevelError) {
-			tl.log(ctx, conn, LogLevelError, "Query", map[string]any{"sql": queryData.sql, "args": logQueryArgs(queryData.args), "err": data.Err, tl.Config.TimeKey: interval})
+			tl.log(ctx, conn, LogLevelError, "Query", map[string]any{"sql": queryData.sql, "args": logQueryArgs(queryData.args, tl.Config.MaxLogArgsLen), "err": data.Err, tl.Config.TimeKey: interval})
 		}
 		return
 	}
 
 	if tl.shouldLog(LogLevelInfo) {
-		tl.log(ctx, conn, LogLevelInfo, "Query", map[string]any{"sql": queryData.sql, "args": logQueryArgs(queryData.args), tl.Config.TimeKey: interval, "commandTag": data.CommandTag.String()})
+		tl.log(ctx, conn, LogLevelInfo, "Query", map[string]any{"sql": queryData.sql, "args": logQueryArgs(queryData.args, tl.Config.MaxLogArgsLen), tl.Config.TimeKey: interval, "commandTag": data.CommandTag.String()})
 	}
 }
 
@@ -220,13 +269,13 @@ func (tl *TraceLog) TraceBatchQuery(ctx context.Context, conn *pgx.Conn, data pg
 
 	if data.Err != nil {
 		if tl.shouldLog(LogLevelError) {
-			tl.log(ctx, conn, LogLevelError, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), "err": data.Err, tl.Config.TimeKey: interval})
+			tl.log(ctx, conn, LogLevelError, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args, tl.Config.MaxLogArgsLen), "err": data.Err, tl.Config.TimeKey: interval})
 		}
 		return
 	}
 
 	if tl.shouldLog(LogLevelInfo) {
-		tl.log(ctx, conn, LogLevelInfo, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args), tl.Config.TimeKey: interval, "commandTag": data.CommandTag.String()})
+		tl.log(ctx, conn, LogLevelInfo, "BatchQuery", map[string]any{"sql": data.SQL, "args": logQueryArgs(data.Args, tl.Config.MaxLogArgsLen), tl.Config.TimeKey: interval, "commandTag": data.CommandTag.String()})
 	}
 }
 
