@@ -35,9 +35,9 @@ func defaultSettings() map[string]string {
 	settings["port"] = defaultPort
 	settings["target_session_attrs"] = "any"
 
-	// The %APPDATA%\postgresql-derived defaults (pgpass.conf and the client
-	// SSL certificate/key/root files) only need the APPDATA environment
-	// variable, not the full OS user account, so they are resolved
+	// The %APPDATA%\postgresql-derived defaults (pgpass.conf, .pg_service.conf
+	// and the client SSL certificate/key/root files) only need the APPDATA
+	// environment variable, not the full OS user account, so they are resolved
 	// unconditionally here. This keeps them available even when looking up
 	// the OS user account (needed only for the default PostgreSQL user
 	// name, see osUserSettings) is slow, fails, or -- in some restricted
@@ -45,6 +45,7 @@ func defaultSettings() map[string]string {
 	// process.
 	if appData := os.Getenv("APPDATA"); appData != "" {
 		settings["passfile"] = filepath.Join(appData, "postgresql", "pgpass.conf")
+		settings["servicefile"] = filepath.Join(appData, "postgresql", ".pg_service.conf")
 		sslcert := filepath.Join(appData, "postgresql", "postgresql.crt")
 		sslkey := filepath.Join(appData, "postgresql", "postgresql.key")
 		if _, err := os.Stat(sslcert); err == nil {
@@ -60,11 +61,20 @@ func defaultSettings() map[string]string {
 		}
 	}
 
-	// The default ~/.pg_service.conf location is derived from the user's
-	// home directory, resolved the same crash-safe way as on other
-	// platforms (see defaults.go).
+	// libpq looks for the service file at %APPDATA%\postgresql\.pg_service.conf
+	// on Windows, but pgx used to look for it at ~/.pg_service.conf. Keep
+	// using that file when there is none at the libpq location, so existing
+	// setups keep working. The home directory is resolved the same crash-safe
+	// way as on other platforms (see defaults.go).
 	if homeDir, err := userHomeDir(); err == nil {
-		settings["servicefile"] = filepath.Join(homeDir, ".pg_service.conf")
+		homeServicefile := filepath.Join(homeDir, ".pg_service.conf")
+		if servicefile, ok := settings["servicefile"]; !ok {
+			settings["servicefile"] = homeServicefile
+		} else if _, err := os.Stat(servicefile); os.IsNotExist(err) {
+			if _, err := os.Stat(homeServicefile); err == nil {
+				settings["servicefile"] = homeServicefile
+			}
+		}
 	}
 
 	return settings
