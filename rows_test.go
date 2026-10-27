@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
@@ -1132,5 +1134,502 @@ func TestRowsTypeMapWithoutConn(t *testing.T) {
 		rows.Close()
 		require.NoError(t, rows.Err())
 		require.NoError(t, pipeline.Close())
+	})
+}
+
+func TestRowPlan(t *testing.T) {
+	t.Parallel()
+
+	type item struct {
+		ID   int32
+		Name string
+	}
+
+	type customPlan struct {
+		idIdx   int
+		nameIdx int
+		targets [2]any
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		initCalls := 0
+		customRowTo := func(row pgx.CollectableRow) (item, error) {
+			plan, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*customPlan, error) {
+				initCalls++
+				p := &customPlan{idIdx: -1, nameIdx: -1}
+				for i, fd := range r.FieldDescriptions() {
+					switch fd.Name {
+					case "id":
+						p.idIdx = i
+					case "name":
+						p.nameIdx = i
+					}
+				}
+				if p.idIdx == -1 || p.nameIdx == -1 {
+					return nil, fmt.Errorf("missing required columns")
+				}
+				return p, nil
+			})
+			if err != nil {
+				return item{}, err
+			}
+			var v item
+			plan.targets[plan.idIdx] = &v.ID
+			plan.targets[plan.nameIdx] = &v.Name
+			err = row.Scan(plan.targets[:]...)
+			return v, err
+		}
+
+		rows, err := conn.Query(ctx, `select n as id, 'name_' || n as name from generate_series(1, 50) n`)
+		require.NoError(t, err)
+
+		items, err := pgx.CollectRows(rows, customRowTo)
+		require.NoError(t, err)
+		require.Len(t, items, 50)
+		require.Equal(t, 1, initCalls, "RowPlan init should be called once for the entire collection")
+		require.Equal(t, item{ID: 1, Name: "name_1"}, items[0])
+		require.Equal(t, item{ID: 50, Name: "name_50"}, items[49])
+
+		// Works with CollectOneRow outside AppendRows as well.
+		rowsOne, err := conn.Query(ctx, `select 99 as id, 'single' as name`)
+		require.NoError(t, err)
+		one, err := pgx.CollectOneRow(rowsOne, customRowTo)
+		require.NoError(t, err)
+		require.Equal(t, item{ID: 99, Name: "single"}, one)
+		require.Equal(t, 2, initCalls)
+	})
+}
+
+func TestRowPlanMultiplePlansAndError(t *testing.T) {
+	t.Parallel()
+
+	type planA struct{ col int }
+	type planB struct{ col int }
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		initA, initB, failCalls := 0, 0, 0
+
+		rows, err := conn.Query(ctx, `select n as a, n * 10 as b from generate_series(1, 10) n`)
+		require.NoError(t, err)
+
+		results, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) ([2]int32, error) {
+			if failCalls == 0 {
+				_, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*planA, error) {
+					failCalls++
+					return nil, fmt.Errorf("transient init error")
+				})
+				require.Error(t, err)
+			}
+
+			pa, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*planA, error) {
+				initA++
+				return &planA{col: 0}, nil
+			})
+			if err != nil {
+				return [2]int32{}, err
+			}
+			pb, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*planB, error) {
+				initB++
+				return &planB{col: 1}, nil
+			})
+			if err != nil {
+				return [2]int32{}, err
+			}
+			var out [2]int32
+			err = row.Scan(&out[pa.col], &out[pb.col])
+			return out, err
+		})
+		require.NoError(t, err)
+		require.Len(t, results, 10)
+		require.Equal(t, 1, initA)
+		require.Equal(t, 1, initB)
+		require.Equal(t, [2]int32{1, 10}, results[0])
+		require.Equal(t, [2]int32{10, 100}, results[9])
+	})
+}
+
+func TestRowToStructSliceAndPointerFieldIsolation(t *testing.T) {
+	t.Parallel()
+
+	type record struct {
+		ID    int32    `db:"id"`
+		Tags  []string `db:"tags"`
+		Raw   []byte   `db:"raw"`
+		Score *int32   `db:"score"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		query := `
+			select * from (values
+				(1::int4, array['alpha', 'beta']::text[], '\x010203'::bytea, 100::int4),
+				(2::int4, array['gamma']::text[],         '\x04'::bytea,     null::int4),
+				(3::int4, null::text[],                   null::bytea,       300::int4)
+			) as v(id, tags, raw, score)
+		`
+
+		rows, err := conn.Query(ctx, query)
+		require.NoError(t, err)
+		recs, err := pgx.CollectRows(rows, pgx.RowToStructByName[record])
+		require.NoError(t, err)
+		require.Len(t, recs, 3)
+
+		require.Equal(t, []string{"alpha", "beta"}, recs[0].Tags)
+		require.Equal(t, []byte{1, 2, 3}, recs[0].Raw)
+		require.NotNil(t, recs[0].Score)
+		require.EqualValues(t, 100, *recs[0].Score)
+
+		require.Equal(t, []string{"gamma"}, recs[1].Tags)
+		require.Equal(t, []byte{4}, recs[1].Raw)
+		require.Nil(t, recs[1].Score)
+
+		require.Nil(t, recs[2].Tags)
+		require.Nil(t, recs[2].Raw)
+		require.NotNil(t, recs[2].Score)
+		require.EqualValues(t, 300, *recs[2].Score)
+		require.NotSame(t, recs[0].Score, recs[2].Score)
+
+		// Also verify AddrOf returns distinct struct pointers per row.
+		rowsAddr, err := conn.Query(ctx, query)
+		require.NoError(t, err)
+		ptrs, err := pgx.CollectRows(rowsAddr, pgx.RowToAddrOfStructByName[record])
+		require.NoError(t, err)
+		require.Len(t, ptrs, 3)
+		require.NotSame(t, ptrs[0], ptrs[1])
+		require.NotSame(t, ptrs[1], ptrs[2])
+		require.Equal(t, []string{"alpha", "beta"}, ptrs[0].Tags)
+		require.Nil(t, ptrs[1].Score)
+		require.EqualValues(t, 300, *ptrs[2].Score)
+	})
+}
+
+func TestCollectRowsAlternatingScannersAndModes(t *testing.T) {
+	t.Parallel()
+
+	type PartA struct {
+		A int32 `db:"a"`
+		B int32 `db:"b"`
+	}
+	type PartB struct {
+		B     int32 `db:"b"`
+		A     int32 `db:"a"`
+		Extra int32 `db:"extra"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		// Switching from Lax (row 1) to Strict (row 2) when a field is missing must fail on row 2.
+		rows, err := conn.Query(ctx, `select n as a, n * 2 as b from generate_series(1, 3) n`)
+		require.NoError(t, err)
+
+		rowNum := 0
+		_, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (PartB, error) {
+			rowNum++
+			if rowNum == 1 {
+				return pgx.RowToStructByNameLax[PartB](row)
+			}
+			return pgx.RowToStructByName[PartB](row)
+		})
+		require.ErrorContains(t, err, "cannot find field extra in returned row")
+
+		// Alternating two different struct types and modes across rows succeeds.
+		rows2, err := conn.Query(ctx, `select n as a, n * 2 as b from generate_series(1, 10) n`)
+		require.NoError(t, err)
+
+		rowNum = 0
+		items, err := pgx.CollectRows(rows2, func(row pgx.CollectableRow) (PartA, error) {
+			rowNum++
+			if rowNum%2 == 0 {
+				b, err := pgx.RowToStructByNameLax[PartB](row)
+				return PartA{A: b.A, B: b.B}, err
+			}
+			if rowNum%3 == 0 {
+				return pgx.RowToStructByPos[PartA](row)
+			}
+			return pgx.RowToStructByName[PartA](row)
+		})
+		require.NoError(t, err)
+		require.Len(t, items, 10)
+		for i, it := range items {
+			n := int32(i + 1)
+			require.Equal(t, PartA{A: n, B: n * 2}, it)
+		}
+	})
+}
+
+type nonComparableCustomRows struct {
+	fds    []pgconn.FieldDescription
+	data   [][2]int32
+	idx    *int
+	closed *bool
+}
+
+func (r nonComparableCustomRows) Close()                                       { *r.closed = true }
+func (r nonComparableCustomRows) Err() error                                   { return nil }
+func (r nonComparableCustomRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (r nonComparableCustomRows) FieldDescriptions() []pgconn.FieldDescription { return r.fds }
+func (r nonComparableCustomRows) Next() bool {
+	*r.idx++
+	if *r.idx >= len(r.data) {
+		*r.closed = true
+		return false
+	}
+	return true
+}
+
+func (r nonComparableCustomRows) Scan(dest ...any) error {
+	row := r.data[*r.idx]
+	for i := range dest {
+		*dest[i].(*int32) = row[i]
+	}
+	return nil
+}
+
+func (r nonComparableCustomRows) Values() ([]any, error) {
+	row := r.data[*r.idx]
+	return []any{row[0], row[1]}, nil
+}
+func (r nonComparableCustomRows) RawValues() [][]byte  { return make([][]byte, len(r.fds)) }
+func (r nonComparableCustomRows) Conn() *pgx.Conn      { return nil }
+func (r nonComparableCustomRows) TypeMap() *pgtype.Map { return nil }
+
+func TestCollectRowsNonComparableAndReusedCustomRows(t *testing.T) {
+	t.Parallel()
+
+	type Pair struct {
+		A int32 `db:"a"`
+		B int32 `db:"b"`
+	}
+
+	// 1. Value-type Rows containing slices is not comparable via interface `==`; must not panic.
+	idx := -1
+	closed := false
+	r1 := nonComparableCustomRows{
+		fds:    []pgconn.FieldDescription{{Name: "a"}, {Name: "b"}},
+		data:   [][2]int32{{1, 2}, {3, 4}, {5, 6}},
+		idx:    &idx,
+		closed: &closed,
+	}
+	got1, err := pgx.CollectRows(r1, pgx.RowToStructByName[Pair])
+	require.NoError(t, err)
+	require.Equal(t, []Pair{{A: 1, B: 2}, {A: 3, B: 4}, {A: 5, B: 6}}, got1)
+
+	// 2. Reusing the same pointer wrapper across a second query with swapped columns (b, a) must map accurately.
+	idx = -1
+	closed = false
+	r2 := &nonComparableCustomRows{
+		fds:    []pgconn.FieldDescription{{Name: "a"}, {Name: "b"}},
+		data:   [][2]int32{{1, 2}, {3, 4}},
+		idx:    &idx,
+		closed: &closed,
+	}
+	got2a, err := pgx.CollectRows(r2, pgx.RowToStructByName[Pair])
+	require.NoError(t, err)
+	require.Equal(t, []Pair{{A: 1, B: 2}, {A: 3, B: 4}}, got2a)
+
+	idx = -1
+	closed = false
+	r2.fds = []pgconn.FieldDescription{{Name: "b"}, {Name: "a"}}
+	r2.data = [][2]int32{{20, 10}, {40, 30}}
+	got2b, err := pgx.CollectRows(r2, pgx.RowToStructByName[Pair])
+	require.NoError(t, err)
+	require.Equal(t, []Pair{{A: 10, B: 20}, {A: 30, B: 40}}, got2b)
+}
+
+type bufferScanner struct {
+	buf [1]int32
+	val []int32
+}
+
+func (s *bufferScanner) Scan(src any) error {
+	switch v := src.(type) {
+	case int64:
+		s.buf[0] = int32(v)
+	case int32:
+		s.buf[0] = v
+	default:
+		return fmt.Errorf("unexpected: %T", src)
+	}
+	s.val = s.buf[:]
+	return nil
+}
+
+type selfPtrScanner struct {
+	val int32
+	ptr *int32
+}
+
+func (s *selfPtrScanner) Scan(src any) error {
+	switch v := src.(type) {
+	case int64:
+		s.val = int32(v)
+	case int32:
+		s.val = v
+	default:
+		return fmt.Errorf("unexpected: %T", src)
+	}
+	s.ptr = &s.val
+	return nil
+}
+
+func TestCollectRowsCustomScannerScratchReuse(t *testing.T) {
+	t.Parallel()
+
+	type rowStruct struct {
+		Item bufferScanner `db:"n"`
+	}
+
+	t.Run("RowToStructByName", func(t *testing.T) {
+		t.Parallel()
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			recsByName, err := pgx.CollectRows(rows, pgx.RowToStructByName[rowStruct])
+			require.NoError(t, err)
+			require.Len(t, recsByName, 3)
+			require.Equal(t, []int32{1}, recsByName[0].Item.val)
+			require.Equal(t, []int32{2}, recsByName[1].Item.val)
+			require.Equal(t, []int32{3}, recsByName[2].Item.val)
+		})
+	})
+
+	t.Run("RowToStructByPos", func(t *testing.T) {
+		t.Parallel()
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			recsByPos, err := pgx.CollectRows(rows, pgx.RowToStructByPos[rowStruct])
+			require.NoError(t, err)
+			require.Len(t, recsByPos, 3)
+			require.Equal(t, []int32{1}, recsByPos[0].Item.val)
+			require.Equal(t, []int32{2}, recsByPos[1].Item.val)
+			require.Equal(t, []int32{3}, recsByPos[2].Item.val)
+		})
+	})
+
+	t.Run("RowToScalar", func(t *testing.T) {
+		t.Parallel()
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			scalars, err := pgx.CollectRows(rows, pgx.RowTo[bufferScanner])
+			require.NoError(t, err)
+			require.Len(t, scalars, 3)
+			require.Equal(t, []int32{1}, scalars[0].val)
+			require.Equal(t, []int32{2}, scalars[1].val)
+			require.Equal(t, []int32{3}, scalars[2].val)
+		})
+	})
+
+	t.Run("RangeOfCustomScanner", func(t *testing.T) {
+		t.Parallel()
+		type rangeRow struct {
+			R pgtype.Range[bufferScanner] `db:"r"`
+		}
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			pgxtest.SkipCockroachDB(t, conn, "Server does not support range types")
+			rows, err := conn.Query(ctx, `select int4range(n::int4, (n + 10)::int4) as r from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			recs, err := pgx.CollectRows(rows, pgx.RowToStructByName[rangeRow])
+			require.NoError(t, err)
+			require.Len(t, recs, 3)
+			require.Equal(t, []int32{1}, recs[0].R.Lower.val)
+			require.Equal(t, []int32{2}, recs[1].R.Lower.val)
+			require.Equal(t, []int32{3}, recs[2].R.Lower.val)
+		})
+	})
+
+	t.Run("SelfPointerScanner", func(t *testing.T) {
+		t.Parallel()
+		type ptrRow struct {
+			Item selfPtrScanner `db:"n"`
+		}
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			recs, err := pgx.CollectRows(rows, pgx.RowToStructByName[ptrRow])
+			require.NoError(t, err)
+			require.Len(t, recs, 3)
+			require.Equal(t, int32(1), *recs[0].Item.ptr)
+			require.Equal(t, int32(2), *recs[1].Item.ptr)
+			require.Equal(t, int32(3), *recs[2].Item.ptr)
+		})
+	})
+
+	t.Run("SQLNullOfCustomScanner", func(t *testing.T) {
+		t.Parallel()
+		type nullRow struct {
+			Item sql.Null[bufferScanner] `db:"n"`
+		}
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+			recs, err := pgx.CollectRows(rows, pgx.RowToStructByName[nullRow])
+			require.NoError(t, err)
+			require.Len(t, recs, 3)
+			require.Equal(t, []int32{1}, recs[0].Item.V.val)
+			require.Equal(t, []int32{2}, recs[1].Item.V.val)
+			require.Equal(t, []int32{3}, recs[2].Item.V.val)
+		})
+	})
+}
+
+func TestCollectRowsRowToAddrOfOverwritesScanDestinations(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ScalarAndAddrOf", func(t *testing.T) {
+		t.Parallel()
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n from generate_series(1, 3) n`)
+			require.NoError(t, err)
+
+			rowNum := 0
+			var pSecondRow *int32
+			items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (int32, error) {
+				rowNum++
+				if rowNum == 2 {
+					p, err := pgx.RowToAddrOf[int32](row)
+					if err != nil {
+						return 0, err
+					}
+					pSecondRow = p
+					return *p, nil
+				}
+				return pgx.RowTo[int32](row)
+			})
+			require.NoError(t, err)
+			require.Equal(t, []int32{1, 2, 3}, items)
+			require.NotNil(t, pSecondRow)
+			require.Equal(t, int32(2), *pSecondRow)
+		})
+	})
+
+	t.Run("StructByNameAndAddrOf", func(t *testing.T) {
+		t.Parallel()
+		type singleField struct {
+			A int32 `db:"a"`
+		}
+
+		defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+			rows, err := conn.Query(ctx, `select n as a from generate_series(1, 3) n`)
+			require.NoError(t, err)
+
+			rowNum := 0
+			var pSecondRow *int32
+			items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (singleField, error) {
+				rowNum++
+				if rowNum == 2 {
+					p, err := pgx.RowToAddrOf[int32](row)
+					if err != nil {
+						return singleField{}, err
+					}
+					pSecondRow = p
+					return singleField{A: *p}, nil
+				}
+				return pgx.RowToStructByName[singleField](row)
+			})
+			require.NoError(t, err)
+			require.Equal(t, []singleField{{A: 1}, {A: 2}, {A: 3}}, items)
+			require.NotNil(t, pSecondRow)
+			require.Equal(t, int32(2), *pSecondRow)
+		})
 	})
 }
