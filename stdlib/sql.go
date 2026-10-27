@@ -100,6 +100,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// DriverName is the name used to register the pgx database/sql driver.
+// It can be used with database/sql.Open to open a connection using the pgx driver.
+const DriverName = "pgx"
+
 // Only intrinsic types should be binary format with database/sql.
 var databaseSQLResultFormats pgx.QueryResultFormatsByOID
 
@@ -112,8 +116,8 @@ func init() {
 
 	// if pgx driver was already registered by different pgx major version then we
 	// skip registration under the default name.
-	if !slices.Contains(sql.Drivers(), "pgx") {
-		sql.Register("pgx", pgxDriver)
+	if !slices.Contains(sql.Drivers(), DriverName) {
+		sql.Register(DriverName, pgxDriver)
 	}
 	sql.Register("pgx/v5", pgxDriver)
 
