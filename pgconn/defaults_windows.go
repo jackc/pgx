@@ -70,7 +70,7 @@ func defaultSettings() map[string]string {
 		homeServicefile := filepath.Join(homeDir, ".pg_service.conf")
 		if servicefile, ok := settings["servicefile"]; !ok {
 			settings["servicefile"] = homeServicefile
-		} else if _, err := os.Stat(servicefile); err != nil {
+		} else if _, err := os.Stat(servicefile); os.IsNotExist(err) {
 			if _, err := os.Stat(homeServicefile); err == nil {
 				settings["servicefile"] = homeServicefile
 			}
