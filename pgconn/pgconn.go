@@ -523,7 +523,10 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 			clientFinishedAuth = true
 		case *pgproto3.ReadyForQuery:
-			// A server may omit AuthenticationOk, so enforce the requirement here too.
+			// A server may omit AuthenticationOk, so enforce the requirements here too.
+			if requireAuthPolicy.authRequired && !clientFinishedAuth {
+				return requireAuthFail(requireAuthPolicy.check(authMethodNone))
+			}
 			if config.SSLCertMode == "require" {
 				if err := sslCert.checkRequired(); err != nil {
 					pgConn.conn.Close()
