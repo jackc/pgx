@@ -1980,6 +1980,74 @@ func (plan *wrapArrayEncodeReflectPlan) Encode(value any, buf []byte) (newBuf []
 	return plan.next.Encode(w, buf)
 }
 
+// EncodeError is returned when encoding a Go value into a PostgreSQL value fails.
+type EncodeError struct {
+	m           *Map
+	oid         uint32
+	format      string
+	formatCode  int16
+	value       any
+	dataType    *Type
+	dataTypeOID uint32
+	err         error
+}
+
+func (e *EncodeError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	var dataTypeName string
+	if e.dataType != nil {
+		dataTypeName = e.dataType.Name
+	} else if e.dataTypeOID != 0 {
+		dataTypeName = fmt.Sprintf("OID %d", e.dataTypeOID)
+	} else {
+		dataTypeName = "unknown type"
+	}
+
+	// Don't include the value in the error message to avoid leaking sensitive data.
+	return fmt.Sprintf("unable to encode %T{...} into %s format for %s (OID %d): %v", e.value, e.format, dataTypeName, e.oid, e.err)
+}
+
+func (e *EncodeError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.err
+}
+
+// Value returns the value that failed to encode.
+func (e *EncodeError) Value() any {
+	if e == nil {
+		return nil
+	}
+	return e.value
+}
+
+// OID returns the OID of the destination type.
+func (e *EncodeError) OID() uint32 {
+	if e == nil {
+		return 0
+	}
+	return e.oid
+}
+
+// Format returns the format code (TextFormatCode or BinaryFormatCode).
+func (e *EncodeError) Format() int16 {
+	if e == nil {
+		return 0
+	}
+	return e.formatCode
+}
+
+// DataType returns the PostgreSQL type, if known.
+func (e *EncodeError) DataType() *Type {
+	if e == nil {
+		return nil
+	}
+	return e.dataType
+}
+
 func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) error {
 	var format string
 	switch formatCode {
@@ -1991,14 +2059,23 @@ func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) 
 		format = fmt.Sprintf("unknown (%d)", formatCode)
 	}
 
-	var dataTypeName string
-	if t, ok := m.TypeForOID(oid); ok {
-		dataTypeName = t.Name
-	} else {
-		dataTypeName = "unknown type"
+	var dataType *Type
+	if m != nil {
+		if t, ok := m.TypeForOID(oid); ok {
+			dataType = t
+		}
 	}
 
-	return fmt.Errorf("unable to encode %#v into %s format for %s (OID %d): %w", value, format, dataTypeName, oid, err)
+	return &EncodeError{
+		m:           m,
+		oid:         oid,
+		format:      format,
+		formatCode:  formatCode,
+		value:       value,
+		dataType:    dataType,
+		dataTypeOID: oid,
+		err:         err,
+	}
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
