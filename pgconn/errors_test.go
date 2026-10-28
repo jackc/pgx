@@ -83,6 +83,31 @@ func TestConfigError(t *testing.T) {
 			err:         pgconn.NewParseConfigError("postgres://host/db?password=super secret&sslmode=disable", "msg", nil),
 			expectedMsg: "cannot parse `postgres://host/db?password=xxxxx&sslmode=disable`: msg",
 		},
+		{
+			name:        "url with at sign inside the password",
+			err:         pgconn.NewParseConfigError("postgres://user:sec@ret:more/x#y@host1:5432,host2:5432/db?sslmode=disable", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host1:5432,host2:5432/db?sslmode=disable`: msg",
+		},
+		{
+			name:        "url with at sign and invalid escape in the password",
+			err:         pgconn.NewParseConfigError("postgres://user:x%zz@secret@host/db", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host/db`: msg",
+		},
+		{
+			name:        "url with at sign in the password that otherwise parses",
+			err:         pgconn.NewParseConfigError("postgres://user:sec@ret@host/db?sslmode=bogus", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host/db?sslmode=bogus`: msg",
+		},
+		{
+			name:        "url with at sign in the password and in a query value",
+			err:         pgconn.NewParseConfigError("postgres://user:sec@ret@host/db?application_name=me@example.com&password=supersecret", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host/db?application_name=me@example.com&password=xxxxx`: msg",
+		},
+		{
+			name:        "url with question mark and at sign in the password",
+			err:         pgconn.NewParseConfigError("postgres://user:sec@ret?x@host/db", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxx@host/db`: msg",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
