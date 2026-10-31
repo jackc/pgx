@@ -1111,6 +1111,38 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	assert.False(t, rows.Next())
 }
 
+func TestSendBatchSimpleProtocolTrailingLineCommentDoesNotSwallowNextQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	injection := "\n; select 42; --"
+
+	var batch pgx.Batch
+	batch.Queue("select 1::int -- comment")
+	batch.Queue("select $1::text", injection)
+	results := conn.SendBatch(ctx, &batch)
+
+	var n int
+	err := results.QueryRow().Scan(&n)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	var s string
+	err = results.QueryRow().Scan(&s)
+	require.NoError(t, err)
+	require.Equal(t, injection, s)
+
+	require.NoError(t, results.Close())
+}
+
 // https://github.com/jackc/pgx/issues/1847#issuecomment-2347858887
 func TestConnSendBatchErrorDoesNotLeaveOrphanedPreparedStatement(t *testing.T) {
 	t.Parallel()

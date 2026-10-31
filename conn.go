@@ -1039,7 +1039,9 @@ func (c *Conn) sendBatchQueryExecModeSimpleProtocol(ctx context.Context, b *Batc
 	var sb strings.Builder
 	for i, bi := range b.QueuedQueries {
 		if i > 0 {
-			sb.WriteByte(';')
+			// The newline ends any trailing line comment in the previous query, which would otherwise swallow the ';' and
+			// this query.
+			sb.WriteString("\n;")
 		}
 		sql, err := c.sanitizeForSimpleQuery(bi.SQL, bi.Arguments...)
 		if err != nil {
