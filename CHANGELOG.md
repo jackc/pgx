@@ -1,3 +1,87 @@
+# 5.12.0 (October 30, 2026)
+
+This release fixes two security vulnerabilities with narrow triggering conditions but serious impact. Affected
+applications should upgrade to v5.12.0; see Security Fixes below.
+
+It also adds batched transaction startup, client certificate policy controls, and per-query batch timing,
+and improves connection pool cancellation and type handling. Custom implementations
+of `BatchResults`, including mocks, must add the new `Tx` method.
+
+## Security Fixes
+
+* **SQL injection in simple-protocol batches**
+  ([GHSA-j38q-h3ph-jjpq](https://github.com/jackc/pgx/security/advisories/GHSA-j38q-h3ph-jjpq), high severity).
+  In pgx v5 before v5.12.0, `SendBatch` using the non-default simple protocol could allow arbitrary SQL execution
+  with the application's database privileges when a queued query ends in a `--` comment without a newline and the
+  next query has an attacker-controlled string argument on its first line. Batched queries are now separated by
+  a newline to end such comments. Extended-protocol modes are unaffected.
+  Reported by [Igor Kupczyński (@igor-kupczynski)](https://github.com/igor-kupczynski).
+* **Bypass of `require_auth` and `channel_binding=require`**
+  ([GHSA-95fj-3fxw-g62g](https://github.com/jackc/pgx/security/advisories/GHSA-95fj-3fxw-g62g), high severity).
+  In pgx v5.9.0 through v5.11.0, applications relying on these settings without verifying the server's identity
+  with `sslmode=verify-full` (or equivalent TLS verification) could accept an impersonating server that skips
+  authentication. The attacker could read queries and parameters and return fabricated results. pgx now enforces
+  authentication completion and required channel binding before accepting the connection. This vulnerability does
+  not bypass TLS server certificate verification.
+  Reported by [@president-xd](https://github.com/president-xd).
+
+## Features
+
+* Add `Batch.BeginTx` and `BatchResults.Tx` to begin a transaction as the first query of a batch, saving the round
+  trip for `BeginTx`. Call `Batch.BeginTx` before queuing any queries, consume the begin query's result first, and
+  close the batch before using the transaction. With `pgxpool.Pool.SendBatch`, the connection remains acquired until
+  the transaction is committed or rolled back. Add `FailedBatchResults` for wrappers that fail before sending a
+  batch (Timo Furrer)
+* Add `TraceBatchQueryData.ReadStartTime` and per-query durations to `tracelog` batch query entries. These measure
+  result consumption, including application time spent reading rows, rather than server execution alone
+  (Yasser-Ameur)
+* pgconn: support the `sslcertmode` connection parameter, `PGSSLCERTMODE` environment variable, and
+  `Config.SSLCertMode`. The default, `allow`, sends an available client certificate when requested; `disable`
+  prevents sending one and skips loading certificate/key files; `require` fails unless the server requests and
+  receives a certificate. `require` does not guarantee server-side certificate validation, disables TLS session
+  resumption, and stops further host or TLS fallbacks when the certificate requirement fails (k-zshiba)
+* pgtype: add support for PostgreSQL 19's `oid8` and `oid8[]` (k-zshiba)
+
+## Changes
+
+* pgxpool: background attempts to satisfy `MinConns` and `MinIdleConns` now have a 60-second timeout, including
+  connection hooks. Initial background connections preserve the constructor context's values but ignore its
+  cancellation and deadline.
+* pgxpool: canceling `Acquire` during a health-check ping now returns promptly and lets a successful ping return
+  the connection to the pool. The ping retains the caller's deadline and `PingTimeout`, with at most one additional
+  minute to finish after cancellation (lazerg)
+* pgconn: on Windows, look for the default service file at `%APPDATA%\postgresql\.pg_service.conf`, matching libpq.
+  Fall back to the previous home-directory location only when the APPDATA file is missing, or APPDATA is unset;
+  other file errors no longer cause fallback (b84330808)
+
+## Performance Improvements
+
+* pgtype: add fast-path slice scan and encode plans for common primitive types (Andrew Suffield)
+* pgtype: reduce allocations when encoding numbers and times as text (Guillaume Malette)
+* stdlib: cache scan destination type classification on Go 1.27 (DublikuntMux)
+* Reuse the begin statement for standard transaction option combinations (Timo Furrer)
+
+## Bug Fixes
+
+* Fix `NamedArgs` and `StrictNamedArgs` rewriting parameters inside dollar-quoted strings, truncating queries
+  containing U+FFFD (youdie006), and treating a trailing backslash as extending a SQL line comment. Fix the same
+  line-comment handling in simple-protocol argument sanitization.
+* Preserve multidimensional array dimensions in `CopyFrom` (arminazimi)
+* Deduplicate shared type dependencies returned by `LoadTypes` (Grivn)
+* pgconn: preserve SCRAM passwords containing characters unassigned in Unicode 3.2, matching PostgreSQL's SASLprep
+  behavior
+* pgconn: do not retain timeout errors in the background reader after a deadline has been cleared
+  (Vitalii Cherepanov)
+* pgconn: normalize timeout errors after failed writes so context cancellation and deadline errors are reported
+  consistently (lazerg)
+* pgconn: avoid a double-close panic when `OnPgError` closes the connection
+* pgtype: fix interval fractional-second parsing beyond microsecond precision, validate all fractional digits
+  before rounding (Sasha Mitchell), and correctly encode `math.MinInt64` microseconds as text (spicysharkco)
+* pgtype: preserve delimiters inside quoted multirange bounds (Sueun Cho)
+* pgtype: handle SQL NULL in binary `ltree` scan plans without panicking (Januth Nimnal)
+* pgtype: preserve `xid8` values above `math.MaxInt64` when decoding for `sql.Scanner`, returning their decimal
+  string representation instead of overflowing to a negative integer (k-zshiba)
+
 # 5.11.0 (September 7, 2026)
 
 This release adds direct PostgreSQL type scanning through `database/sql` on Go 1.27, improves compatibility with
