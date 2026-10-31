@@ -32,7 +32,10 @@ func (c *PgConn) oauthAuth(ctx context.Context) error {
 		return err
 	}
 
-	msg, err := c.receiveMessage()
+	// Leave AuthenticationOk for the startup loop, which validates authentication
+	// policy and records completion for every authentication method. All other
+	// responses below fail authentication and cause the connection to close.
+	msg, err := c.peekMessage()
 	if err != nil {
 		return err
 	}

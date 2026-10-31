@@ -40,16 +40,18 @@ const (
 	scramSHA256PlusName = "SCRAM-SHA-256-PLUS"
 )
 
-// Perform SCRAM authentication.
-func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
+// Perform SCRAM authentication and report whether the completed exchange used
+// channel binding. A mechanism selection alone is not proof of authentication;
+// the server signature must be verified before returning channelBound=true.
+func (c *PgConn) scramAuth(serverAuthMechanisms []string) (channelBound bool, err error) {
 	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	serverHasPlus := slices.Contains(sc.serverAuthMechanisms, scramSHA256PlusName)
 	if c.config.ChannelBinding == "require" && !serverHasPlus {
-		return errors.New("channel binding required but server does not support SCRAM-SHA-256-PLUS")
+		return false, errors.New("channel binding required but server does not support SCRAM-SHA-256-PLUS")
 	}
 
 	// If we have a TLS connection and channel binding is not disabled, attempt to
@@ -57,7 +59,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	if tlsConn, ok := c.conn.(*tls.Conn); ok && c.config.ChannelBinding != "disable" {
 		certHash, err := getTLSCertificateHash(tlsConn)
 		if err != nil && c.config.ChannelBinding == "require" {
-			return fmt.Errorf("channel binding required but failed to get server certificate hash: %w", err)
+			return false, fmt.Errorf("channel binding required but failed to get server certificate hash: %w", err)
 		}
 
 		// Upgrade to SCRAM-SHA-256-PLUS if we have binding data and the server supports it.
@@ -70,7 +72,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	}
 
 	if c.config.ChannelBinding == "require" && sc.channelBindingData == nil {
-		return errors.New("channel binding required but channel binding data is not available")
+		return false, errors.New("channel binding required but channel binding data is not available")
 	}
 
 	// Send client-first-message in a SASLInitialResponse
@@ -81,17 +83,17 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	c.frontend.Send(saslInitialResponse)
 	err = c.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Receive server-first-message payload in an AuthenticationSASLContinue.
 	saslContinue, err := c.rxSASLContinue()
 	if err != nil {
-		return err
+		return false, err
 	}
 	err = sc.recvServerFirstMessage(saslContinue.Data)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Send client-final-message in a SASLResponse
@@ -101,15 +103,18 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	c.frontend.Send(saslResponse)
 	err = c.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Receive server-final-message payload in an AuthenticationSASLFinal.
 	saslFinal, err := c.rxSASLFinal()
 	if err != nil {
-		return err
+		return false, err
 	}
-	return sc.recvServerFinalMessage(saslFinal.Data)
+	if err := sc.recvServerFinalMessage(saslFinal.Data); err != nil {
+		return false, err
+	}
+	return sc.authMechanism == scramSHA256PlusName, nil
 }
 
 func (c *PgConn) rxSASLContinue() (*pgproto3.AuthenticationSASLContinue, error) {
