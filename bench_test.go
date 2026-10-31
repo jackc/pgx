@@ -1453,3 +1453,237 @@ func BenchmarkSelectRowsRawPrepared(b *testing.B) {
 		})
 	}
 }
+
+type fakeBenchRows struct {
+	fds  []pgconn.FieldDescription
+	n    int
+	i    int
+	vals [][]byte
+}
+
+func (r *fakeBenchRows) Close()                                       {}
+func (r *fakeBenchRows) Err() error                                   { return nil }
+func (r *fakeBenchRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (r *fakeBenchRows) FieldDescriptions() []pgconn.FieldDescription { return r.fds }
+func (r *fakeBenchRows) Next() bool {
+	if r.i >= r.n {
+		return false
+	}
+	r.i++
+	return true
+}
+
+func (r *fakeBenchRows) Scan(dest ...any) error {
+	for i, d := range dest {
+		*d.(*int32) = int32(r.i + i)
+	}
+	return nil
+}
+func (r *fakeBenchRows) Values() ([]any, error) { return nil, nil }
+func (r *fakeBenchRows) RawValues() [][]byte    { return r.vals }
+func (r *fakeBenchRows) Conn() *pgx.Conn        { return nil }
+func (r *fakeBenchRows) TypeMap() *pgtype.Map   { return nil }
+
+func BenchmarkCollectRowsOverhead(b *testing.B) {
+	type benchStruct12 struct {
+		Col0  int32 `db:"col0"`
+		Col1  int32 `db:"col1"`
+		Col2  int32 `db:"col2"`
+		Col3  int32 `db:"col3"`
+		Col4  int32 `db:"col4"`
+		Col5  int32 `db:"col5"`
+		Col6  int32 `db:"col6"`
+		Col7  int32 `db:"col7"`
+		Col8  int32 `db:"col8"`
+		Col9  int32 `db:"col9"`
+		Col10 int32 `db:"col10"`
+		Col11 int32 `db:"col11"`
+	}
+
+	fds12 := []pgconn.FieldDescription{
+		{Name: "col0"},
+		{Name: "col1"},
+		{Name: "col2"},
+		{Name: "col3"},
+		{Name: "col4"},
+		{Name: "col5"},
+		{Name: "col6"},
+		{Name: "col7"},
+		{Name: "col8"},
+		{Name: "col9"},
+		{Name: "col10"},
+		{Name: "col11"},
+	}
+	rawVals12 := make([][]byte, 12)
+	fds1 := []pgconn.FieldDescription{{Name: "col0"}}
+	rawVals1 := make([][]byte, 1)
+
+	type customPlan12 struct {
+		targets [12]any
+	}
+	customRowPlanFn := func(row pgx.CollectableRow) (benchStruct12, error) {
+		p, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*customPlan12, error) {
+			return &customPlan12{}, nil
+		})
+		if err != nil {
+			return benchStruct12{}, err
+		}
+		var v benchStruct12
+		p.targets[0] = &v.Col0
+		p.targets[1] = &v.Col1
+		p.targets[2] = &v.Col2
+		p.targets[3] = &v.Col3
+		p.targets[4] = &v.Col4
+		p.targets[5] = &v.Col5
+		p.targets[6] = &v.Col6
+		p.targets[7] = &v.Col7
+		p.targets[8] = &v.Col8
+		p.targets[9] = &v.Col9
+		p.targets[10] = &v.Col10
+		p.targets[11] = &v.Col11
+		err = row.Scan(p.targets[:]...)
+		return v, err
+	}
+	for _, tc := range []struct {
+		label string
+		n     int
+	}{
+		{"1", 1},
+		{"10", 10},
+		{"20", 20},
+		{"100", 100},
+		{"1k", 1000},
+		{"1M", 1000000},
+	} {
+		b.Run("ByName/"+tc.label, func(b *testing.B) {
+			b.ReportAllocs()
+			items := make([]benchStruct12, 0, tc.n)
+			r := &fakeBenchRows{fds: fds12, n: tc.n, vals: rawVals12}
+			for b.Loop() {
+				r.i = 0
+				var err error
+				items, err = pgx.AppendRows(items[:0], r, pgx.RowToStructByName[benchStruct12])
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run("ByPos/"+tc.label, func(b *testing.B) {
+			b.ReportAllocs()
+			items := make([]benchStruct12, 0, tc.n)
+			r := &fakeBenchRows{fds: fds12, n: tc.n, vals: rawVals12}
+			for b.Loop() {
+				r.i = 0
+				var err error
+				items, err = pgx.AppendRows(items[:0], r, pgx.RowToStructByPos[benchStruct12])
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run("Scalar/"+tc.label, func(b *testing.B) {
+			b.ReportAllocs()
+			items := make([]int32, 0, tc.n)
+			r := &fakeBenchRows{fds: fds1, n: tc.n, vals: rawVals1}
+			for b.Loop() {
+				r.i = 0
+				var err error
+				items, err = pgx.AppendRows(items[:0], r, pgx.RowTo[int32])
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run("RowPlan/"+tc.label, func(b *testing.B) {
+			b.ReportAllocs()
+			items := make([]benchStruct12, 0, tc.n)
+			r := &fakeBenchRows{fds: fds12, n: tc.n, vals: rawVals12}
+			for b.Loop() {
+				r.i = 0
+				var err error
+				items, err = pgx.AppendRows(items[:0], r, customRowPlanFn)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func runBenchmarkAppendRows[T any](b *testing.B, conn *pgx.Conn, query string, n int, fn pgx.RowToFunc[T]) {
+	b.ReportAllocs()
+	items := make([]T, 0, n)
+	for b.Loop() {
+		items = items[:0]
+		rows, err := conn.Query(context.Background(), query, n)
+		if err != nil {
+			b.Fatal(err)
+		}
+		items, err = pgx.AppendRows(items, rows, fn)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(items) != n {
+			b.Fatalf("expected %d items, got %d", n, len(items))
+		}
+	}
+}
+
+func BenchmarkAppendRowsToStruct(b *testing.B) {
+	type benchItem struct {
+		Col0  int32  `db:"col0"`
+		Col1  string `db:"col1"`
+		Col2  string `db:"col2"`
+		Col3  int32  `db:"col3"`
+		Col4  string `db:"col4"`
+		Col5  string `db:"col5"`
+		Col6  int32  `db:"col6"`
+		Col7  string `db:"col7"`
+		Col8  string `db:"col8"`
+		Col9  int32  `db:"col9"`
+		Col10 string `db:"col10"`
+		Col11 string `db:"col11"`
+	}
+
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	query := `
+		select
+			n as col0, 'str1' as col1, 'str2' as col2, n*2 as col3,
+			'str4' as col4, 'str5' as col5, n*3 as col6, 'str7' as col7,
+			'str8' as col8, n*4 as col9, 'str10' as col10, 'str11' as col11
+		from generate_series(1, $1::int) n
+	`
+
+	for _, tc := range []struct {
+		label string
+		n     int
+	}{
+		{"1", 1},
+		{"10", 10},
+		{"20", 20},
+		{"100", 100},
+		{"1k", 1000},
+		{"1M", 1000000},
+	} {
+		b.Run("ByName/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToStructByName[benchItem])
+		})
+		b.Run("ByNameLax/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToStructByNameLax[benchItem])
+		})
+		b.Run("ByPos/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToStructByPos[benchItem])
+		})
+		b.Run("AddrOfByName/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToAddrOfStructByName[benchItem])
+		})
+		b.Run("AddrOfByNameLax/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToAddrOfStructByNameLax[benchItem])
+		})
+		b.Run("AddrOfByPos/"+tc.label, func(b *testing.B) {
+			runBenchmarkAppendRows(b, conn, query, tc.n, pgx.RowToAddrOfStructByPos[benchItem])
+		})
+	}
+}
