@@ -717,7 +717,9 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 // receiveMessage receives a message without setting up context cancellation
 func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	if pgConn.status == connStatusClosed {
-		return nil, &connLockError{status: "conn closed"}
+		// The connection was closed by a failure earlier in this operation, after a request may already have been sent.
+		// Unlike a lock failure this is not safe to retry.
+		return nil, &pgconnError{err: ErrConnClosed, safeToRetry: false}
 	}
 
 	msg, err := pgConn.peekMessage()
