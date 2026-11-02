@@ -1442,6 +1442,7 @@ func TestRowsColumnTypePrecisionScale(t *testing.T) {
 			OK        bool
 		}{
 			{"numeric_column", 9, 2, true},
+			{"unconstrained_numeric_column", 0, 0, false},
 			{"timestamp_column", 0, 6, true},
 			{"timestamp_0_column", 0, 0, true},
 			{"timestamp_3_column", 0, 3, true},
@@ -1456,6 +1457,7 @@ func TestRowsColumnTypePrecisionScale(t *testing.T) {
 
 		_, err := db.Exec(`CREATE TEMPORARY TABLE temp_column_type_precision_scale (
 						   numeric_column NUMERIC(9, 2),
+						   unconstrained_numeric_column NUMERIC,
 						   timestamp_column TIMESTAMP,
 						   timestamp_0_column TIMESTAMP(0),
 						   timestamp_3_column TIMESTAMP(3),

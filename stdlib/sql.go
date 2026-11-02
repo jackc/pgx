@@ -701,6 +701,11 @@ func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 
 	switch fd.DataTypeOID {
 	case pgtype.NumericOID:
+		// numeric without a precision specifier accepts any precision and scale,
+		// so there is nothing to report.
+		if fd.TypeModifier == noTypeModifier {
+			return 0, 0, false
+		}
 		mod := fd.TypeModifier - varHeaderSize
 		precision = int64((mod >> 16) & 0xffff)
 		scale = int64(mod & 0xffff)
