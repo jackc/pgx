@@ -672,6 +672,10 @@ func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
 
 const varHeaderSize = 4
 
+// noTypeModifier is the type modifier PostgreSQL reports for a column whose type
+// was used without a precision or length specifier.
+const noTypeModifier = -1
+
 // ColumnTypeLength returns the length of the column type if the column is a
 // variable length type. If the column is not a variable length type ok
 // should return false.
@@ -701,6 +705,15 @@ func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 		precision = int64((mod >> 16) & 0xffff)
 		scale = int64(mod & 0xffff)
 		return precision, scale, true
+	case pgtype.TimestampOID, pgtype.TimestamptzOID, pgtype.TimeOID, pgtype.TimetzOID:
+		// The type modifier of these types is their fractional seconds precision:
+		// the number of digits kept after the decimal point, which is the scale.
+		// They have no digits before it, so the precision is 0. Without a precision
+		// specifier they keep microseconds, the maximum PostgreSQL supports.
+		if fd.TypeModifier == noTypeModifier {
+			return 0, 6, true
+		}
+		return 0, int64(fd.TypeModifier), true
 	default:
 		return 0, 0, false
 	}

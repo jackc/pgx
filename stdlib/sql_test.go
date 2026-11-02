@@ -1023,8 +1023,8 @@ func TestRowsColumnTypes(t *testing.T) {
 					OK        bool
 				}{
 					Precision: 0,
-					Scale:     0,
-					OK:        false,
+					Scale:     6,
+					OK:        true,
 				},
 				ScanType: reflect.TypeFor[string](),
 			},
@@ -1431,6 +1431,61 @@ func TestOpenTransactionsDiscarded(t *testing.T) {
 	}
 
 	ensureDBValid(t, db)
+}
+
+func TestRowsColumnTypePrecisionScale(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		columnTypePrecisionScaleTests := []struct {
+			Column    string
+			Precision int64
+			Scale     int64
+			OK        bool
+		}{
+			{"numeric_column", 9, 2, true},
+			{"timestamp_column", 0, 6, true},
+			{"timestamp_0_column", 0, 0, true},
+			{"timestamp_3_column", 0, 3, true},
+			{"timestamptz_column", 0, 6, true},
+			{"timestamptz_3_column", 0, 3, true},
+			{"time_column", 0, 6, true},
+			{"time_2_column", 0, 2, true},
+			{"timetz_column", 0, 6, true},
+			{"timetz_4_column", 0, 4, true},
+			{"int_column", 0, 0, false},
+		}
+
+		_, err := db.Exec(`CREATE TEMPORARY TABLE temp_column_type_precision_scale (
+						   numeric_column NUMERIC(9, 2),
+						   timestamp_column TIMESTAMP,
+						   timestamp_0_column TIMESTAMP(0),
+						   timestamp_3_column TIMESTAMP(3),
+						   timestamptz_column TIMESTAMPTZ,
+						   timestamptz_3_column TIMESTAMPTZ(3),
+						   time_column TIME,
+						   time_2_column TIME(2),
+						   timetz_column TIMETZ,
+						   timetz_4_column TIMETZ(4),
+						   int_column INT
+					);`)
+		require.NoError(t, err)
+
+		rows, err := db.Query("SELECT * FROM temp_column_type_precision_scale")
+		require.NoError(t, err)
+
+		columns, err := rows.ColumnTypes()
+		require.NoError(t, err)
+		require.Len(t, columns, len(columnTypePrecisionScaleTests))
+
+		for i, tt := range columnTypePrecisionScaleTests {
+			c := columns[i]
+			require.Equalf(t, tt.Column, c.Name(), "column %d", i)
+
+			precision, scale, ok := c.DecimalSize()
+			assert.Equalf(t, tt.Precision, precision, "%s precision", tt.Column)
+			assert.Equalf(t, tt.Scale, scale, "%s scale", tt.Column)
+			assert.Equalf(t, tt.OK, ok, "%s ok", tt.Column)
+		}
+	})
 }
 
 func TestRowsColumnTypeLength(t *testing.T) {
