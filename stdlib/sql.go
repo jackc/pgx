@@ -719,6 +719,14 @@ func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 			return 0, 6, true
 		}
 		return 0, int64(fd.TypeModifier), true
+	case pgtype.IntervalOID:
+		// An interval's type modifier packs the field range it was declared with in
+		// its high bits and its fractional seconds precision in its low 16 bits,
+		// which are all set when only a range was specified.
+		if fd.TypeModifier == noTypeModifier || fd.TypeModifier&0xffff == 0xffff {
+			return 0, 6, true
+		}
+		return 0, int64(fd.TypeModifier & 0xffff), true
 	default:
 		return 0, 0, false
 	}

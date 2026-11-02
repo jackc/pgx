@@ -1452,6 +1452,10 @@ func TestRowsColumnTypePrecisionScale(t *testing.T) {
 			{"time_2_column", 0, 2, true},
 			{"timetz_column", 0, 6, true},
 			{"timetz_4_column", 0, 4, true},
+			{"interval_column", 0, 6, true},
+			{"interval_3_column", 0, 3, true},
+			{"interval_day_to_second_3_column", 0, 3, true},
+			{"interval_year_to_month_column", 0, 6, true},
 			{"int_column", 0, 0, false},
 		}
 
@@ -1467,6 +1471,10 @@ func TestRowsColumnTypePrecisionScale(t *testing.T) {
 						   time_2_column TIME(2),
 						   timetz_column TIMETZ,
 						   timetz_4_column TIMETZ(4),
+						   interval_column INTERVAL,
+						   interval_3_column INTERVAL(3),
+						   interval_day_to_second_3_column INTERVAL DAY TO SECOND(3),
+						   interval_year_to_month_column INTERVAL YEAR TO MONTH,
 						   int_column INT
 					);`)
 		require.NoError(t, err)
