@@ -190,6 +190,7 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 		Host:      connConfig.Host,
 		Port:      connConfig.Port,
 		TLSConfig: connConfig.TLSConfig,
+		Password:  connConfig.Password,
 	}}, connConfig.Fallbacks...)
 
 	rand.Shuffle(len(newFallbacks), func(i, j int) {
@@ -201,6 +202,7 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 	connConfig.Host = newPrimary.Host
 	connConfig.Port = newPrimary.Port
 	connConfig.TLSConfig = newPrimary.TLSConfig
+	connConfig.Password = newPrimary.Password
 	connConfig.Fallbacks = newFallbacks[:len(newFallbacks)-1]
 	return nil
 }

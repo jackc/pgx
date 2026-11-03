@@ -83,3 +83,27 @@ func TestNormalizeTimeoutError_PreservesErrorChain(t *testing.T) {
 	assert.True(t, errors.As(result, &dial), "original dial error should be preserved in the chain")
 	assert.Equal(t, "192.0.2.1:5432", dial.addr)
 }
+
+func TestBuildConnectOneConfigsCarriesPerHostPasswords(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		Host:     "primary.example.com",
+		Port:     5432,
+		Password: "primary-secret",
+		LookupFunc: func(ctx context.Context, host string) ([]string, error) {
+			return []string{"192.0.2.1"}, nil
+		},
+		Fallbacks: []*FallbackConfig{
+			{Host: "replica.example.com", Port: 5432, Password: "replica-secret"},
+		},
+	}
+
+	configs, errs := buildConnectOneConfigs(context.Background(), config)
+	require.Empty(t, errs)
+	require.Len(t, configs, 2)
+	assert.Equal(t, "primary.example.com", configs[0].originalHostname)
+	assert.Equal(t, "primary-secret", configs[0].password)
+	assert.Equal(t, "replica.example.com", configs[1].originalHostname)
+	assert.Equal(t, "replica-secret", configs[1].password)
+}
