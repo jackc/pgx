@@ -43,8 +43,8 @@ const (
 // Perform SCRAM authentication and report whether the completed exchange used
 // channel binding. A mechanism selection alone is not proof of authentication;
 // the server signature must be verified before returning channelBound=true.
-func (c *PgConn) scramAuth(serverAuthMechanisms []string) (channelBound bool, err error) {
-	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
+func (c *PgConn) scramAuth(serverAuthMechanisms []string, password string) (channelBound bool, err error) {
+	sc, err := newScramClient(serverAuthMechanisms, password)
 	if err != nil {
 		return false, err
 	}
