@@ -79,6 +79,17 @@ func runOpenSSL(t *testing.T, args ...string) {
 	require.NoErrorf(t, err, "openssl %v failed: %s", args, out)
 }
 
+// assertClientCertResolves checks that the home-directory mTLS default produced
+// a usable client certificate. The pair lives in GetClientCertificate rather
+// than Certificates so that a rotated pair is read again on every connection.
+func assertClientCertResolves(t *testing.T, cfg *pgconn.Config) {
+	t.Helper()
+	require.NotNil(t, cfg.TLSConfig.GetClientCertificate, "mTLS client cert default must still resolve")
+	cert, err := cfg.TLSConfig.GetClientCertificate(nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, cert.Certificate)
+}
+
 // TestParseConfigHomeDirTLSDefaultsSurviveExplicitUserAndPassword is the
 // mandatory security regression test: when user and password are BOTH
 // explicit (the exact scenario the previous, refuted fix mishandled), the
@@ -125,7 +136,7 @@ func TestParseConfigHomeDirTLSDefaultsSurviveExplicitUserAndPassword(t *testing.
 				require.NotNil(t, cfg.TLSConfig.RootCAs, "sslrootcert default must still resolve (was silently dropped by the refuted fix)")
 				assert.True(t, cfg.TLSConfig.RootCAs.Equal(expectedRootPool), "RootCAs must be built from the home-dir root.crt")
 				assert.NotNil(t, cfg.TLSConfig.VerifyPeerCertificate, "require+rootcert must still verify the chain itself (verify-ca-equivalent behavior)")
-				assert.Len(t, cfg.TLSConfig.Certificates, 1, "mTLS client cert default must still resolve")
+				assertClientCertResolves(t, cfg)
 			},
 		},
 		{
@@ -140,7 +151,7 @@ func TestParseConfigHomeDirTLSDefaultsSurviveExplicitUserAndPassword(t *testing.
 				assert.True(t, cfg.TLSConfig.RootCAs.Equal(expectedRootPool))
 				assert.Nil(t, cfg.TLSConfig.VerifyPeerCertificate, "verify-full uses Go's standard chain+hostname verification, not the custom callback")
 				assert.Equal(t, "test1", cfg.TLSConfig.ServerName)
-				assert.Len(t, cfg.TLSConfig.Certificates, 1, "mTLS client cert default must still resolve")
+				assertClientCertResolves(t, cfg)
 			},
 		},
 	}
