@@ -79,6 +79,7 @@ func TestParseConfigSSLCertModeDisableSkipsFiles(t *testing.T) {
 type sslCertModeServerResult struct {
 	resumed      bool
 	certificates int
+	peerSerial   int64
 	err          error
 }
 
@@ -138,6 +139,9 @@ func sslCertModeTestServer(t *testing.T, config *pgconn.Config, serverConfig *tl
 				}
 				state := tlsConn.ConnectionState()
 				result.certificates = len(state.PeerCertificates)
+				if len(state.PeerCertificates) > 0 {
+					result.peerSerial = state.PeerCertificates[0].SerialNumber.Int64()
+				}
 				result.resumed = state.DidResume
 				conn = tlsConn
 			}

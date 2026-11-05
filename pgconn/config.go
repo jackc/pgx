@@ -1024,57 +1024,26 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	}
 
 	if sslcert != "" && sslkey != "" {
-		buf, err := os.ReadFile(sslkey)
+		// Read the key & cert so
+		//  (a) we can provide error feedback now and
+		//  (b) invoke the GetSSLPassword callback once if necessary
+		_, resolvedPassword, err := loadClientCertificate(sslcert, sslkey, sslpassword, parseConfigOptions)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read sslkey: %w", err)
+			return nil, err
 		}
-		block, _ := pem.Decode(buf)
-		if block == nil {
-			return nil, errors.New("failed to decode sslkey")
-		}
-		var pemKey []byte
-		var decryptedKey []byte
-		var decryptedError error
-		// If PEM is encrypted, attempt to decrypt using pass phrase
-		if x509.IsEncryptedPEMBlock(block) {
-			// Attempt decryption with pass phrase
-			// NOTE: only supports RSA (PKCS#1)
-			if sslpassword != "" {
-				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword)) //nolint:ineffassign
-			}
-			// if sslpassword not provided or has decryption error when use it
-			// try to find sslpassword with callback function
-			if sslpassword == "" || decryptedError != nil {
-				if parseConfigOptions.GetSSLPassword != nil {
-					sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
-				}
-				if sslpassword == "" {
-					return nil, fmt.Errorf("unable to find sslpassword")
-				}
-			}
-			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
-			// Should we also provide warning for PKCS#1 needed?
-			if decryptedError != nil {
-				return nil, fmt.Errorf("unable to decrypt key: %w", decryptedError)
+
+		tlsConfig.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			cert, _, err := loadClientCertificate(sslcert, sslkey, resolvedPassword, ParseConfigOptions{})
+			if err != nil {
+				return nil, err
 			}
 
-			pemBytes := pem.Block{
-				Type:  "RSA PRIVATE KEY",
-				Bytes: decryptedKey,
+			// Same check crypto/tls provides when passing certs through config.Certificates
+			if cri != nil && cri.SupportsCertificate(&cert) != nil {
+				return new(tls.Certificate), nil
 			}
-			pemKey = pem.EncodeToMemory(&pemBytes)
-		} else {
-			pemKey = pem.EncodeToMemory(block)
+			return &cert, nil
 		}
-		certfile, err := os.ReadFile(sslcert)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read cert: %w", err)
-		}
-		cert, err := tls.X509KeyPair(certfile, pemKey)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load cert: %w", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
 	// Set Server Name Indication (SNI), if enabled by connection parameters.
@@ -1094,6 +1063,67 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	default:
 		panic("BUG: bad sslmode should already have been caught")
 	}
+}
+
+// loadClientCertificate reads sslcert and sslkey and returns the pair, along
+// with the password that decrypted the key (empty when the key is not
+// encrypted). When the key is encrypted and sslpassword does not decrypt it,
+// parseConfigOptions.GetSSLPassword is asked for one.
+func loadClientCertificate(sslcert, sslkey, sslpassword string, parseConfigOptions ParseConfigOptions) (tls.Certificate, string, error) {
+	buf, err := os.ReadFile(sslkey)
+	if err != nil {
+		return tls.Certificate{}, "", fmt.Errorf("unable to read sslkey: %w", err)
+	}
+	block, _ := pem.Decode(buf)
+	if block == nil {
+		return tls.Certificate{}, "", errors.New("failed to decode sslkey")
+	}
+	var pemKey []byte
+	var decryptedKey []byte
+	var decryptedError error
+	// If PEM is encrypted, attempt to decrypt using pass phrase
+	if x509.IsEncryptedPEMBlock(block) {
+		// Attempt decryption with pass phrase
+		// NOTE: only supports RSA (PKCS#1)
+		if sslpassword != "" {
+			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword)) //nolint:ineffassign
+		}
+		// if sslpassword not provided or has decryption error when use it
+		// try to find sslpassword with callback function
+		if sslpassword == "" || decryptedError != nil {
+			if parseConfigOptions.GetSSLPassword != nil {
+				sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
+			}
+			if sslpassword == "" {
+				return tls.Certificate{}, "", fmt.Errorf("unable to find sslpassword")
+			}
+		}
+		decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
+		// Should we also provide warning for PKCS#1 needed?
+		if decryptedError != nil {
+			return tls.Certificate{}, "", fmt.Errorf("unable to decrypt key: %w", decryptedError)
+		}
+
+		pemBytes := pem.Block{
+			Type:  block.Type,
+			Bytes: decryptedKey,
+		}
+		pemKey = pem.EncodeToMemory(&pemBytes)
+	} else {
+		// Hand over the whole file rather than the first block: X509KeyPair
+		// skips blocks that are not a key, so a combined key+certificate file
+		// works whatever order it is written in.
+		pemKey = buf
+	}
+	certfile, err := os.ReadFile(sslcert)
+	if err != nil {
+		return tls.Certificate{}, "", fmt.Errorf("unable to read cert: %w", err)
+	}
+	cert, err := tls.X509KeyPair(certfile, pemKey)
+	if err != nil {
+		return tls.Certificate{}, "", fmt.Errorf("unable to load cert: %w", err)
+	}
+	return cert, sslpassword, nil
 }
 
 type sslCertState struct {
