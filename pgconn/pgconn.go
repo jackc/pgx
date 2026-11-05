@@ -192,6 +192,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 			Host:      config.Host,
 			Port:      config.Port,
 			TLSConfig: config.TLSConfig,
+			Password:  config.Password,
 		},
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
@@ -209,6 +210,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 				address:          address,
 				originalHostname: fb.Host,
 				tlsConfig:        fb.TLSConfig,
+				password:         fb.Password,
 			})
 
 			continue
@@ -233,6 +235,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
+					password:         fb.Password,
 				})
 			} else {
 				network, address := NetworkAddress(ip, fb.Port)
@@ -241,6 +244,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
+					password:         fb.Password,
 				})
 			}
 		}
@@ -493,7 +497,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			if err := requireAuthPolicy.check(authMethodPassword); err != nil {
 				return requireAuthFail(err)
 			}
-			err = pgConn.txPasswordMessage(pgConn.config.Password)
+			err = pgConn.txPasswordMessage(connectConfig.password)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed to write password message", err)
@@ -503,7 +507,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			if err := requireAuthPolicy.check(authMethodMD5); err != nil {
 				return requireAuthFail(err)
 			}
-			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
+			digestedPassword := "md5" + hexMD5(hexMD5(connectConfig.password+pgConn.config.User)+string(msg.Salt[:]))
 			err = pgConn.txPasswordMessage(digestedPassword)
 			if err != nil {
 				pgConn.conn.Close()
@@ -526,7 +530,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				if err := requireAuthPolicy.check(authMethodSCRAMSHA256); err != nil {
 					return requireAuthFail(err)
 				}
-				channelBound, err = pgConn.scramAuth(msg.AuthMechanisms)
+				channelBound, err = pgConn.scramAuth(msg.AuthMechanisms, connectConfig.password)
 			}
 			if err != nil {
 				pgConn.conn.Close()

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1283,6 +1284,33 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	require.Fail(t, "did not get all hosts as primaries after many randomizations")
+}
+
+func TestRandomizeHostOrderFuncPreservesPerHostPasswords(t *testing.T) {
+	tfName := filepath.Join(t.TempDir(), "pgpass")
+	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost2:5432:db:user:secret2\nhost3:5432:db:user:secret3\n"), 0o600)
+	require.NoError(t, err)
+
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+
+	passwordByHost := map[string]string{
+		"host1": "secret1",
+		"host2": "secret2",
+		"host3": "secret3",
+	}
+
+	// Whichever host becomes the primary, its password must move with it and
+	// every fallback must keep its own password.
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		assert.Equal(t, passwordByHost[connCopy.Host], connCopy.Password)
+		for _, f := range connCopy.Fallbacks {
+			assert.Equal(t, passwordByHost[f.Host], f.Password)
+		}
+	}
 }
 
 func TestResetSessionHookCalled(t *testing.T) {

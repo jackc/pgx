@@ -204,6 +204,11 @@ type FallbackConfig struct {
 	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
 	Port      uint16
 	TLSConfig *tls.Config // nil disables TLS
+
+	// Password is the password to use when connecting to this host. ParseConfig sets it to the password from the
+	// connection string or, when no password was given, to the .pgpass entry for this host. It differs from
+	// Config.Password when the .pgpass file has a different entry for this host.
+	Password string
 }
 
 // connectOneConfig is the configuration for a single attempt to connect to a single host.
@@ -212,6 +217,7 @@ type connectOneConfig struct {
 	address          string
 	originalHostname string      // original hostname before resolving
 	tlsConfig        *tls.Config // nil disables TLS
+	password         string      // password for originalHostname
 }
 
 // isAbsolutePath checks if the provided value is an absolute path either
@@ -324,9 +330,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // rejected before any filesystem access occurs.
 //
 // Other known differences with libpq:
-//
-// When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
-// does not.
 //
 // URL query parameters that libpq does not recognize cause libpq to fail with an "invalid URI query parameter" error.
 // ParseConfig accepts them: they become runtime parameters or pgx-specific options (e.g. pool_max_conns).
@@ -625,14 +628,24 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Fallbacks = fallbacks[1:]
 	config.SSLNegotiation = settings["sslnegotiation"]
 
+	// Resolve the password for each host. A password from the connection string applies to every host. Otherwise
+	// the .pgpass file is consulted separately for each host, as libpq does, so different hosts may have different
+	// passwords.
 	if config.Password == "" {
 		passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 		if err == nil {
-			host := config.Host
-			if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
-				host = "localhost"
+			for _, fb := range fallbacks {
+				host := fb.Host
+				if network, _ := NetworkAddress(fb.Host, fb.Port); network == "unix" {
+					host = "localhost"
+				}
+				fb.Password = passfile.FindPassword(host, strconv.Itoa(int(fb.Port)), config.Database, config.User)
 			}
-			config.Password = passfile.FindPassword(host, strconv.Itoa(int(config.Port)), config.Database, config.User)
+			config.Password = fallbacks[0].Password
+		}
+	} else {
+		for _, fb := range fallbacks {
+			fb.Password = config.Password
 		}
 	}
 
