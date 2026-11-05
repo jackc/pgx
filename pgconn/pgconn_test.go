@@ -3437,6 +3437,104 @@ func TestExecOnClosedConnErrConnClosed(t *testing.T) {
 	assert.ErrorIs(t, err, pgconn.ErrConnClosed)
 }
 
+// When the connection is lost after a statement was written, the server may already have executed it. The resulting
+// error must not be SafeToRetry, or a caller that retries on SafeToRetry could run a statement such as COMMIT twice.
+// See https://github.com/jackc/pgx/issues/2700.
+func TestConnLostAfterStatementWrittenIsNotSafeToRetry(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name           string
+		expectedSteps  []pgmock.Step
+		run            func(ctx context.Context, pgConn *pgconn.PgConn) error
+		wantConnClosed bool
+	}{
+		{
+			name: "Exec",
+			expectedSteps: []pgmock.Step{
+				pgmock.ExpectMessage(&pgproto3.Query{String: "commit"}),
+			},
+			run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+				_, err := pgConn.Exec(ctx, "commit").ReadAll()
+				return err
+			},
+			wantConnClosed: true,
+		},
+		{
+			// Already not retryable; guards the extended protocol path.
+			name: "ExecParams",
+			expectedSteps: []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.Parse{}),
+				pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+				pgmock.ExpectAnyMessage(&pgproto3.Describe{}),
+				pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+				pgmock.ExpectAnyMessage(&pgproto3.Sync{}),
+			},
+			run: func(ctx context.Context, pgConn *pgconn.PgConn) error {
+				_, err := pgConn.ExecParams(ctx, "commit", nil, nil, nil, nil).Close()
+				return err
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// The mock server reads the statement and then closes the connection without replying.
+			steps := pgmock.AcceptUnauthenticatedConnRequestSteps()
+			steps = append(steps, tt.expectedSteps...)
+			script := &pgmock.Script{Steps: steps}
+
+			ln, err := net.Listen("tcp", "127.0.0.1:")
+			require.NoError(t, err)
+			defer ln.Close()
+
+			serverErrChan := make(chan error, 1)
+			go func() {
+				defer close(serverErrChan)
+
+				conn, err := ln.Accept()
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+				defer conn.Close()
+
+				err = conn.SetDeadline(time.Now().Add(5 * time.Second))
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+
+				err = script.Run(pgproto3.NewBackend(conn, conn))
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+			}()
+
+			host, port, _ := strings.Cut(ln.Addr().String(), ":")
+			connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+
+			pgConn, err := pgconn.Connect(ctx, connStr)
+			require.NoError(t, err)
+			defer pgConn.Close(ctx)
+
+			err = tt.run(ctx, pgConn)
+			require.Error(t, err)
+			if tt.wantConnClosed {
+				assert.EqualError(t, err, "conn closed")
+				assert.ErrorIs(t, err, pgconn.ErrConnClosed)
+			}
+			assert.False(t, pgconn.SafeToRetry(err), "statement was already written: %v", err)
+
+			require.NoError(t, <-serverErrChan)
+		})
+	}
+}
+
 func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 	t.Parallel()
 

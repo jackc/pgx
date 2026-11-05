@@ -105,7 +105,7 @@ func (e *sslCertModeError) Error() string {
 // ErrConnClosed is returned (possibly wrapped) when an operation is attempted
 // on a connection that the driver has already closed, e.g. because a prior
 // query was cancelled mid-flight or the underlying socket went away. Use
-// errors.Is to test for it, since it shows up wrapped inside connLockError.
+// errors.Is to test for it, since it is usually wrapped in another error.
 var ErrConnClosed = errors.New("conn closed")
 
 type connLockError struct {
