@@ -172,8 +172,11 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 
 	// PingTimeout is the maximum amount of time to wait for a connection to pong before considering it as unhealthy and
-	// destroying it. If zero, the default is no timeout. After the acquiring caller cancels,
-	// a ping is allowed at most one more minute to complete before it is canceled.
+	// destroying it. If zero (the default), there is no separate ping timeout. A stalled ping can then use the acquiring
+	// caller's full deadline, leaving no time to retry acquisition with another pooled connection. Set a positive timeout
+	// when that retry should have time to run; a shorter timeout can also discard healthy connections during overload or
+	// network latency. After the acquiring caller cancels, a ping is allowed at most one more minute to complete before
+	// it is canceled.
 	PingTimeout time.Duration
 
 	// MaxConns is the maximum size of the pool. The default is the greater of 4 or runtime.NumCPU().
