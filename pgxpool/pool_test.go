@@ -1709,3 +1709,54 @@ func TestPoolAcquireCanceledDuringStalledPing(t *testing.T) {
 		})
 	}
 }
+
+func TestPoolCollectRowsStructAndRowPlan(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	type Item struct {
+		ID   int32  `db:"id"`
+		Name string `db:"name"`
+	}
+
+	rows, err := pool.Query(ctx, `select n as id, 'name_' || n as name from generate_series(1, 100) n`)
+	require.NoError(t, err)
+
+	items, err := pgx.CollectRows(rows, pgx.RowToStructByName[Item])
+	require.NoError(t, err)
+	require.Len(t, items, 100)
+	require.EqualValues(t, 1, items[0].ID)
+	require.Equal(t, "name_1", items[0].Name)
+
+	type customPlan struct {
+		targets [2]any
+	}
+	initCalls := 0
+	rows2, err := pool.Query(ctx, `select n as id, 'name_' || n as name from generate_series(1, 50) n`)
+	require.NoError(t, err)
+
+	items2, err := pgx.CollectRows(rows2, func(row pgx.CollectableRow) (Item, error) {
+		p, err := pgx.RowPlan(row, func(r pgx.CollectableRow) (*customPlan, error) {
+			initCalls++
+			return &customPlan{}, nil
+		})
+		if err != nil {
+			return Item{}, err
+		}
+		var it Item
+		p.targets[0] = &it.ID
+		p.targets[1] = &it.Name
+		err = row.Scan(p.targets[:]...)
+		return it, err
+	})
+	require.NoError(t, err)
+	require.Len(t, items2, 50)
+	require.Equal(t, 1, initCalls)
+	require.Equal(t, Item{ID: 50, Name: "name_50"}, items2[49])
+}
