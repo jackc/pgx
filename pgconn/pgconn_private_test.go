@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,4 +108,114 @@ func TestBuildConnectOneConfigsCarriesPerHostPasswords(t *testing.T) {
 	assert.Equal(t, "primary-secret", configs[0].password)
 	assert.Equal(t, "replica.example.com", configs[1].originalHostname)
 	assert.Equal(t, "replica-secret", configs[1].password)
+}
+
+// TestBuildConnectOneConfigsPasswordInheritance covers the password model of #2708: a password resolved from a
+// .pgpass entry for a host is authoritative for that host, even when the entry is missing, while any other host
+// inherits Config.Password as it stands at connect time.
+func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
+	t.Parallel()
+
+	resolveLocalhost := func(ctx context.Context, host string) ([]string, error) {
+		return []string{"127.0.0.1"}, nil
+	}
+
+	t.Run("refreshed password applies to fallback hosts", func(t *testing.T) {
+		t.Parallel()
+
+		// Parsed with one password, then refreshed after parsing, as a BeforeConnect credential refresh
+		// does.
+		config, err := ParseConfig("host=primary.example.com,fallback.example.com user=app password=old-password sslmode=disable")
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "refreshed-password", configs[1].password)
+	})
+
+	t.Run("refreshed password applies to sslmode prefer plaintext fallback", func(t *testing.T) {
+		t.Parallel()
+
+		// A single host with sslmode=prefer has a second entry for the same host with TLS disabled.
+		config, err := ParseConfig("host=primary.example.com user=app password=old-password sslmode=prefer")
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "primary.example.com", configs[0].originalHostname)
+		assert.Equal(t, "primary.example.com", configs[1].originalHostname)
+		assert.Nil(t, configs[1].tlsConfig)
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "refreshed-password", configs[1].password)
+	})
+
+	t.Run("fallback without a password inherits Config.Password", func(t *testing.T) {
+		t.Parallel()
+
+		// A FallbackConfig constructed without a password, as existing callers do, must not send an empty
+		// password.
+		config := &Config{
+			Host:       "primary.example.com",
+			Port:       5432,
+			Password:   "shared-password",
+			LookupFunc: resolveLocalhost,
+			Fallbacks: []*FallbackConfig{
+				{Host: "fallback.example.com", Port: 5432},
+			},
+		}
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "shared-password", configs[0].password)
+		assert.Equal(t, "shared-password", configs[1].password)
+	})
+
+	t.Run("pgpass entry is kept when Config.Password is refreshed", func(t *testing.T) {
+		t.Parallel()
+
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("db-primary:5432:app:app:primary-secret\ndb-replica:5432:app:app:replica-secret\n"), 0o600)
+		require.NoError(t, err)
+
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		// The primary follows Config.Password, as before this change; each fallback keeps the password its
+		// own .pgpass entry resolved to.
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "replica-secret", configs[1].password)
+	})
+
+	t.Run("missing pgpass entry stays empty", func(t *testing.T) {
+		t.Parallel()
+
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("db-primary:5432:app:app:primary-secret\n"), 0o600)
+		require.NoError(t, err)
+
+		// db-replica has no entry, so it must send no password even though Config.Password holds the
+		// primary host's entry.
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		require.NoError(t, err)
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "primary-secret", configs[0].password)
+		assert.Equal(t, "", configs[1].password)
+	})
 }

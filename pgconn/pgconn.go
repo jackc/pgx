@@ -182,6 +182,25 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 	return pgConn, nil
 }
 
+// passwordFor returns the password to send when connecting to fb. A password resolved from a .pgpass entry for
+// this host is authoritative, even when empty: a missing entry means this host has no password. Otherwise an
+// explicitly set password is used, and when there is none the password is inherited from Config.Password as it
+// stands at connect time, so a password set in the connection string or refreshed after parsing (e.g. in
+// BeforeConnect) applies. When Config.Password is itself another host's .pgpass entry there is no shared password
+// to inherit, so an empty password is used.
+func passwordFor(fb *FallbackConfig, config *Config) string {
+	if fb.passwordFromPassfile {
+		return fb.Password
+	}
+	if fb.Password != "" {
+		return fb.Password
+	}
+	if config.passwordFromPassfile {
+		return ""
+	}
+	return config.Password
+}
+
 // buildConnectOneConfigs resolves hostnames and builds a list of connectOneConfigs to try connecting to. It returns a
 // slice of successfully resolved connectOneConfigs and a slice of errors. It is possible for both slices to contain
 // values if some hosts were successfully resolved and others were not.
@@ -189,10 +208,11 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	// Simplify usage by treating primary config and fallbacks the same.
 	fallbackConfigs := []*FallbackConfig{
 		{
-			Host:      config.Host,
-			Port:      config.Port,
-			TLSConfig: config.TLSConfig,
-			Password:  config.Password,
+			Host:                 config.Host,
+			Port:                 config.Port,
+			TLSConfig:            config.TLSConfig,
+			Password:             config.Password,
+			passwordFromPassfile: config.passwordFromPassfile,
 		},
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
@@ -210,7 +230,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 				address:          address,
 				originalHostname: fb.Host,
 				tlsConfig:        fb.TLSConfig,
-				password:         fb.Password,
+				password:         passwordFor(fb, config),
 			})
 
 			continue
@@ -235,7 +255,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
-					password:         fb.Password,
+					password:         passwordFor(fb, config),
 				})
 			} else {
 				network, address := NetworkAddress(ip, fb.Port)
@@ -244,7 +264,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
-					password:         fb.Password,
+					password:         passwordFor(fb, config),
 				})
 			}
 		}

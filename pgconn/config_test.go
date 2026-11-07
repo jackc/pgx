@@ -1409,12 +1409,15 @@ func TestParseConfigReadsPgPassfilePerHost(t *testing.T) {
 		assert.Equal(t, "only-secret", config.Fallbacks[0].Password)
 	}
 
-	// A password from the connection string applies to every host and the .pgpass file is not consulted.
+	// A password from the connection string applies to every host and the .pgpass file is not consulted. The
+	// fallback keeps an empty password so it inherits Config.Password at connect time; a password refreshed
+	// after parsing then applies to it as well.
 	config, err = pgconn.ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app password=explicit sslmode=disable passfile=%s", tfName))
 	require.NoError(t, err)
 	assert.Equal(t, "explicit", config.Password)
 	if assert.Len(t, config.Fallbacks, 1) {
-		assert.Equal(t, "explicit", config.Fallbacks[0].Password)
+		assert.Equal(t, "", config.Fallbacks[0].Password)
+		assert.False(t, config.Fallbacks[0].PasswordFromPassfile())
 	}
 }
 

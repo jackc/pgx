@@ -186,12 +186,7 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 		return nil
 	}
 
-	newFallbacks := append([]*pgconn.FallbackConfig{{
-		Host:      connConfig.Host,
-		Port:      connConfig.Port,
-		TLSConfig: connConfig.TLSConfig,
-		Password:  connConfig.Password,
-	}}, connConfig.Fallbacks...)
+	newFallbacks := append([]*pgconn.FallbackConfig{connConfig.PrimaryFallback()}, connConfig.Fallbacks...)
 
 	rand.Shuffle(len(newFallbacks), func(i, j int) {
 		newFallbacks[i], newFallbacks[j] = newFallbacks[j], newFallbacks[i]
@@ -202,7 +197,11 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 	connConfig.Host = newPrimary.Host
 	connConfig.Port = newPrimary.Port
 	connConfig.TLSConfig = newPrimary.TLSConfig
-	connConfig.Password = newPrimary.Password
+	// Only a host with its own password becomes the config password. A host that inherits Config.Password
+	// leaves it unchanged, so the shared password is not clobbered with an empty value.
+	if newPrimary.Password != "" || newPrimary.PasswordFromPassfile() {
+		connConfig.Password = newPrimary.Password
+	}
 	connConfig.Fallbacks = newFallbacks[:len(newFallbacks)-1]
 	return nil
 }
