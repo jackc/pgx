@@ -9,8 +9,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,7 +59,7 @@ func TestConnectReloadsClientCertificate(t *testing.T) {
 	sslkey := filepath.Join(dir, "client.key")
 	writeClientPair(t, sslcert, sslkey, 1)
 
-	config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost user=test sslmode=require sslcert='%s' sslkey='%s'", sslcert, sslkey))
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost user=test sslmode=require sslcert='%s' sslkey='%s'", filepath.ToSlash(sslcert), filepath.ToSlash(sslkey)))
 	require.NoError(t, err)
 
 	serverCert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
@@ -89,7 +91,7 @@ func TestConnectReloadsClientCertificate(t *testing.T) {
 func TestParseConfigRejectsUnreadableClientCertificate(t *testing.T) {
 	t.Parallel()
 
-	missing := filepath.Join(t.TempDir(), "missing")
+	missing := filepath.ToSlash(filepath.Join(t.TempDir(), "missing"))
 	_, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost sslmode=require sslcert='%s' sslkey='%s'", missing, missing))
 	require.ErrorContains(t, err, "unable to read sslkey")
 }
@@ -141,7 +143,7 @@ func TestConnectCombinedKeyAndCertFile(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "client.pem")
 			writeCombinedPair(t, path, 7, keyFirst)
 
-			config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost user=test sslmode=require sslcert='%s' sslkey='%s'", path, path))
+			config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost user=test sslmode=require sslcert='%s' sslkey='%s'", filepath.ToSlash(path), filepath.ToSlash(path)))
 			require.NoError(t, err)
 
 			results := sslCertModeTestServer(t, config, serverConfig)
@@ -155,5 +157,140 @@ func TestConnectCombinedKeyAndCertFile(t *testing.T) {
 			require.NoError(t, result.err)
 			require.Equal(t, int64(7), result.peerSerial)
 		})
+	}
+}
+
+func connectClientCertTest(t *testing.T, config *pgconn.Config, results <-chan sslCertModeServerResult) sslCertModeServerResult {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	_ = conn.Close(ctx)
+	result := <-results
+	require.NoError(t, result.err)
+	return result
+}
+
+func TestConnectClientCertificateOverrides(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	sslcert := filepath.Join(dir, "client.crt")
+	sslkey := filepath.Join(dir, "client.key")
+	writeClientPair(t, sslcert, sslkey, 2)
+	replacement, err := tls.LoadX509KeyPair(sslcert, sslkey)
+	require.NoError(t, err)
+	writeClientPair(t, sslcert, sslkey, 3)
+	callbackCert, err := tls.LoadX509KeyPair(sslcert, sslkey)
+	require.NoError(t, err)
+	writeClientPair(t, sslcert, sslkey, 1)
+	serverCert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	serverConfig := &tls.Config{Certificates: []tls.Certificate{serverCert}, ClientAuth: tls.RequestClientCert}
+
+	for _, copied := range []bool{false, true} {
+		for _, fallback := range []bool{false, true} {
+			for _, mode := range []string{"allow", "require"} {
+				for _, override := range []string{"default", "replace", "append", "callback", "empty"} {
+					if mode == "require" && override == "empty" {
+						continue
+					}
+					t.Run(fmt.Sprintf("copy=%t/fallback=%t/%s/%s", copied, fallback, mode, override), func(t *testing.T) {
+						t.Parallel()
+						original, err := pgconn.ParseConfig(fmt.Sprintf("host=127.0.0.1,127.0.0.2 user=test sslmode=require sslcertmode=%s sslcert='%s' sslkey='%s'", mode, filepath.ToSlash(sslcert), filepath.ToSlash(sslkey)))
+						require.NoError(t, err)
+						config := original
+						if copied {
+							config = original.Copy()
+						}
+						tlsConfig := config.TLSConfig
+						if fallback {
+							tlsConfig = config.Fallbacks[0].TLSConfig
+						}
+						want := int64(2)
+						switch override {
+						case "default":
+							want = 1
+						case "replace":
+							tlsConfig.Certificates = []tls.Certificate{replacement}
+						case "append":
+							unusable := replacement
+							unusable.SupportedSignatureAlgorithms = []tls.SignatureScheme{tls.PSSWithSHA256}
+							tlsConfig.Certificates = append(tlsConfig.Certificates, unusable, replacement)
+						case "callback":
+							tlsConfig.Certificates = []tls.Certificate{replacement}
+							tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+								return &callbackCert, nil
+							}
+							want = 3
+						case "empty":
+							tlsConfig.Certificates = []tls.Certificate{}
+							want = 0
+						}
+						results := sslCertModeTestServer(t, config, serverConfig)
+						if fallback {
+							dial := config.DialFunc
+							config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+								if address == fmt.Sprintf("127.0.0.1:%d", config.Port) {
+									return nil, errors.New("try fallback")
+								}
+								return dial(ctx, network, address)
+							}
+						}
+						require.Equal(t, want, connectClientCertTest(t, config, results).peerSerial)
+						if copied {
+							results := sslCertModeTestServer(t, original, serverConfig)
+							require.Equal(t, int64(1), connectClientCertTest(t, original, results).peerSerial)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func TestConnectReloadsClientCertificateAfterChdir(t *testing.T) {
+	originalDir := t.TempDir()
+	otherDir := t.TempDir()
+	sslcert := filepath.Join(originalDir, "client.crt")
+	sslkey := filepath.Join(originalDir, "client.key")
+	writeClientPair(t, sslcert, sslkey, 1)
+	writeClientPair(t, filepath.Join(otherDir, "client.crt"), filepath.Join(otherDir, "client.key"), 2)
+	t.Chdir(originalDir)
+	config, err := pgconn.ParseConfig("host=localhost user=test sslmode=require sslcert=client.crt sslkey=client.key")
+	require.NoError(t, err)
+	t.Chdir(otherDir)
+	serverCert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	serverConfig := &tls.Config{Certificates: []tls.Certificate{serverCert}, ClientAuth: tls.RequestClientCert}
+	results := sslCertModeTestServer(t, config, serverConfig)
+	require.Equal(t, int64(1), connectClientCertTest(t, config, results).peerSerial)
+
+	// Rotation must still follow the paths from the original working directory.
+	writeClientPair(t, sslcert, sslkey, 3)
+	require.Equal(t, int64(3), connectClientCertTest(t, config, results).peerSerial)
+}
+
+func TestConnectReloadsClientCertificateConcurrentCopies(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	sslcert := filepath.Join(dir, "client.crt")
+	sslkey := filepath.Join(dir, "client.key")
+	writeClientPair(t, sslcert, sslkey, 1)
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=localhost user=test sslmode=require sslcertmode=require sslcert='%s' sslkey='%s'", filepath.ToSlash(sslcert), filepath.ToSlash(sslkey)))
+	require.NoError(t, err)
+	copied := config.Copy()
+	writeClientPair(t, sslcert, sslkey, 2)
+	serverCert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	serverConfig := &tls.Config{Certificates: []tls.Certificate{serverCert}, ClientAuth: tls.RequestClientCert}
+	for i, cfg := range []*pgconn.Config{config, copied} {
+		results := sslCertModeTestServer(t, cfg, serverConfig)
+		for j := range 4 {
+			t.Run(fmt.Sprintf("config=%d/connection=%d", i, j), func(t *testing.T) {
+				t.Parallel()
+				require.Equal(t, int64(2), connectClientCertTest(t, cfg, results).peerSerial)
+			})
+		}
 	}
 }

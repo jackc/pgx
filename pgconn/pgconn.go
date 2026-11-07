@@ -355,7 +355,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 
 	var sslCert *sslCertState
 	if connectConfig.tlsConfig != nil {
-		tlsConfig, state := prepareTLSConfigForConnect(connectConfig.tlsConfig, config.SSLCertMode)
+		tlsConfig, state := config.prepareTLSConfigForConnect(connectConfig.tlsConfig)
 		sslCert = state
 		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
 		pgConn.contextWatcher.Watch(ctx)
@@ -1199,7 +1199,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// plaintext (e.g. unix sockets or sslmode=disable).
 	if pgConn.tlsConfig != nil {
 		// Cancel requests have no AuthenticationOk, so only the prepared TLS config is needed.
-		tlsConfig, _ := prepareTLSConfigForConnect(pgConn.tlsConfig, pgConn.config.SSLCertMode)
+		tlsConfig, _ := pgConn.config.prepareTLSConfigForConnect(pgConn.tlsConfig)
 		var tlsCancelConn net.Conn
 		if pgConn.config.SSLNegotiation == "direct" {
 			tlsCancelConn = tls.Client(cancelConn, tlsConfig)

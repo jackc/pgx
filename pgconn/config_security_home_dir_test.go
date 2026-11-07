@@ -80,12 +80,11 @@ func runOpenSSL(t *testing.T, args ...string) {
 }
 
 // assertClientCertResolves checks that the home-directory mTLS default produced
-// a usable client certificate. The pair lives in GetClientCertificate rather
-// than Certificates so that a rotated pair is read again on every connection.
+// a usable client certificate. Resolve it through the connection's TLS config
+// so that a rotated pair is read again on every connection.
 func assertClientCertResolves(t *testing.T, cfg *pgconn.Config) {
 	t.Helper()
-	require.NotNil(t, cfg.TLSConfig.GetClientCertificate, "mTLS client cert default must still resolve")
-	cert, err := cfg.TLSConfig.GetClientCertificate(nil)
+	cert, err := pgconn.GetClientCertificateForTest(cfg)
 	require.NoError(t, err)
 	require.NotEmpty(t, cert.Certificate)
 }

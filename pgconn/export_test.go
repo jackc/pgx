@@ -2,7 +2,16 @@
 
 package pgconn
 
-import "os/user"
+import (
+	"crypto/tls"
+	"os/user"
+)
+
+// GetClientCertificateForTest resolves the file-backed certificate as a connection would.
+func GetClientCertificateForTest(config *Config) (*tls.Certificate, error) {
+	tlsConfig, _ := config.prepareTLSConfigForConnect(config.TLSConfig)
+	return tlsConfig.GetClientCertificate(nil)
+}
 
 // SetOSUserLookupForTest overrides the OS user account lookup used to
 // resolve the default PostgreSQL user name. It lets tests simulate
