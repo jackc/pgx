@@ -294,3 +294,54 @@ func TestConnectReloadsClientCertificateConcurrentCopies(t *testing.T) {
 		}
 	}
 }
+
+func TestConnectReloadsEncryptedClientCertificate(t *testing.T) {
+	t.Parallel()
+	serverCert, err := tls.X509KeyPair([]byte(rsaCertPEM), []byte(rsaKeyPEM))
+	require.NoError(t, err)
+	serverConfig := &tls.Config{Certificates: []tls.Certificate{serverCert}, ClientAuth: tls.RequestClientCert}
+	for _, label := range []string{"RSA PRIVATE KEY", "CERTIFICATE"} {
+		for _, callback := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/callback=%t", label, callback), func(t *testing.T) {
+				t.Parallel()
+				dir := t.TempDir()
+				sslcert := filepath.Join(dir, "client.crt")
+				sslkey := filepath.Join(dir, "client.key")
+				require.NoError(t, os.WriteFile(sslcert, []byte(rsaCertPEM), 0o600))
+				require.NoError(t, os.WriteFile(sslkey, []byte(rsaKeyPEM), 0o600))
+				encryptKey := func() {
+					keyPEM, err := os.ReadFile(sslkey)
+					require.NoError(t, err)
+					key, _ := pem.Decode(keyPEM)
+					require.NotNil(t, key)
+					// The existing CI fixture labels its encrypted PKCS#1 key CERTIFICATE.
+					encrypted, err := x509.EncryptPEMBlock(rand.Reader, label, key.Bytes, []byte("secret"), x509.PEMCipher3DES)
+					require.NoError(t, err)
+					require.NoError(t, os.WriteFile(sslkey, pem.EncodeToMemory(encrypted), 0o600))
+				}
+				encryptKey()
+				connString := fmt.Sprintf("host=localhost user=test sslmode=require sslcertmode=require sslcert='%s' sslkey='%s'", filepath.ToSlash(sslcert), filepath.ToSlash(sslkey))
+				var options pgconn.ParseConfigOptions
+				passwordCalls := 0
+				if callback {
+					options.GetSSLPassword = func(context.Context) string {
+						passwordCalls++
+						return "secret"
+					}
+				} else {
+					connString += " sslpassword=secret"
+				}
+				config, err := pgconn.ParseConfigWithOptions(connString, options)
+				require.NoError(t, err)
+				results := sslCertModeTestServer(t, config, serverConfig)
+				require.Equal(t, 1, connectClientCertTest(t, config, results).certificates)
+				writeClientPair(t, sslcert, sslkey, 7)
+				encryptKey()
+				require.Equal(t, int64(7), connectClientCertTest(t, config, results).peerSerial)
+				if callback {
+					require.Equal(t, 1, passwordCalls, "reuse the password resolved during ParseConfig")
+				}
+			})
+		}
+	}
+}

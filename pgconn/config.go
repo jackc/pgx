@@ -1118,7 +1118,6 @@ func loadClientCertificate(sslcert, sslkey, sslpassword string, parseConfigOptio
 	// If PEM is encrypted, attempt to decrypt using pass phrase
 	if x509.IsEncryptedPEMBlock(block) {
 		// Attempt decryption with pass phrase
-		// NOTE: only supports RSA (PKCS#1)
 		if sslpassword != "" {
 			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword)) //nolint:ineffassign
 		}
@@ -1133,13 +1132,14 @@ func loadClientCertificate(sslcert, sslkey, sslpassword string, parseConfigOptio
 			}
 		}
 		decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
-		// Should we also provide warning for PKCS#1 needed?
 		if decryptedError != nil {
 			return tls.Certificate{}, "", fmt.Errorf("unable to decrypt key: %w", decryptedError)
 		}
 
 		pemBytes := pem.Block{
-			Type:  block.Type,
+			// Preserve the old loader's tolerance of non-key PEM labels.
+			// X509KeyPair determines the key format from the decrypted DER.
+			Type:  "PRIVATE KEY",
 			Bytes: decryptedKey,
 		}
 		pemKey = pem.EncodeToMemory(&pemBytes)
