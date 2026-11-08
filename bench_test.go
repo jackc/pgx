@@ -1239,9 +1239,9 @@ func BenchmarkSelectRowsSimpleAppendRowsRowToStructByName(b *testing.B) {
 			benchRows := make([]BenchRowSimple, 0, rowCount)
 			for b.Loop() {
 				benchRows = benchRows[:0]
-				rows, _ := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '{foo,bar,baz}'::text[], '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", rowCount)
+				rows, _ := conn.Query(context.Background(), "select n as id, 'Adam' as first_name, 'Smith ' || n as last_name, 'male' as sex, '1952-06-16'::date as birth_date, 258 as weight, 72 as height, '{foo,bar,baz}'::text[] as tags, '2001-01-28 01:02:03-05'::timestamptz as update_time from generate_series(100001, 100000 + $1) n", rowCount)
 				var err error
-				benchRows, err = pgx.AppendRows(benchRows, rows, pgx.RowToStructByPos[BenchRowSimple])
+				benchRows, err = pgx.AppendRows(benchRows, rows, pgx.RowToStructByName[BenchRowSimple])
 				if err != nil {
 					b.Fatal(err)
 				}
