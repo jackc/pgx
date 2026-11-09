@@ -682,8 +682,16 @@ func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
 	case pgtype.TextOID, pgtype.ByteaOID:
 		return math.MaxInt64, true
 	case pgtype.VarcharOID, pgtype.BPCharOID:
+		// An unconstrained varchar or bpchar is not limited, which
+		// database/sql represents as math.MaxInt64.
+		if fd.TypeModifier == -1 {
+			return math.MaxInt64, true
+		}
 		return int64(fd.TypeModifier - varHeaderSize), true
 	case pgtype.VarbitOID:
+		if fd.TypeModifier == -1 {
+			return math.MaxInt64, true
+		}
 		return int64(fd.TypeModifier), true
 	default:
 		return 0, false
