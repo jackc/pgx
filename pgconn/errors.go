@@ -289,7 +289,16 @@ func redactURLPassword(connString string) string {
 	// Userinfo: same lookahead as parseURLSettings.
 	if i := strings.IndexAny(p, "@/"); i >= 0 && p[i] == '@' {
 		user, _, hasPassword := strings.Cut(p[:i], ":")
-		p = p[i+1:]
+		end := i
+		if hasPassword && !uriStructureUnambiguous(connString) {
+			// The parser ends the userinfo at the first '@', but in a
+			// malformed URI an unencoded password may itself contain '@'
+			// (user:sec@ret@host). Stopping at the first one would print
+			// the rest of the password ("ret") in clear text, so mask up
+			// to the '@' that most plausibly ends the userinfo instead.
+			end = brokenUserinfoEnd(p, i)
+		}
+		p = p[end+1:]
 		b.WriteString(user)
 		if hasPassword {
 			b.WriteString(":" + mask)
@@ -358,10 +367,15 @@ func redactURLPassword(connString string) string {
 // to be numeric or empty: the parser accepts arbitrary text in the port slot
 // (postgres://a@u:sec:ret@h parses with port "sec:ret@h"), so a non-numeric
 // port may be a mislaid password and keeps the string in best-effort
-// territory.
+// territory. The same holds for a host containing '@': the parser accepts
+// postgres://user:sec@ret@h with host "ret@h", but no host name contains '@',
+// so the '@' is a mislaid part of the password.
 func uriStructureUnambiguous(connString string) bool {
 	settings, _, err := parseURLSettings(connString)
 	if err != nil {
+		return false
+	}
+	if strings.IndexByte(settings["host"], '@') >= 0 {
 		return false
 	}
 	for part := range strings.SplitSeq(settings["port"], ",") {
@@ -372,6 +386,24 @@ func uriStructureUnambiguous(connString string) bool {
 		}
 	}
 	return true
+}
+
+// brokenUserinfoEnd returns the index of the '@' that most plausibly
+// terminates the userinfo of a malformed connection URI whose first '@' is at
+// first: the last '@' before the last '?', so that an '@' inside a query value
+// (application_name=me@example.com) is not mistaken for it; or, when no '@'
+// follows first before that '?' (the '?' then belongs to the password, as in
+// user:pass?x@host), the last '@' in p. Over-masking a malformed host is
+// preferable to printing part of a password.
+func brokenUserinfoEnd(p string, first int) int {
+	end := -1
+	if q := strings.LastIndexByte(p, '?'); q > first {
+		end = strings.LastIndexByte(p[:q], '@')
+	}
+	if end <= first {
+		end = strings.LastIndexByte(p, '@')
+	}
+	return max(end, first)
 }
 
 // uriQueryStart returns the index of the '?' that begins the query component
