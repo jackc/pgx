@@ -316,11 +316,18 @@ func (rows *baseRows) Values() ([]any, error) {
 		return nil, errors.New("rows is closed")
 	}
 
-	values := make([]any, 0, len(rows.FieldDescriptions()))
+	fieldDescriptions := rows.FieldDescriptions()
+	if len(fieldDescriptions) != len(rows.values) {
+		err := fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(rows.values))
+		rows.fatal(err)
+		return nil, err
+	}
 
-	for i := range rows.FieldDescriptions() {
+	values := make([]any, 0, len(fieldDescriptions))
+
+	for i := range fieldDescriptions {
 		buf := rows.values[i]
-		fd := &rows.FieldDescriptions()[i]
+		fd := &fieldDescriptions[i]
 
 		if buf == nil {
 			values = append(values, nil)

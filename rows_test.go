@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -12,9 +13,71 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/pgmock"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgxtest"
 )
+
+func TestRowsValuesFieldCountMismatch(t *testing.T) {
+	for _, valueCount := range []int{0, 1, 4} {
+		t.Run(fmt.Sprintf("values=%d", valueCount), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			client, server := net.Pipe()
+			defer client.Close()
+			defer server.Close()
+			deadline, _ := ctx.Deadline()
+			require.NoError(t, server.SetDeadline(deadline))
+
+			values := make([][]byte, valueCount)
+			for i := range values {
+				values[i] = []byte("x")
+			}
+			script := &pgmock.Script{Steps: []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{}),
+				pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+				pgmock.SendMessage(&pgproto3.ParameterStatus{Name: "standard_conforming_strings", Value: "on"}),
+				pgmock.SendMessage(&pgproto3.ParameterStatus{Name: "client_encoding", Value: "UTF8"}),
+				pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+				pgmock.ExpectAnyMessage(&pgproto3.Query{}),
+				pgmock.SendMessage(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
+					{Name: []byte("a"), DataTypeOID: 25},
+					{Name: []byte("b"), DataTypeOID: 25},
+					{Name: []byte("c"), DataTypeOID: 25},
+				}}),
+				pgmock.SendMessage(&pgproto3.DataRow{Values: values}),
+				pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}),
+				pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+				pgmock.ExpectMessage(&pgproto3.Terminate{}),
+			}}
+			serverDone := make(chan error, 1)
+			go func() {
+				serverDone <- script.Run(pgproto3.NewBackend(server, server))
+			}()
+
+			config, err := pgx.ParseConfig("host=localhost sslmode=disable")
+			require.NoError(t, err)
+			config.DialFunc = func(context.Context, string, string) (net.Conn, error) { return client, nil }
+			config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+			conn, err := pgx.ConnectConfig(ctx, config)
+			require.NoError(t, err)
+			defer conn.Close(ctx)
+			rows, err := conn.Query(ctx, "select 1")
+			require.NoError(t, err)
+			require.True(t, rows.Next())
+			decoded, err := rows.Values()
+			require.EqualError(t, err, fmt.Sprintf("number of field descriptions must equal number of values, got 3 and %d", valueCount))
+			require.Nil(t, decoded)
+			require.Same(t, err, rows.Err())
+			require.False(t, rows.Next())
+			_, err = rows.Values()
+			require.EqualError(t, err, "rows is closed")
+			require.NoError(t, conn.Close(ctx))
+			require.NoError(t, <-serverDone)
+		})
+	}
+}
 
 type testRowScanner struct {
 	name string
