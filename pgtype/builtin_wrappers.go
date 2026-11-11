@@ -744,6 +744,25 @@ func (w *ptrStructWrapper) ScanIndex(i int) any {
 	return w.exportedFields[i].Addr().Interface()
 }
 
+// ptrStructWrapper implements CompositeIndexScanner for a pointer to a struct.
+type ptrStructNameWrapper struct {
+	s              any
+	exportedFields map[string]reflect.Value
+}
+
+func (w *ptrStructNameWrapper) ScanNull() error {
+	return fmt.Errorf("cannot scan NULL into %#v", w.s)
+}
+
+func (w *ptrStructNameWrapper) ScanName(n string) any {
+	value, ok := w.exportedFields[n]
+	if !ok {
+		return fmt.Errorf("%#v only has %d public fields - %s is not a field", w.s, len(w.exportedFields), n)
+	}
+
+	return value.Addr().Interface()
+}
+
 type anySliceArrayReflect struct {
 	slice reflect.Value
 }
