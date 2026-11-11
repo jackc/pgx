@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1283,6 +1284,166 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	}
 
 	require.Fail(t, "did not get all hosts as primaries after many randomizations")
+}
+
+func TestRandomizeHostOrderFuncPreservesPerHostPasswords(t *testing.T) {
+	tfName := filepath.Join(t.TempDir(), "pgpass")
+	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost2:5432:db:user:secret2\nhost3:5432:db:user:secret3\n"), 0o600)
+	require.NoError(t, err)
+
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+
+	passwordByHost := map[string]string{
+		"host1": "secret1",
+		"host2": "secret2",
+		"host3": "secret3",
+	}
+
+	// Whichever host becomes the primary, its password must move with it and
+	// every fallback must keep its own password.
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		assert.Equal(t, passwordByHost[connCopy.Host], connCopy.Password)
+		for _, f := range connCopy.Fallbacks {
+			assert.Equal(t, passwordByHost[f.Host], f.Password)
+		}
+	}
+}
+
+// TestRandomizeHostOrderFuncPreservesMissingPgpassEntry covers a host the
+// .pgpass file has no entry for: shuffling must not give it another host's
+// password, whichever host becomes the primary.
+func TestRandomizeHostOrderFuncPreservesMissingPgpassEntry(t *testing.T) {
+	tfName := filepath.Join(t.TempDir(), "pgpass")
+	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost3:5432:db:user:secret3\n"), 0o600)
+	require.NoError(t, err)
+
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+
+	passwordByHost := map[string]string{
+		"host1": "secret1",
+		"host2": "",
+		"host3": "secret3",
+	}
+
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		assert.Equal(t, passwordByHost[connCopy.Host], connCopy.Password)
+		for _, f := range connCopy.Fallbacks {
+			assert.Equal(t, passwordByHost[f.Host], f.Password)
+		}
+	}
+}
+
+// TestRandomizeHostOrderFuncPreservesSharedPasswordRefresh covers the #2708 follow-up: a shared password
+// (from the connection string) must not be pinned onto the demoted primary when hosts are reordered, so a
+// credential refresh after randomization still applies to it.
+func TestRandomizeHostOrderFuncPreservesSharedPasswordRefresh(t *testing.T) {
+	config, err := pgx.ParseConfig("host=host1,host2,host3 dbname=db user=user password=old-password sslmode=disable")
+	require.NoError(t, err)
+
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		// The shared password itself is unchanged by reordering.
+		assert.Equal(t, "old-password", connCopy.Password)
+
+		// Whichever host was demoted from primary, it must not carry a pinned copy of the shared
+		// password: an empty Password means it inherits Config.Password at connect time.
+		for _, f := range connCopy.Fallbacks {
+			assert.Equal(t, "", f.Password, "demoted host %s must not pin the shared password", f.Host)
+		}
+	}
+}
+
+// TestRandomizeHostOrderFuncPreservesRefreshedPasswordForPreferFallback covers the #2708 third-round
+// follow-up: with a readable .pgpass file and sslmode=prefer, refreshing Config.Password and then
+// randomizing must not restore the .pgpass entry when the same host's plaintext fallback becomes the
+// primary. The plaintext retry is the primary host itself, so the password as it stands now is already
+// that host's password.
+func TestRandomizeHostOrderFuncPreservesRefreshedPasswordForPreferFallback(t *testing.T) {
+	tfName := filepath.Join(t.TempDir(), "pgpass")
+	err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+	require.NoError(t, err)
+
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+	require.NoError(t, err)
+	config.Password = "refreshed-password"
+
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		assert.Equal(t, "refreshed-password", connCopy.Password)
+		for _, f := range connCopy.Fallbacks {
+			assert.NotEqual(t, "pgpass-password", f.Password, "fallback %s must not carry the stale .pgpass entry", f.Host)
+		}
+	}
+}
+
+// TestRandomizeHostOrderFuncPreservesSharedPasswordOnPromotion covers the #2708 third-round follow-up:
+// when a fallback with its own explicit password is promoted to primary, Config.Password is overwritten
+// with it, so the hosts that inherit the shared password must be pinned to the shared password as it
+// stood. Otherwise the demoted primary would inherit the new primary's password on the next attempt.
+func TestRandomizeHostOrderFuncPreservesSharedPasswordOnPromotion(t *testing.T) {
+	config, err := pgx.ParseConfig("host=primary.example.com,fallback.example.com,other.example.com user=app password=shared-password sslmode=disable")
+	require.NoError(t, err)
+	// The fallback host has its own password; the other host inherits the shared password.
+	for _, f := range config.Fallbacks {
+		if f.Host == "fallback.example.com" {
+			f.Password = "fallback-explicit"
+		}
+	}
+
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		switch connCopy.Host {
+		case "primary.example.com", "other.example.com":
+			// A host without its own password is the primary, so the shared password stays the config
+			// password and the inheriting hosts keep an empty password.
+			assert.Equal(t, "shared-password", connCopy.Password)
+			for _, f := range connCopy.Fallbacks {
+				switch f.Host {
+				case "fallback.example.com":
+					assert.Equal(t, "fallback-explicit", f.Password)
+				default:
+					assert.Equal(t, "", f.Password, "host %s must keep inheriting Config.Password", f.Host)
+					assert.False(t, f.PasswordFromPassfile())
+				}
+			}
+		case "fallback.example.com":
+			assert.Equal(t, "fallback-explicit", connCopy.Password)
+			// The hosts without their own password were pinned to the shared password when
+			// Config.Password was overwritten, so they do not inherit the new primary's password.
+			for _, f := range connCopy.Fallbacks {
+				assert.Equal(t, "shared-password", f.Password, "host %s must keep the shared password", f.Host)
+			}
+		default:
+			require.Failf(t, "unexpected primary host", "%s", connCopy.Host)
+		}
+	}
+
+	// Pinning must not leak into the original config: the fallback structs are shared with the shallow
+	// copies, so only clones may be mutated.
+	for _, f := range config.Fallbacks {
+		switch f.Host {
+		case "fallback.example.com":
+			assert.Equal(t, "fallback-explicit", f.Password)
+		case "other.example.com":
+			assert.Equal(t, "", f.Password)
+		default:
+			require.Failf(t, "unexpected fallback host in original config", "%s", f.Host)
+		}
+	}
 }
 
 func TestResetSessionHookCalled(t *testing.T) {

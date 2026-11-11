@@ -123,6 +123,11 @@ type Config struct {
 	// File-backed client certificates are installed only on connection-specific TLS
 	// configs, so callers can override Certificates or GetClientCertificate.
 	clientCertificateLoaders map[*tls.Config]func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+
+	// passwordFromPassfile is true when Password was resolved from a .pgpass entry for the primary host by
+	// ParseConfig. In that case Password is the primary host's entry, not a password shared by every host, so a
+	// host without its own password must not inherit it. See FallbackConfig.passwordFromPassfile.
+	passwordFromPassfile bool
 }
 
 // defaultPort is the port used when neither the connection string, the environment, nor the
@@ -218,6 +223,47 @@ type FallbackConfig struct {
 	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
 	Port      uint16
 	TLSConfig *tls.Config // nil disables TLS
+
+	// Password is the password to use when connecting to this host. ParseConfig sets it to the .pgpass entry for
+	// this host when no password was given in the connection string, or leaves it empty so the password is
+	// inherited from Config.Password at connect time. It differs from Config.Password when the .pgpass file has a
+	// different entry for this host. A password explicitly set here is always used.
+	Password string
+
+	// passwordFromPassfile is true when Password was resolved from a .pgpass entry for this host by ParseConfig.
+	// In that case Password is authoritative for this host, even when empty: a missing entry means this host has
+	// no password, and it must not inherit Config.Password, which may hold another host's .pgpass entry. When
+	// false, an empty Password means the password is inherited from Config.Password as it stands at connect time,
+	// so a password set in the connection string or refreshed after parsing (e.g. in BeforeConnect) applies.
+	passwordFromPassfile bool
+}
+
+// PasswordFromPassfile reports whether Password was resolved from a .pgpass entry for this host by ParseConfig.
+// When true, Password is authoritative for this host even when empty. When false, an empty Password means the
+// password is inherited from Config.Password at connect time.
+func (f *FallbackConfig) PasswordFromPassfile() bool {
+	return f.passwordFromPassfile
+}
+
+// PrimaryFallback returns the primary host as a FallbackConfig, including whether its password was resolved from a
+// .pgpass entry. It is used to rotate the primary host into the fallback list, e.g. by
+// stdlib.RandomizeHostOrderFunc, without losing how the primary's password was resolved. The returned
+// FallbackConfig is a copy; modifying it does not affect the Config.
+func (c *Config) PrimaryFallback() *FallbackConfig {
+	fb := &FallbackConfig{
+		Host:                 c.Host,
+		Port:                 c.Port,
+		TLSConfig:            c.TLSConfig,
+		passwordFromPassfile: c.passwordFromPassfile,
+	}
+	// Only the primary host's own .pgpass entry is copied: it belongs to this host. A shared password (from the
+	// connection string or refreshed after parsing) is left unset, so the demoted host keeps inheriting
+	// Config.Password at connect time instead of being pinned to the password as it stood when the hosts were
+	// reordered.
+	if c.passwordFromPassfile {
+		fb.Password = c.Password
+	}
+	return fb
 }
 
 // connectOneConfig is the configuration for a single attempt to connect to a single host.
@@ -226,6 +272,7 @@ type connectOneConfig struct {
 	address          string
 	originalHostname string      // original hostname before resolving
 	tlsConfig        *tls.Config // nil disables TLS
+	password         string      // password for originalHostname
 }
 
 // isAbsolutePath checks if the provided value is an absolute path either
@@ -343,9 +390,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // rejected before any filesystem access occurs.
 //
 // Other known differences with libpq:
-//
-// When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
-// does not.
 //
 // URL query parameters that libpq does not recognize cause libpq to fail with an "invalid URI query parameter" error.
 // ParseConfig accepts them: they become runtime parameters or pgx-specific options (e.g. pool_max_conns).
@@ -644,14 +688,35 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Fallbacks = fallbacks[1:]
 	config.SSLNegotiation = settings["sslnegotiation"]
 
+	// Resolve the password for each host. A password from the connection string is not copied to the fallbacks:
+	// each host inherits Config.Password at connect time, so a password refreshed after parsing applies to every
+	// host. Otherwise the .pgpass file is consulted separately for each host, as libpq does, so different hosts
+	// may have different passwords. A host the .pgpass file has no entry for keeps the empty password it was
+	// resolved to, rather than inheriting Config.Password, which holds the first host's entry. A fallback for
+	// the same host and port as the primary is the primary host itself, so no entry is resolved for it: it
+	// inherits Config.Password instead.
 	if config.Password == "" {
 		passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 		if err == nil {
-			host := config.Host
-			if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
-				host = "localhost"
+			for i, fb := range fallbacks {
+				// A fallback for the same host and port as the primary is the primary host itself (e.g.
+				// the sslmode=prefer plaintext retry), so no separate .pgpass entry may be resolved for
+				// it: that entry is the primary's entry, and resolving it would pin the fallback to the
+				// parsed value instead of following Config.Password as it stands at connect time, and
+				// would make a password explicitly assigned to the fallback unreachable. It keeps an
+				// empty password so it inherits Config.Password at connect time.
+				if i > 0 && fb.Host == fallbacks[0].Host && fb.Port == fallbacks[0].Port {
+					continue
+				}
+				host := fb.Host
+				if network, _ := NetworkAddress(fb.Host, fb.Port); network == "unix" {
+					host = "localhost"
+				}
+				fb.Password = passfile.FindPassword(host, strconv.Itoa(int(fb.Port)), config.Database, config.User)
+				fb.passwordFromPassfile = true
 			}
-			config.Password = passfile.FindPassword(host, strconv.Itoa(int(config.Port)), config.Database, config.User)
+			config.Password = fallbacks[0].Password
+			config.passwordFromPassfile = true
 		}
 	}
 
