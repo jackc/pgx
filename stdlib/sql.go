@@ -694,8 +694,11 @@ func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
 	}
 }
 
-// ColumnTypePrecisionScale should return the precision and scale for decimal
-// types. If not applicable, ok should be false.
+// ColumnTypePrecisionScale returns the precision and scale for numeric types
+// with a declared precision. For timestamp, timestamptz, time, timetz, and interval,
+// it returns a precision of 0 and the fractional seconds precision as the scale,
+// defaulting to 6 when no fractional seconds precision was declared.
+// For unconstrained numeric and other types, ok is false.
 func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
 	fd := r.rows.FieldDescriptions()[index]
 
