@@ -1,3 +1,60 @@
+# 5.13.0 (November 11, 2026)
+
+This release adds automatic client certificate reloading and temporal precision metadata for `database/sql`.
+It also fixes a panic on malformed server responses, unsafe retries after connection failures, and range encoding.
+See Changes for client certificate configuration behavior that may affect existing applications.
+
+## Security Fixes
+
+* **Panic in `Rows.Values` on malformed server responses**
+  ([GHSA-w9rp-vfrh-q8vv](https://github.com/jackc/pgx/security/advisories/GHSA-w9rp-vfrh-q8vv)).
+  A server response containing fewer row values than declared fields could cause an index-out-of-range panic in
+  `Rows.Values`. It now returns an error and closes the rows when the counts differ, including when there are extra
+  values, matching `Rows.Scan` validation.
+
+## Features
+
+* pgconn: reload client certificates and keys configured through `sslcert` and `sslkey` for each TLS certificate
+  request, allowing new connections to pick up rotated credentials without recreating the configuration or
+  restarting the application. Files are still validated during configuration parsing. Relative paths retain their
+  parse-time directory, and reloads follow symlinks (Erin Shepherd)
+* stdlib: expose fractional seconds precision for `timestamp`, `timestamptz`, `time`, `timetz`, and `interval` through
+  `ColumnTypePrecisionScale` and `database/sql.ColumnType.DecimalSize`. These return precision 0, the fractional
+  seconds precision as scale, and `ok=true`. The scale defaults to 6 when no fractional seconds precision is declared;
+  precision 0 means numeric precision is not applicable (Danny Xu)
+
+## Changes
+
+* pgconn: file-backed client certificates are no longer stored in the parsed `TLSConfig.Certificates` slice.
+  Setting `TLSConfig.Certificates` (including a non-nil empty slice) or `TLSConfig.GetClientCertificate` overrides
+  automatic reloading. Replacing `TLSConfig`, including with a direct `TLSConfig.Clone`, discards the file-backed
+  certificate settings; use `pgconn.Config.Copy` to preserve them when copying a configuration. Certificate and key
+  files must remain readable for subsequent TLS certificate requests. Encrypted keys reuse the password resolved
+  during configuration parsing; `GetSSLPassword` is not called again on reload.
+
+## Bug Fixes
+
+* pgconn: do not mark a connection-closed error encountered while receiving a response as safe to retry, since the
+  request may already have reached the server. This prevents `database/sql` from automatically repeating a statement
+  that may already have executed. The error still supports `errors.Is(err, pgconn.ErrConnClosed)` (Aayush Shah)
+* pgconn: skip sending a cancel request when a connection fails during startup, avoiding an unnecessary second
+  connection attempt (felipe stival)
+* pgconn: accept unencrypted combined certificate/key PEM files with the certificate before the key, as well as
+  key-first files (Erin Shepherd)
+* pgtype: encode `Range[any]` values returned by `RangeCodec.DecodeValue` and `Rows.Values` in both binary and text
+  formats, allowing decoded ranges and multiranges to be reused as query arguments or in `CopyFrom` (waw666waw666)
+* stdlib: report `ok=false` for the precision and scale of unconstrained `numeric` columns instead of bogus values
+  (Danny Xu)
+* stdlib: report `math.MaxInt64` for the lengths of unconstrained `varchar`, `bpchar`, and `varbit` columns instead of
+  negative lengths (PerryLink)
+
+## Documentation and Tests
+
+* pgxpool: clarify that a zero `PingTimeout` lets a stalled health-check ping consume the acquiring caller's full
+  deadline, and explain the tradeoffs of a positive timeout (dajiaohuang)
+* Correct the `AppendRows` / `RowToStructByName` benchmark to measure name-based rather than positional mapping
+  (Samir)
+
 # 5.12.0 (October 30, 2026)
 
 This release fixes two security vulnerabilities with narrow triggering conditions but serious impact. Affected
