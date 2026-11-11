@@ -1421,6 +1421,29 @@ func TestParseConfigReadsPgPassfilePerHost(t *testing.T) {
 	}
 }
 
+func TestParseConfigPreferPlaintextFallbackDoesNotResolvePgPassfile(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	tfName := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+	require.NoError(t, err)
+
+	// A single host with sslmode=prefer has a second entry for the same host with TLS disabled. It is the
+	// primary host itself, so no separate .pgpass entry may be resolved for it at parse time: that entry
+	// would pin the retry to the parsed value instead of following Config.Password, and would make an
+	// explicitly assigned password on the retry unreachable. It keeps an empty password so it inherits
+	// Config.Password at connect time.
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+	require.NoError(t, err)
+	assert.Equal(t, "pgpass-password", config.Password)
+	if assert.Len(t, config.Fallbacks, 1) {
+		assert.Equal(t, "primary.example.com", config.Fallbacks[0].Host)
+		assert.Equal(t, "", config.Fallbacks[0].Password)
+		assert.False(t, config.Fallbacks[0].PasswordFromPassfile())
+	}
+}
+
 func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	skipOnWindows(t)
 	clearPgEnvvars(t)

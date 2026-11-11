@@ -692,11 +692,22 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	// each host inherits Config.Password at connect time, so a password refreshed after parsing applies to every
 	// host. Otherwise the .pgpass file is consulted separately for each host, as libpq does, so different hosts
 	// may have different passwords. A host the .pgpass file has no entry for keeps the empty password it was
-	// resolved to, rather than inheriting Config.Password, which holds the first host's entry.
+	// resolved to, rather than inheriting Config.Password, which holds the first host's entry. A fallback for
+	// the same host and port as the primary is the primary host itself, so no entry is resolved for it: it
+	// inherits Config.Password instead.
 	if config.Password == "" {
 		passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 		if err == nil {
-			for _, fb := range fallbacks {
+			for i, fb := range fallbacks {
+				// A fallback for the same host and port as the primary is the primary host itself (e.g.
+				// the sslmode=prefer plaintext retry), so no separate .pgpass entry may be resolved for
+				// it: that entry is the primary's entry, and resolving it would pin the fallback to the
+				// parsed value instead of following Config.Password as it stands at connect time, and
+				// would make a password explicitly assigned to the fallback unreachable. It keeps an
+				// empty password so it inherits Config.Password at connect time.
+				if i > 0 && fb.Host == fallbacks[0].Host && fb.Port == fallbacks[0].Port {
+					continue
+				}
 				host := fb.Host
 				if network, _ := NetworkAddress(fb.Host, fb.Port); network == "unix" {
 					host = "localhost"

@@ -200,6 +200,24 @@ func TestConnectFallbackSendsRefreshedPassword(t *testing.T) {
 		assert.Equal(t, "refreshed-password", sent)
 	})
 
+	t.Run("explicit password on sslmode prefer plaintext fallback", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The plaintext retry is the same host as the primary, so a password assigned to it after
+		// parsing is an explicit override for that host and must be sent, not the .pgpass entry
+		// resolved at parse time or Config.Password.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Fallbacks[0].Password = "explicit-override"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "explicit-override", sent)
+	})
+
 	t.Run("sslmode prefer plaintext fallback with missing pgpass entry", func(t *testing.T) {
 		tfName := filepath.Join(t.TempDir(), "pgpass")
 		err := os.WriteFile(tfName, []byte("other.example.com:5432:app:app:someone-elses-password\n"), 0o600)
