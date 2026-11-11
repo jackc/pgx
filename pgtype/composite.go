@@ -494,7 +494,10 @@ func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field any) {
 
 	var plan EncodePlan
 	if isNil {
-		plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: BinaryFormatCode}
+		plan = b.m.PlanEncode(oid, BinaryFormatCode, field)
+		if plan == nil {
+			plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: BinaryFormatCode}
+		}
 	} else {
 		plan = b.m.PlanEncode(oid, BinaryFormatCode, field)
 		if plan == nil {
@@ -555,7 +558,10 @@ func (b *CompositeTextBuilder) AppendValue(oid uint32, field any) {
 
 	var plan EncodePlan
 	if isNil {
-		plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: TextFormatCode}
+		plan = b.m.PlanEncode(oid, TextFormatCode, field)
+		if plan == nil {
+			plan = &encodePlanDriverValuer{m: b.m, oid: oid, formatCode: TextFormatCode}
+		}
 	} else {
 		plan = b.m.PlanEncode(oid, TextFormatCode, field)
 		if plan == nil {
