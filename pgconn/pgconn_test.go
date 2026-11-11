@@ -5660,6 +5660,69 @@ func TestAsyncCloseDrainsBeforeClose(t *testing.T) {
 	}
 }
 
+// closeNotifyConn sends on closed each time Close is called.
+type closeNotifyConn struct {
+	net.Conn
+	closed chan struct{}
+}
+
+func (c *closeNotifyConn) Close() error {
+	c.closed <- struct{}{}
+	return c.Conn.Close()
+}
+
+// A connection that fails during startup has no query to cancel, so it must not dial the server to send a cancel request.
+func TestConnectFailureDoesNotSendCancelRequest(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		clientConn.Close()
+		serverConn.Close()
+	})
+	require.NoError(t, serverConn.SetDeadline(time.Now().Add(30*time.Second)))
+
+	// Drop the connection before ReadyForQuery. Unlike an ErrorResponse, the resulting I/O error goes through asyncClose.
+	script := &pgmock.Script{Steps: pgmock.AcceptUnauthenticatedConnRequestSteps()[:3]}
+	serverErrChan := make(chan error, 1)
+	go func() {
+		err := script.Run(pgproto3.NewBackend(serverConn, serverConn))
+		serverConn.Close()
+		serverErrChan <- err
+	}()
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable")
+	require.NoError(t, err)
+
+	conn := &closeNotifyConn{Conn: clientConn, closed: make(chan struct{}, 8)}
+	var dialCount atomic.Int32
+	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+		if dialCount.Add(1) > 1 {
+			return nil, errors.New("unexpected dial")
+		}
+		return conn, nil
+	}
+
+	_, err = pgconn.ConnectConfig(ctx, config)
+	require.Error(t, err)
+	require.NoError(t, <-serverErrChan)
+
+	// connectOne and asyncClose both close the conn. asyncClose does so after any cancel request, so once both have, the
+	// dial count is final.
+	for range 2 {
+		select {
+		case <-conn.closed:
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for the connection to be closed")
+		}
+	}
+
+	require.EqualValues(t, 1, dialCount.Load(), "a cancel request was sent for a connection that never finished starting up")
+}
+
 func TestDeadlineContextWatcherHandler(t *testing.T) {
 	t.Parallel()
 

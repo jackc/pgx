@@ -828,11 +828,12 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 }
 
 // asyncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
-// connection.
+// connection. The cancel query message is not sent if the connection is still starting up, as no query can be running.
 func (pgConn *PgConn) asyncClose() {
 	if pgConn.status == connStatusClosed {
 		return
 	}
+	sendCancelRequest := pgConn.status != connStatusConnecting
 	pgConn.status = connStatusClosed
 
 	go func() {
@@ -844,7 +845,9 @@ func (pgConn *PgConn) asyncClose() {
 		ctx, cancel := context.WithDeadline(context.Background(), deadline)
 		defer cancel()
 
-		pgConn.CancelRequest(ctx)
+		if sendCancelRequest {
+			pgConn.CancelRequest(ctx)
+		}
 
 		pgConn.conn.SetDeadline(deadline)
 
