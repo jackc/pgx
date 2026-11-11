@@ -80,6 +80,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 
 	lowerType, upperType := getter.BoundTypes()
 	lower, upper := getter.Bounds()
+	lower, upper = derefAnyRangeBound(lower), derefAnyRangeBound(upper)
 
 	var rangeType byte
 	switch lowerType {
@@ -171,6 +172,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 
 	lowerType, upperType := getter.BoundTypes()
 	lower, upper := getter.Bounds()
+	lower, upper = derefAnyRangeBound(lower), derefAnyRangeBound(upper)
 
 	switch lowerType {
 	case Exclusive, Unbounded:
@@ -237,6 +239,16 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 	}
 
 	return buf, nil
+}
+
+// derefAnyRangeBound returns the value held by v when v is a *any. Range[any], which is what RangeCodec.DecodeValue
+// returns, reports its bounds as *any. No encode plan can be found for a pointer to an interface, so the bound value
+// must be unwrapped before planning.
+func derefAnyRangeBound(v any) any {
+	if p, ok := v.(*any); ok && p != nil {
+		return *p
+	}
+	return v
 }
 
 func quoteRangeBoundIfNeeded(src string) string {

@@ -160,6 +160,81 @@ func TestRangeCodecDecodeValue(t *testing.T) {
 	})
 }
 
+func TestRangeCodecEncodeRangeOfAny(t *testing.T) {
+	m := pgtype.NewMap()
+
+	for _, tt := range []struct {
+		name     string
+		value    pgtype.Range[any]
+		expected pgtype.Range[pgtype.Int4]
+	}{
+		{
+			name:     "bounded",
+			value:    pgtype.Range[any]{Lower: int32(1), Upper: int32(5), LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true},
+			expected: pgtype.Range[pgtype.Int4]{Lower: pgtype.Int4{Int32: 1, Valid: true}, Upper: pgtype.Int4{Int32: 5, Valid: true}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true},
+		},
+		{
+			name:     "unbounded upper",
+			value:    pgtype.Range[any]{Lower: int32(-3), LowerType: pgtype.Inclusive, UpperType: pgtype.Unbounded, Valid: true},
+			expected: pgtype.Range[pgtype.Int4]{Lower: pgtype.Int4{Int32: -3, Valid: true}, LowerType: pgtype.Inclusive, UpperType: pgtype.Unbounded, Valid: true},
+		},
+	} {
+		for _, format := range []int16{pgtype.BinaryFormatCode, pgtype.TextFormatCode} {
+			buf, err := m.Encode(pgtype.Int4rangeOID, format, tt.value, nil)
+			require.NoErrorf(t, err, "%s format=%d", tt.name, format)
+
+			var actual pgtype.Range[pgtype.Int4]
+			err = m.Scan(pgtype.Int4rangeOID, format, buf, &actual)
+			require.NoErrorf(t, err, "%s format=%d", tt.name, format)
+			require.Equalf(t, tt.expected, actual, "%s format=%d", tt.name, format)
+		}
+	}
+
+	// A missing bound is still reported as an error rather than encoded.
+	for _, format := range []int16{pgtype.BinaryFormatCode, pgtype.TextFormatCode} {
+		_, err := m.Encode(pgtype.Int4rangeOID, format, pgtype.Range[any]{Upper: int32(5), LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true}, nil)
+		require.ErrorContainsf(t, err, "Lower cannot be NULL", "format=%d", format)
+	}
+}
+
+func TestRangeCodecDecodedValueRoundTrip(t *testing.T) {
+	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for _, sql := range []string{
+			`select '[1,5)'::int4range`,
+			`select '(,10]'::int8range`,
+			`select '[1.5,2.25)'::numrange`,
+			`select '[2024-01-01,2024-02-01)'::daterange`,
+			`select '["2024-01-01 12:00:00","2024-01-02 00:00:00")'::tsrange`,
+			`select '{[1,3),[5,8)}'::int4multirange`,
+		} {
+			var original string
+			err := conn.QueryRow(ctx, sql+"::text").Scan(&original)
+			require.NoError(t, err, sql)
+
+			rows, err := conn.Query(ctx, sql)
+			require.NoError(t, err, sql)
+			var value any
+			for rows.Next() {
+				values, err := rows.Values()
+				require.NoError(t, err, sql)
+				value = values[0]
+			}
+			require.NoError(t, rows.Err(), sql)
+
+			oid := rows.FieldDescriptions()[0].DataTypeOID
+			dt, ok := conn.TypeMap().TypeForOID(oid)
+			require.True(t, ok, sql)
+
+			var roundTripped string
+			err = conn.QueryRow(ctx, "select $1::"+dt.Name+"::text", value).Scan(&roundTripped)
+			require.NoError(t, err, sql)
+			require.Equal(t, original, roundTripped, sql)
+		}
+	})
+}
+
 func TestRangeCodecTextBounds(t *testing.T) {
 	skipCockroachDB(t, "Server does not support range types")
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
