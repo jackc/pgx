@@ -468,10 +468,21 @@ type RowToFunc[T any] func(row CollectableRow) (T, error)
 //
 // This function closes the rows automatically on return.
 func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
-	defer rows.Close()
+	cr := collectRowsPool.Get().(*collectRows)
+	cr.Rows = rows
+	defer func() {
+		clear(cr.targets[:cap(cr.targets)])
+		cr.addrTarget[0] = nil
+		if cr.planMap != nil {
+			clear(cr.planMap)
+		}
+		*cr = collectRows{targets: cr.targets[:0], planMap: cr.planMap}
+		collectRowsPool.Put(cr)
+		rows.Close()
+	}()
 
 	for rows.Next() {
-		value, err := fn(rows)
+		value, err := fn(cr)
 		if err != nil {
 			return nil, err
 		}
@@ -483,6 +494,82 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 	}
 
 	return slice, nil
+}
+
+// collectRows wraps Rows during AppendRows to carry a cached RowPlan and a
+// reusable Scan destination slice across the collection. Pooling collectRows
+// avoids a wrapper allocation per AppendRows call and retains the targets
+// backing array across queries.
+type collectRows struct {
+	Rows
+	targets        []any
+	targetsClaimed bool
+	// addrTarget provides dedicated, non-aliasing destination storage for
+	// RowToAddrOf, preventing it from clobbering targets used by cached plans.
+	addrTarget [1]any
+	planType   reflect.Type
+	planVal    any
+	planMap    map[reflect.Type]any
+}
+
+var collectRowsPool = sync.Pool{
+	New: func() any { return &collectRows{} },
+}
+
+// claimTargets loans the pooled targets slice to the first plan in the
+// collection. Subsequent plans allocate dedicated slices so they never alias.
+func (cr *collectRows) claimTargets(n int) []any {
+	if !cr.targetsClaimed {
+		cr.targetsClaimed = true
+		if cap(cr.targets) < n {
+			cr.targets = make([]any, n)
+		} else {
+			cr.targets = cr.targets[:n]
+		}
+		return cr.targets
+	}
+	return make([]any, n)
+}
+
+// RowPlan retrieves or initializes a collection-scoped plan P for row.
+//
+// When row is passed to a [RowToFunc] by [CollectRows] or [AppendRows], init is called once on the first row for plan
+// type P and the returned *P is cached and reused for subsequent rows in that collection. Outside [CollectRows] and
+// [AppendRows] (such as in [CollectOneRow] or a manual [Rows.Next] loop), init is called on each invocation.
+//
+// This allows custom [RowToFunc] implementations to amortize per-query reflection or column mapping work across a
+// result set without changing function signatures or managing stateful closures.
+func RowPlan[P any](row CollectableRow, init func(row CollectableRow) (*P, error)) (*P, error) {
+	cr, ok := row.(*collectRows)
+	if !ok {
+		return init(row)
+	}
+
+	pType := reflect.TypeFor[P]()
+	if cr.planType == pType {
+		return cr.planVal.(*P), nil
+	}
+	if cr.planMap != nil {
+		if v, ok := cr.planMap[pType]; ok {
+			return v.(*P), nil
+		}
+	}
+
+	plan, err := init(row)
+	if err != nil {
+		return nil, err
+	}
+
+	if cr.planType == nil {
+		cr.planType = pType
+		cr.planVal = plan
+	} else {
+		if cr.planMap == nil {
+			cr.planMap = make(map[reflect.Type]any, 2)
+		}
+		cr.planMap[pType] = plan
+	}
+	return plan, nil
 }
 
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
@@ -557,14 +644,38 @@ func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 
 // RowTo returns a T scanned from row.
 func RowTo[T any](row CollectableRow) (T, error) {
-	var value T
-	err := row.Scan(&value)
-	return value, err
+	cr, ok := row.(*collectRows)
+	if !ok {
+		var value T
+		err := row.Scan(&value)
+		return value, err
+	}
+	plan, err := RowPlan(cr, func(r CollectableRow) (*structScanPlan[T, modeScalar], error) {
+		p := &structScanPlan[T, modeScalar]{targets: r.(*collectRows).claimTargets(1)}
+		if canReuseScratchType(reflect.TypeFor[T]()) {
+			p.targets[0] = &p.dst
+		} else {
+			p.perRow = true
+		}
+		return p, nil
+	})
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return plan.scan(cr)
 }
 
 // RowToAddrOf returns the address of a T scanned from row.
 func RowToAddrOf[T any](row CollectableRow) (*T, error) {
 	var value T
+	if cr, ok := row.(*collectRows); ok {
+		// Use cr.addrTarget so RowToAddrOf does not mutate or alias cr.targets,
+		// which may be shared by a cached structScanPlan in the same collection.
+		cr.addrTarget[0] = &value
+		err := cr.Rows.Scan(cr.addrTarget[:]...)
+		return &value, err
+	}
 	err := row.Scan(&value)
 	return &value, err
 }
@@ -593,54 +704,285 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	return nil
 }
 
+func planPositionalStruct[T any](cr *collectRows) (*structScanPlan[T, modePos], error) {
+	plan, err := RowPlan(cr, func(r CollectableRow) (*structScanPlan[T, modePos], error) {
+		psf := lookupStructFields(reflect.TypeFor[T]())
+		return newStructScanPlan[T, modePos](r.(*collectRows), psf.fields, psf.perRow), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if rawLen := len(cr.RawValues()); rawLen > len(plan.targets) {
+		return nil, fmt.Errorf(
+			"got %d values, but dst struct has only %d fields",
+			rawLen,
+			len(plan.targets),
+		)
+	}
+	return plan, nil
+}
+
 // RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number of public fields as row
 // has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
 func RowToStructByPos[T any](row CollectableRow) (T, error) {
-	var value T
-	err := (&positionalStructRowScanner{ptrToStruct: &value}).ScanRow(row)
-	return value, err
+	cr, ok := row.(*collectRows)
+	if !ok {
+		ptr, err := scanPositionalStructOneRowAddr[T](row)
+		return *ptr, err
+	}
+	plan, err := planPositionalStruct[T](cr)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return plan.scan(cr)
+}
+
+func scanPositionalStructOneRowAddr[T any](row CollectableRow) (*T, error) {
+	psf := lookupStructFields(reflect.TypeFor[T]())
+	if rawLen := len(row.RawValues()); rawLen > len(psf.fields) {
+		var zero T
+		return &zero, fmt.Errorf(
+			"got %d values, but dst struct has only %d fields",
+			rawLen,
+			len(psf.fields),
+		)
+	}
+	var dst T
+	targets := make([]any, len(psf.fields))
+	bindStructScanTargets(&dst, psf.fields, targets)
+	err := row.Scan(targets...)
+	return &dst, err
 }
 
 // RowToAddrOfStructByPos returns the address of a T scanned from row. T must be a struct. T must have the same number a
 // public fields as row has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then
 // the field will be ignored.
 func RowToAddrOfStructByPos[T any](row CollectableRow) (*T, error) {
-	var value T
-	err := (&positionalStructRowScanner{ptrToStruct: &value}).ScanRow(row)
-	return &value, err
-}
-
-type positionalStructRowScanner struct {
-	ptrToStruct any
-}
-
-func (rs *positionalStructRowScanner) ScanRow(rows CollectableRow) error {
-	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
-	fields := lookupStructFields(typ)
-	if len(rows.RawValues()) > len(fields) {
-		return fmt.Errorf(
-			"got %d values, but dst struct has only %d fields",
-			len(rows.RawValues()),
-			len(fields),
-		)
+	cr, ok := row.(*collectRows)
+	if !ok {
+		return scanPositionalStructOneRowAddr[T](row)
 	}
-	scanTargets := setupStructScanTargets(rs.ptrToStruct, fields)
-	return rows.Scan(scanTargets...)
+	plan, err := planPositionalStruct[T](cr)
+	if err != nil {
+		var zero T
+		return &zero, err
+	}
+	return plan.scanAddr(cr)
 }
 
-// Map from reflect.Type -> []structRowField
+type (
+	modeScalar  struct{}
+	modePos     struct{}
+	modeName    struct{}
+	modeNameLax struct{}
+)
+
+// structScanPlan pre-binds Scan target pointers to a reusable dst struct once
+// on the first row. Zeroing dst in place after each Scan and returning a value
+// copy eliminates per-row reflect.Value.Field(...).Addr().Interface() calls,
+// per-row joinFieldNames/sync.Map lookups, and (for value scanners) the per-row
+// heap allocation caused by taking the address of a local T.
+type structScanPlan[T, Mode any] struct {
+	dst     T
+	targets []any
+	dirty   bool
+	perRow  bool
+}
+
+func newStructScanPlan[T, Mode any](cr *collectRows, fields []structRowField, perRow bool) *structScanPlan[T, Mode] {
+	if perRow {
+		targets := cr.claimTargets(len(fields) + 1)
+		targets[len(fields)] = fields
+		return &structScanPlan[T, Mode]{
+			targets: targets[:len(fields)],
+			perRow:  true,
+		}
+	}
+	p := &structScanPlan[T, Mode]{targets: cr.claimTargets(len(fields))}
+	bindStructScanTargets(&p.dst, fields, p.targets)
+	return p
+}
+
+func bindStructScanTargets[T any](dst *T, fields []structRowField, targets []any) {
+	v := reflect.ValueOf(dst).Elem()
+	for i, f := range fields {
+		// v.Field avoids FieldByIndex's slice iteration for top-level fields.
+		if len(f.path) == 1 {
+			targets[i] = v.Field(f.path[0]).Addr().Interface()
+		} else {
+			targets[i] = v.FieldByIndex(f.path).Addr().Interface()
+		}
+	}
+}
+
+func (p *structScanPlan[T, Mode]) scan(cr *collectRows) (T, error) {
+	if p.perRow {
+		dst, err := p.scanPerRowAddr(cr)
+		return *dst, err
+	}
+	if p.dirty {
+		var zero T
+		p.dst = zero
+	}
+	p.dirty = true
+	err := cr.Rows.Scan(p.targets...)
+	return p.dst, err
+}
+
+func (p *structScanPlan[T, Mode]) scanAddr(cr *collectRows) (*T, error) {
+	if p.perRow {
+		return p.scanPerRowAddr(cr)
+	}
+	if p.dirty {
+		var zero T
+		p.dst = zero
+	}
+	p.dirty = true
+	err := cr.Rows.Scan(p.targets...)
+	dst := p.dst
+	return &dst, err
+}
+
+// scanPerRowAddr scans into an independently allocated dst on each row instead
+// of the shared p.dst scratch struct. Returning *T directly ensures both that
+// custom scanners retaining interior references (e.g. s.val = s.buf[:]) receive
+// isolated memory per row and that pointer-returning helpers (RowToAddrOfStruct*)
+// return the exact struct instance that was scanned into.
+func (p *structScanPlan[T, Mode]) scanPerRowAddr(cr *collectRows) (*T, error) {
+	var dst T
+	if reflect.TypeFor[Mode]() == reflect.TypeFor[modeScalar]() {
+		p.targets[0] = &dst
+	} else {
+		// Retrieve the cached []structRowField stored in the extra capacity slot
+		// of p.targets by newStructScanPlan.
+		fields := p.targets[:len(p.targets)+1][len(p.targets)].([]structRowField)
+		bindStructScanTargets(&dst, fields, p.targets)
+	}
+	err := cr.Rows.Scan(p.targets[:len(p.targets):len(p.targets)]...)
+	return &dst, err
+}
+
+// canReuseScratchType reports whether scanning into a reusable scratch T and
+// returning a shallow value copy is guaranteed not to retain pointers or slice
+// headers referencing T's own memory across rows.
+//
+// Custom scanner types (any non-stdlib, non-pgtype type with methods on *T) and
+// composite types containing pointer-bearing fields may retain references to
+// their scan receiver (e.g. `s.val = s.buf[:]`, `s.ptr = &s.val`, or a named
+// slice storing `s`), so they use per-row allocation instead of scratch reuse.
+func canReuseScratchType(t reflect.Type) bool {
+	return canReuseScratchTypeDepth(t, 0)
+}
+
+func canReuseScratchTypeDepth(t reflect.Type, depth int) bool {
+	if depth > 8 {
+		return false
+	}
+	if pkg := t.PkgPath(); pkg != "" {
+		switch pkg {
+		case "time":
+			return t.Name() == "Time" || t.Name() == "Duration"
+		case "net/netip":
+			return true
+		case "database/sql":
+			if strings.HasPrefix(t.Name(), "Null[") {
+				return canReuseScratchTypeDepth(t.Field(0).Type, depth+1)
+			}
+			return t.Kind() == reflect.Struct
+		case "github.com/jackc/pgx/v5/pgtype":
+			if strings.HasPrefix(t.Name(), "Range[") {
+				return canReuseScratchTypeDepth(t.Field(0).Type, depth+1)
+			}
+			if strings.HasPrefix(t.Name(), "Array[") {
+				return canReuseScratchTypeDepth(t.Field(0).Type.Elem(), depth+1)
+			}
+			if strings.HasPrefix(t.Name(), "FlatArray[") || strings.HasPrefix(t.Name(), "Multirange[") {
+				return canReuseScratchTypeDepth(t.Elem(), depth+1)
+			}
+			return t.Kind() == reflect.Struct
+		}
+		if reflect.PointerTo(t).NumMethod() > 0 {
+			return false
+		}
+	}
+
+	switch t.Kind() {
+	case reflect.Struct:
+		return !typeHasPointers(t)
+	case reflect.Array:
+		return t.Len() == 0 || !typeHasPointers(t.Elem())
+	case reflect.Slice, reflect.Pointer:
+		// Only unnamed slices and pointers (t.PkgPath() == "") cannot define
+		// custom scanner methods or form direct recursive slice/pointer cycles.
+		return t.PkgPath() == "" && canReuseScratchTypeDepth(t.Elem(), depth+1)
+	case reflect.Map, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer:
+		return false
+	default:
+		return true
+	}
+}
+
+func typeHasPointers(t reflect.Type) bool {
+	if pkg := t.PkgPath(); pkg != "" {
+		if (pkg == "time" && (t.Name() == "Time" || t.Name() == "Duration")) ||
+			pkg == "net/netip" {
+			return false
+		}
+		if pkg != "database/sql" &&
+			pkg != "github.com/jackc/pgx/v5/pgtype" &&
+			reflect.PointerTo(t).NumMethod() > 0 {
+			return true
+		}
+	}
+	switch t.Kind() {
+	case reflect.Slice, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Map, reflect.Chan, reflect.Func:
+		return true
+	case reflect.Array:
+		return t.Len() > 0 && typeHasPointers(t.Elem())
+	case reflect.Struct:
+		for i := 0; i < t.NumField(); i++ {
+			if typeHasPointers(t.Field(i).Type) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func fieldsNeedPerRowAlloc(t reflect.Type, fields []structRowField) bool {
+	for _, f := range fields {
+		if f.path != nil && !canReuseScratchType(t.FieldByIndex(f.path).Type) {
+			return true
+		}
+	}
+	return false
+}
+
+type positionalStructFields struct {
+	fields []structRowField
+	perRow bool
+}
+
+// Map from reflect.Type -> *positionalStructFields
 var positionalStructFieldMap sync.Map
 
-func lookupStructFields(t reflect.Type) []structRowField {
+func lookupStructFields(t reflect.Type) *positionalStructFields {
 	if cached, ok := positionalStructFieldMap.Load(t); ok {
-		return cached.([]structRowField)
+		return cached.(*positionalStructFields)
 	}
 
 	fieldStack := make([]int, 0, 1)
 	fields := computeStructFields(t, make([]structRowField, 0, t.NumField()), &fieldStack)
-	fieldsIface, _ := positionalStructFieldMap.LoadOrStore(t, fields)
-	return fieldsIface.([]structRowField)
+	psf := &positionalStructFields{
+		fields: fields,
+		perRow: fieldsNeedPerRowAlloc(t, fields),
+	}
+	fieldsIface, _ := positionalStructFieldMap.LoadOrStore(t, psf)
+	return fieldsIface.(*positionalStructFields)
 }
 
 func computeStructFields(
@@ -675,9 +1017,7 @@ func computeStructFields(
 // fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByName[T any](row CollectableRow) (T, error) {
-	var value T
-	err := (&namedStructRowScanner{ptrToStruct: &value}).ScanRow(row)
-	return value, err
+	return scanNamedStruct[T, modeName](row)
 }
 
 // RowToAddrOfStructByName returns the address of a T scanned from row. T must be a struct. T must have the same number
@@ -685,18 +1025,14 @@ func RowToStructByName[T any](row CollectableRow) (T, error) {
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
 // then the field will be ignored.
 func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
-	var value T
-	err := (&namedStructRowScanner{ptrToStruct: &value}).ScanRow(row)
-	return &value, err
+	return scanNamedStructAddr[T, modeName](row)
 }
 
 // RowToStructByNameLax returns a T scanned from row. T must be a struct. T must have greater than or equal number of named public
 // fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
-	var value T
-	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
-	return value, err
+	return scanNamedStruct[T, modeNameLax](row)
 }
 
 // RowToAddrOfStructByNameLax returns the address of a T scanned from row. T must be a struct. T must have greater than or
@@ -704,29 +1040,62 @@ func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
 // then the field will be ignored.
 func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
-	var value T
-	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
-	return &value, err
+	return scanNamedStructAddr[T, modeNameLax](row)
 }
 
-type namedStructRowScanner struct {
-	ptrToStruct any
-	lax         bool
+func planNamedStruct[T, Mode any](cr *collectRows) (*structScanPlan[T, Mode], error) {
+	return RowPlan(cr, func(r CollectableRow) (*structScanPlan[T, Mode], error) {
+		nsf, err := lookupNamedStructFields(reflect.TypeFor[T](), r.FieldDescriptions())
+		if err != nil {
+			return nil, err
+		}
+		if reflect.TypeFor[Mode]() != reflect.TypeFor[modeNameLax]() && nsf.missingField != "" {
+			return nil, fmt.Errorf("cannot find field %s in returned row", nsf.missingField)
+		}
+		return newStructScanPlan[T, Mode](r.(*collectRows), nsf.fields, nsf.perRow), nil
+	})
 }
 
-func (rs *namedStructRowScanner) ScanRow(rows CollectableRow) error {
-	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
-	fldDescs := rows.FieldDescriptions()
-	namedStructFields, err := lookupNamedStructFields(typ, fldDescs)
+func scanNamedStruct[T, Mode any](row CollectableRow) (T, error) {
+	cr, ok := row.(*collectRows)
+	if !ok {
+		ptr, err := scanNamedStructOneRowAddr[T, Mode](row)
+		return *ptr, err
+	}
+	plan, err := planNamedStruct[T, Mode](cr)
 	if err != nil {
-		return err
+		var zero T
+		return zero, err
 	}
-	if !rs.lax && namedStructFields.missingField != "" {
-		return fmt.Errorf("cannot find field %s in returned row", namedStructFields.missingField)
+	return plan.scan(cr)
+}
+
+func scanNamedStructAddr[T, Mode any](row CollectableRow) (*T, error) {
+	cr, ok := row.(*collectRows)
+	if !ok {
+		return scanNamedStructOneRowAddr[T, Mode](row)
 	}
-	fields := namedStructFields.fields
-	scanTargets := setupStructScanTargets(rs.ptrToStruct, fields)
-	return rows.Scan(scanTargets...)
+	plan, err := planNamedStruct[T, Mode](cr)
+	if err != nil {
+		var zero T
+		return &zero, err
+	}
+	return plan.scanAddr(cr)
+}
+
+func scanNamedStructOneRowAddr[T, Mode any](row CollectableRow) (*T, error) {
+	var dst T
+	nsf, err := lookupNamedStructFields(reflect.TypeFor[T](), row.FieldDescriptions())
+	if err != nil {
+		return &dst, err
+	}
+	if reflect.TypeFor[Mode]() != reflect.TypeFor[modeNameLax]() && nsf.missingField != "" {
+		return &dst, fmt.Errorf("cannot find field %s in returned row", nsf.missingField)
+	}
+	targets := make([]any, len(nsf.fields))
+	bindStructScanTargets(&dst, nsf.fields, targets)
+	err = row.Scan(targets...)
+	return &dst, err
 }
 
 // Map from namedStructFieldMap -> *namedStructFields
@@ -742,6 +1111,7 @@ type namedStructFields struct {
 	// missingField is the first field from the struct without a corresponding row field.
 	// This is used to construct the correct error message for non-lax queries.
 	missingField string
+	perRow       bool
 }
 
 func lookupNamedStructFields(
@@ -777,7 +1147,11 @@ func lookupNamedStructFields(
 
 	fieldsIface, _ := namedStructFieldMap.LoadOrStore(
 		key,
-		&namedStructFields{fields: fields, missingField: missingField},
+		&namedStructFields{
+			fields:       fields,
+			missingField: missingField,
+			perRow:       fieldsNeedPerRowAlloc(t, fields),
+		},
 	)
 	return fieldsIface.(*namedStructFields), nil
 }
@@ -899,13 +1273,4 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize 
 // using unsafe for this.
 type structRowField struct {
 	path []int
-}
-
-func setupStructScanTargets(receiver any, fields []structRowField) []any {
-	scanTargets := make([]any, len(fields))
-	v := reflect.ValueOf(receiver).Elem()
-	for i, f := range fields {
-		scanTargets[i] = v.FieldByIndex(f.path).Addr().Interface()
-	}
-	return scanTargets
 }
