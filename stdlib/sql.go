@@ -716,8 +716,9 @@ func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 	case pgtype.TimestampOID, pgtype.TimestamptzOID, pgtype.TimeOID, pgtype.TimetzOID:
 		// The type modifier of these types is their fractional seconds precision:
 		// the number of digits kept after the decimal point, which is the scale.
-		// They have no digits before it, so the precision is 0. Without a precision
-		// specifier they keep microseconds, the maximum PostgreSQL supports.
+		// Numeric precision does not apply to these types, so it is reported as 0.
+		// Without a precision specifier they keep microseconds, the maximum
+		// PostgreSQL supports.
 		if fd.TypeModifier == noTypeModifier {
 			return 0, 6, true
 		}
