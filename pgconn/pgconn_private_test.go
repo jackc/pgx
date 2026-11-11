@@ -218,4 +218,102 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 		assert.Equal(t, "primary-secret", configs[0].password)
 		assert.Equal(t, "", configs[1].password)
 	})
+
+	t.Run("pgpass entry on prefer plaintext fallback follows refresh", func(t *testing.T) {
+		t.Parallel()
+
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// A single host with sslmode=prefer has a second entry for the same host with TLS disabled. It
+		// is the primary host itself, so a password refreshed after parsing must apply to it, not the
+		// .pgpass entry resolved at parse time.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "primary.example.com", configs[0].originalHostname)
+		assert.Equal(t, "primary.example.com", configs[1].originalHostname)
+		assert.Nil(t, configs[1].tlsConfig)
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "refreshed-password", configs[1].password)
+	})
+
+	t.Run("missing pgpass entry on prefer plaintext fallback follows refresh", func(t *testing.T) {
+		t.Parallel()
+
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("other.example.com:5432:app:app:someone-elses-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The .pgpass file is readable but has no entry for this host. The plaintext retry must not send
+		// the empty password it was resolved to once Config.Password is refreshed.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "refreshed-password", configs[1].password)
+	})
+
+	t.Run("demoted primary inherits refreshed shared password", func(t *testing.T) {
+		t.Parallel()
+
+		// Rotate the primary into the fallback list as RandomizeHostOrderFunc does, promoting the
+		// fallback host, then refresh the shared password. The demoted host must not be pinned to the
+		// password as it stood when the hosts were reordered.
+		config, err := ParseConfig("host=primary.example.com,fallback.example.com user=app password=old-password sslmode=disable")
+		require.NoError(t, err)
+		demoted := config.PrimaryFallback()
+		config.Host = "fallback.example.com"
+		config.Port = 5432
+		config.Fallbacks = []*FallbackConfig{demoted}
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "fallback.example.com", configs[0].originalHostname)
+		assert.Equal(t, "refreshed-password", configs[0].password)
+		assert.Equal(t, "primary.example.com", configs[1].originalHostname)
+		assert.Equal(t, "refreshed-password", configs[1].password)
+	})
+
+	t.Run("demoted primary keeps its own pgpass entry", func(t *testing.T) {
+		t.Parallel()
+
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("db-primary:5432:app:app:primary-secret\ndb-replica:5432:app:app:replica-secret\n"), 0o600)
+		require.NoError(t, err)
+
+		// Rotate the primary into the fallback list as RandomizeHostOrderFunc does, promoting the
+		// replica (which becomes the config password, as RandomizeHostOrderFunc sets it). The demoted
+		// host keeps the password its own .pgpass entry resolved to.
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		require.NoError(t, err)
+		demoted := config.PrimaryFallback()
+		config.Host = "db-replica"
+		config.Port = 5432
+		config.Password = "replica-secret"
+		config.Fallbacks = []*FallbackConfig{demoted}
+		config.LookupFunc = resolveLocalhost
+
+		configs, errs := buildConnectOneConfigs(context.Background(), config)
+		require.Empty(t, errs)
+		require.Len(t, configs, 2)
+		assert.Equal(t, "db-replica", configs[0].originalHostname)
+		assert.Equal(t, "replica-secret", configs[0].password)
+		assert.Equal(t, "db-primary", configs[1].originalHostname)
+		assert.Equal(t, "primary-secret", configs[1].password)
+	})
 }

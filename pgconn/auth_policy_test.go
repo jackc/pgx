@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -179,6 +181,40 @@ func TestConnectFallbackSendsRefreshedPassword(t *testing.T) {
 		sent, err := connectWithFailingFirstAttempt(t, config)
 		require.NoError(t, err)
 		assert.Equal(t, "shared-password", sent)
+	})
+
+	t.Run("sslmode prefer plaintext fallback with pgpass entry", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The plaintext retry is the same host as the primary, so it must send the refreshed password,
+		// not the .pgpass entry resolved at parse time.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
+	})
+
+	t.Run("sslmode prefer plaintext fallback with missing pgpass entry", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("other.example.com:5432:app:app:someone-elses-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The .pgpass file is readable but has no entry for this host. The plaintext retry must not
+		// send the empty password it was resolved to once Config.Password is refreshed.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
 	})
 }
 

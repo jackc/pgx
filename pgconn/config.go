@@ -250,13 +250,20 @@ func (f *FallbackConfig) PasswordFromPassfile() bool {
 // stdlib.RandomizeHostOrderFunc, without losing how the primary's password was resolved. The returned
 // FallbackConfig is a copy; modifying it does not affect the Config.
 func (c *Config) PrimaryFallback() *FallbackConfig {
-	return &FallbackConfig{
+	fb := &FallbackConfig{
 		Host:                 c.Host,
 		Port:                 c.Port,
 		TLSConfig:            c.TLSConfig,
-		Password:             c.Password,
 		passwordFromPassfile: c.passwordFromPassfile,
 	}
+	// Only the primary host's own .pgpass entry is copied: it belongs to this host. A shared password (from the
+	// connection string or refreshed after parsing) is left unset, so the demoted host keeps inheriting
+	// Config.Password at connect time instead of being pinned to the password as it stood when the hosts were
+	// reordered.
+	if c.passwordFromPassfile {
+		fb.Password = c.Password
+	}
+	return fb
 }
 
 // connectOneConfig is the configuration for a single attempt to connect to a single host.

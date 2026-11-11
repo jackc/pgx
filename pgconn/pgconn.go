@@ -188,11 +188,19 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 // stands at connect time, so a password set in the connection string or refreshed after parsing (e.g. in
 // BeforeConnect) applies. When Config.Password is itself another host's .pgpass entry there is no shared password
 // to inherit, so an empty password is used.
+//
+// A fallback for the same host and port as the primary is the primary host itself (e.g. the sslmode=prefer
+// plaintext retry), so it follows Config.Password as it stands at connect time, just like the primary: a .pgpass
+// entry resolved for that host at parse time is the primary's entry, not a separate per-host password, and must
+// not pin the plaintext retry to the parsed value.
 func passwordFor(fb *FallbackConfig, config *Config) string {
-	if fb.passwordFromPassfile {
+	if fb.Password != "" && !fb.passwordFromPassfile {
 		return fb.Password
 	}
-	if fb.Password != "" {
+	if fb.Host == config.Host && fb.Port == config.Port {
+		return config.Password
+	}
+	if fb.passwordFromPassfile {
 		return fb.Password
 	}
 	if config.passwordFromPassfile {

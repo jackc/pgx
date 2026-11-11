@@ -1341,6 +1341,28 @@ func TestRandomizeHostOrderFuncPreservesMissingPgpassEntry(t *testing.T) {
 	}
 }
 
+// TestRandomizeHostOrderFuncPreservesSharedPasswordRefresh covers the #2708 follow-up: a shared password
+// (from the connection string) must not be pinned onto the demoted primary when hosts are reordered, so a
+// credential refresh after randomization still applies to it.
+func TestRandomizeHostOrderFuncPreservesSharedPasswordRefresh(t *testing.T) {
+	config, err := pgx.ParseConfig("host=host1,host2,host3 dbname=db user=user password=old-password sslmode=disable")
+	require.NoError(t, err)
+
+	for range 100 {
+		connCopy := *config
+		require.NoError(t, stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy))
+
+		// The shared password itself is unchanged by reordering.
+		assert.Equal(t, "old-password", connCopy.Password)
+
+		// Whichever host was demoted from primary, it must not carry a pinned copy of the shared
+		// password: an empty Password means it inherits Config.Password at connect time.
+		for _, f := range connCopy.Fallbacks {
+			assert.Equal(t, "", f.Password, "demoted host %s must not pin the shared password", f.Host)
+		}
+	}
+}
+
 func TestResetSessionHookCalled(t *testing.T) {
 	var mockCalled bool
 
