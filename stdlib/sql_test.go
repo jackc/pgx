@@ -1481,6 +1481,7 @@ func TestRowsColumnTypePrecisionScale(t *testing.T) {
 
 		rows, err := db.Query("SELECT * FROM temp_column_type_precision_scale")
 		require.NoError(t, err)
+		defer rows.Close()
 
 		columns, err := rows.ColumnTypes()
 		require.NoError(t, err)
