@@ -2,13 +2,13 @@
 
 Date: 2026-11-12. Repository baseline: `ea996359`.
 
-Build a separate connection path centered on PostgreSQL connection strings and Go options for
-behavior that cannot be expressed appropriately in a string. Keep parsed connection state
-internal. Expose an immutable, opaque handle only if a concrete application use case requires
-one. Preserve the existing connection APIs until callers can migrate to their replacements.
+Build a separate connection path with one function accepting a PostgreSQL connection string
+and Go options. Run input resolution and setup anew for each new physical connection. Keep
+parsed state private to that connection operation; no reusable parsed handle is required.
+Preserve the existing connection APIs until callers can migrate to their replacements.
 
 This plan covers architecture, implementation, and migration. Names such as `Connect2` are
-placeholders. The selected direction is a separate path with opaque state, not a second
+placeholders. The selected direction is a separate path with private state, not a second
 publicly editable configuration system. Implementation belongs in a later session.
 
 ## Decision and legacy compatibility
@@ -37,20 +37,26 @@ are preferable to hidden compatibility detection; parallel function names are ac
 
 ## Public interfaces and ownership
 
-The minimum low-level interface is:
+Use one low-level connection function, with options always present:
 
 ```go
-func Connect2(ctx context.Context, connString string) (*PgConn, error)
-func ConnectWithOptions2(ctx context.Context, connString string, opts ConnectOptions2) (*PgConn, error)
+func Connect2(ctx context.Context, connString string, opts ConnectOptions2) (*PgConn, error)
+
+// The zero options value requests the standard behavior.
+conn, err := Connect2(ctx, connString, ConnectOptions2{})
 ```
 
 Provide corresponding pgx entry points and pool constructors. The established-connection
 return types shown here are provisional until the accessor integration described below is
 resolved. Keep ordinary query operations shared wherever practical.
 
-`Connect2` is the default-options form of `ConnectWithOptions2`. Connection strings, environment
-variables, and service files supply standard PostgreSQL settings: hosts, addresses, ports,
-credentials, transport policy, session selection, and other supported libpq parameters.
+Do not add a second `WithOptions` convenience function. The working choice is an options
+value; a pointer accepting `nil` is an alternative to settle during the API prototype, not a
+second entry point. A pointer to the whole struct does not solve presence for its fields.
+
+Connection strings, environment variables, and service files supply standard PostgreSQL
+settings: hosts, addresses, ports, credentials, transport policy, session selection, and other
+supported libpq parameters.
 Do not duplicate these as an editable `Config2` or a set of post-parse setters.
 
 `ConnectOptions2` supplies Go-specific capabilities: custom dialing and lookup, TLS material
@@ -60,29 +66,50 @@ handlers. Preserve pgx query modes and cache settings through their existing str
 where available; put any necessary Go-only controls in the options API. Specify conflicts
 between an explicit string policy and a customization rather than silently overriding policy.
 
+Specify presence per field. Use nil callbacks for default behavior where appropriate. For a
+scalar whose zero is meaningful, distinguish unset from explicit zero/false with a pointer,
+an optional value, or an explicit automatic enum value. Preserve nil versus empty collection
+semantics where meaningful. No port override is planned; if one is ever introduced, an unset
+override and an explicitly supplied zero must be distinguishable before validation.
+
 An options struct may have exported fields: it is input, not mutable parsed state. Capture
-its values on construction and copy or otherwise isolate referenced mutable data, including
-slices, maps, and TLS objects. Later edits must not change a pool or prepared connection plan.
+its values on entry or adapter construction and isolate referenced mutable data, including
+slices, maps, and supplied TLS objects. Later caller edits must not change retained inputs.
 Callback closures and supplied services retain their documented synchronization obligations.
 Do not provide a `Configure(func(*internalConfig))` escape hatch or equivalent setter surface.
 
-### Optional opaque handle
+### Connection lifetime and refresh
 
-Public parsing is not required initially. Pools and stdlib connectors can parse once and
-reuse a private immutable connection plan. The plan can cross pgx package boundaries through
-an internal implementation without becoming an application configuration API.
+Direct callers, pools, stdlib connectors, and third-party connection factories use the same
+path. Reusable consumers retain the original string and captured Go options, then invoke the
+connection function for each physical connection they create or replace. They receive no
+privileged parse-once API, cached resolved configuration, or prepared token. Existing live
+connections are reused normally; a pool checkout is not a new physical connection.
 
-If applications need validation without connecting or reusable preparation outside those
-adapters, consider a parse/prepare function returning an opaque handle. It would expose no
-fields, mutation methods, or mutable references to its contents. Each connect operation
-would allocate its own attempt state, making the handle safely reusable. Changing connection
-settings would require preparing new inputs, not editing the handle. Do not add this interface
-merely to mirror the legacy parser family.
+Each new connection operation reparses the string and resolves current environment/service
+settings. Read password and TLS files at the baseline-defined stages, and resolve hostnames
+when reached. Do not cache their resolved contents across physical connections. Explicit
+string values still override external defaults, and `hostaddr` still bypasses DNS.
+
+One operation may try several hosts, addresses, or transports. Keep its normalized settings
+stable across those retries rather than restarting parsing and defaulting before every socket.
+Follow libpq's stage-specific DNS and credential-loading rules within that operation.
+
+Fresh lookup means invoking the resolver, not bypassing OS or custom-resolver caches. File
+refresh applies to configured paths; certificates or roots supplied as Go objects are captured
+values, and a provider is needed to refresh application-managed material. Existing sessions
+do not change when files rotate. Changes to environment or service files can affect subsequent
+connections unless their values are explicitly supplied in the input string.
+
+Syntax and option validation may run early in adapter constructors, but it must not freeze
+external inputs or replace validation during connection. A reusable parse API is out of the
+initial scope. Consider caching only after measuring a meaningful cost, while preserving this
+refresh contract; lexical parsing and external resource resolution are different operations.
 
 The earlier proposal for application defaults/overrides modeled on `PQconnectdbParams` is
 optional, not part of the minimum API. If added, merge them before normalization, define
 ordering and empty-value semantics, and keep them as input parameters. They must not become
-another way to mutate a prepared plan.
+mutators for internal settings.
 
 ## Parsing and internal representation
 
@@ -92,21 +119,21 @@ Use this pipeline for the new entry points:
    connection-string, environment, service-file, and default precedence. Preserve absent
    versus explicitly supplied values internally, especially for SSL defaulting. Validate
    host/address/port lists and unsupported combinations without resolving DNS.
-2. **Capture an immutable connection plan.** Retain logical hosts, policies, credential and
-   TLS sources, and captured Go options. Keep this representation independent of legacy
-   `Config`; do not construct one and reverse its flattened output. Snapshot environment
-   and service inputs when the plan is built, including for pools and stdlib connectors.
-3. **Create per-operation state.** Resolve destinations lazily, select credentials, build TLS
-   state, and track retries/deadlines without changing the plan. Specify when referenced
-   credential files are loaded or refreshed so pooled reconnects behave predictably.
+2. **Build private normalized settings for this operation.** Retain logical hosts, policies,
+   credential/TLS sources, and captured Go options. Keep this representation independent of
+   legacy `Config`; do not construct one and reverse its flattened output. Environment and
+   service inputs are resolved again on the next connection operation.
+3. **Create attempt state.** Resolve destinations lazily, select credentials, build TLS state,
+   and track retries/deadlines separately from normalized settings. Retain only what this
+   operation or the eventual established connection needs.
 4. **Retain established-connection state.** Store the selected endpoint, negotiated transport,
    cancellation data, and runtime callbacks/settings needed after connection succeeds.
 
 Internally, represent hosts as one ordered collection of logical name or socket location,
 optional numeric `hostaddr`, and port. Keep names separate from network addresses. Policies
-shared across hosts include SSL mode/negotiation, target-session attributes, host balancing, authentication
-requirements, and timeouts. Resolved addresses, chosen passwords, server properties, and
-transport attempts belong to operation-local state.
+shared across hosts include SSL mode/negotiation, target-session attributes, host balancing,
+authentication requirements, and timeouts. Resolved addresses, chosen passwords, server
+properties, and transport attempts belong to operation-local state.
 
 Recognize client parameters separately from server runtime parameters. Reject known unsupported
 client options explicitly rather than forwarding them as startup GUCs. Prefer rejecting
@@ -175,7 +202,7 @@ this conversation are not test dependencies.
 | TLS and authentication | Enforce channel binding across trust/password/SCRAM paths, direct-TLS ALPN, SNI independently of verification, trust-source/default rules, `require_auth`, and protocol negotiation validation. |
 | Input handling | URL/keyword syntax, duplicate/empty values, default/environment/service precedence, negative timeout semantics, invalid SSL settings, allowed keys, and unsupported options. |
 | Lifetimes | Per-address deadlines shared by transport retries, caller cancellation, cooperative hooks, resource cleanup, and cancellation against the selected endpoint. |
-| API ownership | Options isolation, concurrent reuse of private/opaque plans, no mutable plan state exposed through hooks or diagnostics, and unchanged legacy edits/copies. |
+| Refresh and ownership | Default versus explicit zero/false and nil/empty options, isolation of retained inputs, concurrent connects, no exposed parsed state, and unchanged legacy edits/copies. Between connections change resolver answers, service/environment settings, password files, and TLS certificate/key/root files; check refresh through direct, pool, and stdlib paths. |
 | Integration | pgx execution settings, tracing/errors, pool creation/replenishment, stdlib reconnect/reset, hijack/reconstruction, and coexistence of old and new paths. |
 
 Implement a deterministic local protocol simulator recording sockets, negotiation, startup,
@@ -188,7 +215,19 @@ require libpq, a C toolchain, external services, or network downloads. Convert c
 comparisons into regular regression tests. Existing parser oracle tests in
 `pgconn/parse_url_test.go` and `pgconn/parse_keyword_value_test.go` provide useful precedent.
 Also run relevant real-server TLS/authentication tests, supported server/platform checks, and
-race tests for pools and reused plans through the lifecycle documented in `DEVELOPMENT.md`.
+race tests for pools and retained inputs through the lifecycle documented in `DEVELOPMENT.md`.
+
+### Connection lifecycle precedents
+
+Source inspection supports creating connections directly from inputs, without requiring an
+application-visible parsed object. These implementations are architectural precedents; libpq
+remains the behavior oracle.
+
+| Implementation inspected | Relevant behavior |
+| --- | --- |
+| libpq 18.6 | A new `PQconnectdb`/`PQconnectStart` parses and derives options, including per-host password-file entries. TLS initialization creates a new context and loads configured files. `PQconninfoParse` is optional inspection, not a required prepared-connection object. `PQreset` differs: it retains derived options/passwords while restarting connection setup and DNS. See the [constructor and reset source](https://github.com/postgres/postgres/blob/724edf9bde9d356724ad384a2e196edc3c9f80f7/src/interfaces/libpq/fe-connect.c) and [TLS initialization](https://github.com/postgres/postgres/blob/724edf9bde9d356724ad384a2e196edc3c9f80f7/src/interfaces/libpq/fe-secure-openssl.c#L771). |
+| Ruby pg 1.6.3 | Ordinary connection creation parses arguments/defaults and resolves names before calling libpq. Its default reset path retains resolved options and renews DNS, then creates a new underlying libpq connection. It eagerly resolves hosts, so its scheduler is not an exact libpq model. See [Ruby connection setup](https://github.com/ged/ruby-pg/blob/v1.6.3/lib/pg/connection.rb#L891) and [reset implementation](https://github.com/ged/ruby-pg/blob/v1.6.3/ext/pg_connection.c#L568). |
+| pgJDBC 42.7.8 | `Driver.connect` parses the URL for each physical connection, including calls from `BaseDataSource`; its default TLS factory creates new TLS state and loads configured files as needed. Some defaults and [JVM DNS results](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/net/InetAddress.html) are cached. See [driver](https://github.com/pgjdbc/pgjdbc/blob/REL42.7.8/pgjdbc/src/main/java/org/postgresql/Driver.java#L246), [data source](https://github.com/pgjdbc/pgjdbc/blob/REL42.7.8/pgjdbc/src/main/java/org/postgresql/ds/common/BaseDataSource.java#L101), and [TLS factory](https://github.com/pgjdbc/pgjdbc/blob/REL42.7.8/pgjdbc/src/main/java/org/postgresql/ssl/LibPQFactory.java#L101). |
 
 ## Integration boundaries
 
@@ -201,15 +240,15 @@ Start the source audit in `pgconn/config.go`, `pgconn/pgconn.go`, `pgconn/auth_*
 | `Conn.Config()` and `Pool.Config()` | Preserve legacy contracts. The new path does not require a config getter or editable round trip. If inspection is needed, expose limited immutable values or independent diagnostic snapshots, not internal state or a misleading legacy projection. |
 | Established connection types | Prefer sharing `PgConn`, `Conn`, and `Pool`. If old config methods would acquire misleading or unexpectedly nil results, use a wrapper sharing implementation. Do not duplicate query machinery. |
 | Errors and connection tracing | New failures/events expose useful destination, phase, and wrapped cause without requiring a legacy config or leaking secrets. Preserve context error and server error discovery through `errors.Is`/`errors.As`. |
-| Pool construction and hooks | Accept the string and captured Go options, retain a private plan, and allocate state per physical connection. Pool sizing/lifecycle options remain separate. Replace configuration-editing hooks with specific providers or explicit new inputs where a demonstrated use case needs them. |
+| Pool construction and hooks | Retain the string and captured Go options; call the ordinary new connection function for each physical connection. Pool sizing/lifecycle options remain separate. Replace configuration-editing hooks with specific providers or explicit new inputs where a demonstrated use case needs them. |
 | stdlib | Add a typed connector accepting the new inputs. Keep `sql.Open("pgx", dsn)` and old registration tokens on the legacy path; any new DSN-only driver selection must be explicit. Pool-backed connections use their pool's path. |
 | Hijack and reconstruction | Preserve destination, TLS, cancellation data, callbacks, and connection origin without rebuilding a new connection through legacy defaults. |
 
 Retain pool timeout defaults as a documented outer pgx policy, distinct from libpq attempt
-timeouts. Pool and stdlib initialization can parse privately without requiring public parse or
-copy APIs. If a consumer needs different connection parameters for each physical connection,
-use a narrowly defined source of complete new inputs and rerun normalization; do not hand it
-the internal plan to edit. Introduce such a provider only for an identified migration need.
+timeouts. If a consumer needs different connection parameters for each physical connection,
+use a narrowly defined source of complete new inputs; do not hand it internal settings to
+edit. Introduce such a provider only for an identified migration need, and make the same
+capability available to third-party consumers rather than reserving it for built-in adapters.
 
 ## Scope beyond the scheduler
 
@@ -246,11 +285,11 @@ Complete each phase in reviewable commits, recording resolved choices and capabi
 
 | Phase | Deliverable and exit condition |
 | --- | --- |
-| 1. API prototype | Compilable pgconn/pgx/pool/stdlib examples using strings and Go options. Resolve accessor/wrapper behavior, option ownership, TLS/provider precedence, hook rejection, and credential refresh. Keep parsing private unless a concrete need justifies an opaque public handle. |
+| 1. API prototype | Compilable pgconn/pgx/pool/stdlib and third-party factory examples using one connection function with options. Resolve value versus pointer options, field presence, accessor/wrapper behavior, TLS/provider precedence, and hook rejection. No reusable parsed handle. |
 | 2. Behavioral fixtures | Permanent simulator, optional pinned client, phase-aware transition table, and legacy regression cases. Reproduce the earlier audit observations before refactoring. |
-| 3. Input pipeline | Internal parsing/normalization and immutable plan, option capture, policy validation, and credential/TLS sources. No dependency on a flattened legacy configuration. |
+| 3. Input pipeline | Per-connection parsing/normalization, option capture, policy validation, and fresh external-input handling. No dependency on a flattened legacy configuration or adapter-specific prepared state. |
 | 4. Connection engine | Shared primitives with legacy tests passing, new scheduler and constructors, selected-destination state, cleanup, and passing core behavior comparisons. |
-| 5. Integration | Working pgx, pool, stdlib, tracing, errors, and hijack/reconstruction. Reconnects preserve the chosen path without public configuration manipulation. |
+| 5. Integration | Working pgx, pool, stdlib, tracing, errors, and hijack/reconstruction. All new physical connections use the same refresh contract; pool reuse and existing sessions remain distinct. |
 | 6. Migration | Primary examples, migration guide, capability matrix, and deprecation annotations pointing to working replacements. |
 | 7. Further parity | Independent implementations of remaining options and explicit reviews of baseline updates. |
 
