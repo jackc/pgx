@@ -200,6 +200,9 @@ type FallbackConfig struct {
 
 // connectOneConfig is the configuration for a single attempt to connect to a single host.
 type connectOneConfig struct {
+	tlsConfigFunc    func(context.Context) (*tls.Config, error)
+	allowPlaintext   bool
+	usedPlaintext    bool
 	network          string
 	address          string
 	originalHostname string      // original hostname before resolving
@@ -352,77 +355,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
 
-	connStringSettings := make(map[string]string)
-	var urlMeta parseURLMeta
-	if connString != "" {
-		var err error
-		// connString may be a database URL or in PostgreSQL keyword/value format
-		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, urlMeta, err = parseURLSettings(connString)
-			if err != nil {
-				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
-			}
-		} else {
-			connStringSettings, err = parseKeywordValueSettings(connString)
-			if err != nil {
-				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as keyword/value", err: err}
-			}
-		}
-	}
-
-	if options.ConnStringAllowedKeys != nil {
-		allowed := make(map[string]struct{}, len(options.ConnStringAllowedKeys))
-		for _, k := range options.ConnStringAllowedKeys {
-			allowed[canonicalConnStringKey(k)] = struct{}{}
-		}
-		notAllowed := func(k string) error {
-			return &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
-		}
-		_, sslAllowed := allowed["ssl"]
-		_, sslmodeAllowed := allowed["sslmode"]
-
-		// Repeated-key handling and the URI ssl=true alias rewrite can remove
-		// ssl/sslmode occurrences from the final settings map, so those two keys
-		// are validated from what the user actually wrote -- every occurrence,
-		// fail closed -- rather than from what survived. The alias itself is
-		// accepted under either spelling, the same way dbname/database are
-		// interchangeable; an explicit sslmode key or a non-"true" ssl value
-		// only matches its own spelling.
-		if urlMeta.sawRawSSLKey && !sslAllowed {
-			return nil, notAllowed("ssl")
-		}
-		if urlMeta.sawExplicitSSLModeKey && !sslmodeAllowed {
-			return nil, notAllowed("sslmode")
-		}
-		if urlMeta.sawSSLTrueAlias && !sslAllowed && !sslmodeAllowed {
-			return nil, notAllowed("ssl")
-		}
-
-		for k := range connStringSettings {
-			if _, ok := allowed[k]; ok {
-				continue
-			}
-			// A multi-host URI with no explicit ports produces an implied
-			// all-empty port list (e.g. ","), matching libpq. Only that list
-			// -- identified by the parser from the raw syntax, not inferred
-			// from the value -- is exempt from the allow-list: it carries no
-			// user-supplied port text. An explicit empty port (?port= in a
-			// URI or port= in keyword/value form) is user-supplied, and
-			// because a present-but-empty port still shadows PGPORT it must
-			// pass the allow-list like any other key.
-			if k == "port" && urlMeta.impliedEmptyPortList {
-				continue
-			}
-			// A surviving ssl or sslmode entry from a URI was already
-			// validated above against every spelling the user wrote.
-			if k == "ssl" && urlMeta.sawRawSSLKey {
-				continue
-			}
-			if k == "sslmode" && (urlMeta.sawSSLTrueAlias || urlMeta.sawExplicitSSLModeKey) {
-				continue
-			}
-			return nil, notAllowed(k)
-		}
+	connStringSettings, err := parseConnectionString(connString, options.ConnStringAllowedKeys)
+	if err != nil {
+		return nil, err
 	}
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
@@ -688,6 +623,83 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	return config, nil
 }
 
+func parseConnectionString(connString string, allowedKeys []string) (map[string]string, error) {
+	connStringSettings := make(map[string]string)
+	var urlMeta parseURLMeta
+	if connString != "" {
+		var err error
+		// connString may be a database URL or in PostgreSQL keyword/value format
+		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
+			connStringSettings, urlMeta, err = parseURLSettings(connString)
+			if err != nil {
+				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as URL", err: err}
+			}
+		} else {
+			connStringSettings, err = parseKeywordValueSettings(connString)
+			if err != nil {
+				return nil, &ParseConfigError{ConnString: connString, msg: "failed to parse as keyword/value", err: err}
+			}
+		}
+	}
+
+	if allowedKeys != nil {
+		allowed := make(map[string]struct{}, len(allowedKeys))
+		for _, k := range allowedKeys {
+			allowed[canonicalConnStringKey(k)] = struct{}{}
+		}
+		notAllowed := func(k string) error {
+			return &ParseConfigError{ConnString: connString, msg: fmt.Sprintf("connection string key %q is not in ConnStringAllowedKeys", k)}
+		}
+		_, sslAllowed := allowed["ssl"]
+		_, sslmodeAllowed := allowed["sslmode"]
+
+		// Repeated-key handling and the URI ssl=true alias rewrite can remove
+		// ssl/sslmode occurrences from the final settings map, so those two keys
+		// are validated from what the user actually wrote -- every occurrence,
+		// fail closed -- rather than from what survived. The alias itself is
+		// accepted under either spelling, the same way dbname/database are
+		// interchangeable; an explicit sslmode key or a non-"true" ssl value
+		// only matches its own spelling.
+		if urlMeta.sawRawSSLKey && !sslAllowed {
+			return nil, notAllowed("ssl")
+		}
+		if urlMeta.sawExplicitSSLModeKey && !sslmodeAllowed {
+			return nil, notAllowed("sslmode")
+		}
+		if urlMeta.sawSSLTrueAlias && !sslAllowed && !sslmodeAllowed {
+			return nil, notAllowed("ssl")
+		}
+
+		for k := range connStringSettings {
+			if _, ok := allowed[k]; ok {
+				continue
+			}
+			// A multi-host URI with no explicit ports produces an implied
+			// all-empty port list (e.g. ","), matching libpq. Only that list
+			// -- identified by the parser from the raw syntax, not inferred
+			// from the value -- is exempt from the allow-list: it carries no
+			// user-supplied port text. An explicit empty port (?port= in a
+			// URI or port= in keyword/value form) is user-supplied, and
+			// because a present-but-empty port still shadows PGPORT it must
+			// pass the allow-list like any other key.
+			if k == "port" && urlMeta.impliedEmptyPortList {
+				continue
+			}
+			// A surviving ssl or sslmode entry from a URI was already
+			// validated above against every spelling the user wrote.
+			if k == "ssl" && urlMeta.sawRawSSLKey {
+				continue
+			}
+			if k == "sslmode" && (urlMeta.sawSSLTrueAlias || urlMeta.sawExplicitSSLModeKey) {
+				continue
+			}
+			return nil, notAllowed(k)
+		}
+	}
+
+	return connStringSettings, nil
+}
+
 func mergeSettings(settingSets ...map[string]string) map[string]string {
 	settings := make(map[string]string)
 
@@ -767,6 +779,10 @@ func unescapeKeywordValue(s string) string {
 }
 
 func parseKeywordValueSettings(s string) (map[string]string, error) {
+	return parseKeywordValueSettingsChecked(s, nil)
+}
+
+func parseKeywordValueSettingsChecked(s string, checkKey func(string) error) (map[string]string, error) {
 	settings := make(map[string]string)
 
 	// Reject NUL bytes up front, as parseURLSettings does. libpq never sees one
@@ -847,6 +863,12 @@ func parseKeywordValueSettings(s string) (map[string]string, error) {
 
 		if key == "" {
 			return nil, errors.New("invalid keyword/value")
+		}
+
+		if checkKey != nil {
+			if err := checkKey(key); err != nil {
+				return nil, err
+			}
 		}
 
 		if key == "user" && val == "" {

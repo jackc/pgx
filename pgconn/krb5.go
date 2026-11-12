@@ -43,16 +43,16 @@ func (c *PgConn) gssAuth() error {
 	}
 
 	var nextData []byte
-	if c.config.KerberosSpn != "" {
+	if c.runtime.KerberosSpn != "" {
 		// Use the supplied SPN if provided.
-		nextData, err = cli.GetInitTokenFromSPN(c.config.KerberosSpn)
+		nextData, err = cli.GetInitTokenFromSPN(c.runtime.KerberosSpn)
 	} else {
 		// Allow the kerberos service name to be overridden
 		service := "postgres"
-		if c.config.KerberosSrvName != "" {
-			service = c.config.KerberosSrvName
+		if c.runtime.KerberosSrvName != "" {
+			service = c.runtime.KerberosSrvName
 		}
-		nextData, err = cli.GetInitToken(c.config.Host, service)
+		nextData, err = cli.GetInitToken(c.runtime.Host, service)
 	}
 	if err != nil {
 		return err

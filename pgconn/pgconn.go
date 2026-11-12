@@ -77,6 +77,7 @@ type NotificationHandler func(*PgConn, *Notification)
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn
+	negotiatedTLS     *tls.Conn
 	tlsConfig         *tls.Config       // tls.Config that conn was negotiated with; nil if conn is not TLS
 	pid               uint32            // backend pid
 	secretKey         []byte            // key to use to send a cancel query message to the server
@@ -89,7 +90,11 @@ type PgConn struct {
 
 	customData map[string]any
 
-	config *Config
+	config               *Config
+	runtime              *connectionRuntime
+	connectionInfo       ConnectionInfo
+	clientOptions        map[string]string
+	pendingNotifications []*Notification
 
 	status byte // One of connStatus* constants
 
@@ -314,14 +319,41 @@ func connectPreferred(ctx context.Context, config *Config, connectOneConfigs []*
 func connectOne(ctx context.Context, config *Config, connectConfig *connectOneConfig,
 	ignoreNotPreferredErr bool,
 ) (*PgConn, error) {
+	return connectAttempt(ctx, legacyRuntime(config), connectConfig, ignoreNotPreferredErr, config)
+}
+
+func connectAttempt(ctx context.Context, config *connectionRuntime, connectConfig *connectOneConfig, ignoreNotPreferredErr bool, legacy *Config) (_ *PgConn, resultErr error) {
 	pgConn := new(PgConn)
-	pgConn.config = config
+	pgConn.config = legacy
+	pgConn.runtime = config
+	pgConn.connectionInfo = ConnectionInfo{Host: connectConfig.originalHostname, Port: config.Port, Network: connectConfig.network, Address: connectConfig.address, User: config.User, Database: config.Database}
+	phase := "dial"
 	pgConn.cleanupDone = make(chan struct{})
 	pgConn.customData = make(map[string]any)
+	defer func() {
+		if legacy == nil && resultErr != nil && pgConn.status != connStatusClosed {
+			pgConn.status = connStatusClosed
+			if pgConn.conn != nil {
+				pgConn.conn.Close()
+			}
+			if pgConn.slowWriteTimer != nil {
+				pgConn.slowWriteTimer.Stop()
+			}
+			close(pgConn.cleanupDone)
+		}
+	}()
 
 	var err error
 
-	newPerDialConnectError := func(msg string, err error) *perDialConnectError {
+	newPerDialConnectError := func(msg string, err error) error {
+		if legacy == nil {
+			if err == nil {
+				err = errors.New(msg)
+			} else {
+				err = fmt.Errorf("%s: %w", msg, normalizeTimeoutError(ctx, err))
+			}
+			return &ConnectionError{Info: pgConn.connectionInfo, Phase: phase, Err: err}
+		}
 		err = normalizeTimeoutError(ctx, err)
 		e := &perDialConnectError{address: connectConfig.address, originalHostname: connectConfig.originalHostname, err: fmt.Errorf("%s: %w", msg, err)}
 		return e
@@ -336,12 +368,39 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return nil, newPerDialConnectError("invalid min_protocol_version", err)
 	}
 
+	if legacy == nil && ctx.Err() != nil {
+		return nil, newPerDialConnectError("dial error", ctx.Err())
+	}
 	pgConn.conn, err = config.DialFunc(ctx, connectConfig.network, connectConfig.address)
 	if err != nil {
+		if pgConn.conn != nil {
+			pgConn.conn.Close()
+		}
 		return nil, newPerDialConnectError("dial error", err)
 	}
+	if pgConn.conn == nil {
+		return nil, newPerDialConnectError("dial error", errors.New("dialer returned nil connection"))
+	}
 
-	if connectConfig.tlsConfig != nil {
+	if legacy == nil && connectConfig.tlsConfigFunc != nil {
+		phase = "ssl-request"
+		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
+		pgConn.contextWatcher.Watch(ctx)
+		tlsConn, tlsErr := negotiateTLSWithProvider(ctx, pgConn.conn, connectConfig.tlsConfigFunc, config.SSLNegotiation, connectConfig.allowPlaintext, &phase)
+		pgConn.contextWatcher.Unwatch()
+		if tlsErr != nil {
+			pgConn.conn.Close()
+			return nil, newPerDialConnectError("TLS", tlsErr)
+		}
+		pgConn.conn = tlsConn
+		if tc, ok := tlsConn.(*tls.Conn); ok {
+			pgConn.negotiatedTLS = tc
+			pgConn.tlsConfig = connectConfig.tlsConfig
+			pgConn.connectionInfo.TLS = true
+		} else {
+			connectConfig.usedPlaintext = true
+		}
+	} else if connectConfig.tlsConfig != nil {
 		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
 		pgConn.contextWatcher.Watch(ctx)
 		var (
@@ -361,14 +420,22 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 
 		pgConn.conn = tlsConn
 		pgConn.tlsConfig = connectConfig.tlsConfig
+		pgConn.connectionInfo.TLS = true
 	}
 
 	if config.AfterNetConnect != nil {
-		pgConn.conn, err = config.AfterNetConnect(ctx, config, pgConn.conn)
+		phase = "after-net-connect"
+		wrapped, wrapErr := config.AfterNetConnect(ctx, pgConn.conn)
+		err = wrapErr
 		if err != nil {
 			pgConn.conn.Close()
 			return nil, newPerDialConnectError("AfterNetConnect failed", err)
 		}
+		if wrapped == nil {
+			pgConn.conn.Close()
+			return nil, newPerDialConnectError("AfterNetConnect failed", errors.New("nil connection"))
+		}
+		pgConn.conn = wrapped
 	}
 
 	// Use a deadline-only watcher during connect. The application-supplied
@@ -397,6 +464,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		pgConn.frontend.SetMaxBodyLen(config.MaxProtocolMessageBodyLen)
 	}
 
+	phase = "startup"
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: maxProtocolVersion,
 		Parameters:      make(map[string]string),
@@ -430,6 +498,9 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		return nil, newPerDialConnectError("require_auth check failed", err)
 	}
 	clientFinishedAuth := false
+	authOK := false
+	protocolNegotiated := false
+	boundAuth := false
 
 	for {
 		msg, err := pgConn.receiveMessage()
@@ -447,24 +518,35 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			pgConn.secretKey = msg.SecretKey
 
 		case *pgproto3.AuthenticationOk:
+			if legacy == nil && config.ChannelBinding == "require" && !boundAuth {
+				return requireAuthFail(errors.New("channel binding required but authentication did not bind the channel"))
+			}
+			authOK = true
+			phase = "authenticated"
 			if requireAuthPolicy.authRequired && !clientFinishedAuth {
 				return requireAuthFail(requireAuthPolicy.check(authMethodNone))
 			}
 		case *pgproto3.AuthenticationCleartextPassword:
+			if legacy == nil && config.ChannelBinding == "require" {
+				return requireAuthFail(errors.New("channel binding requires SCRAM-SHA-256-PLUS"))
+			}
 			if err := requireAuthPolicy.check(authMethodPassword); err != nil {
 				return requireAuthFail(err)
 			}
-			err = pgConn.txPasswordMessage(pgConn.config.Password)
+			err = pgConn.txPasswordMessage(pgConn.runtime.Password)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed to write password message", err)
 			}
 			clientFinishedAuth = true
 		case *pgproto3.AuthenticationMD5Password:
+			if legacy == nil && config.ChannelBinding == "require" {
+				return requireAuthFail(errors.New("channel binding requires SCRAM-SHA-256-PLUS"))
+			}
 			if err := requireAuthPolicy.check(authMethodMD5); err != nil {
 				return requireAuthFail(err)
 			}
-			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
+			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.runtime.Password+pgConn.runtime.User)+string(msg.Salt[:]))
 			err = pgConn.txPasswordMessage(digestedPassword)
 			if err != nil {
 				pgConn.conn.Close()
@@ -472,26 +554,43 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			}
 			clientFinishedAuth = true
 		case *pgproto3.AuthenticationSASL:
+			phase = "authentication"
 			// Check if OAUTHBEARER is supported
 			serverSupportsOAuthBearer := slices.Contains(msg.AuthMechanisms, "OAUTHBEARER")
 
-			if serverSupportsOAuthBearer && pgConn.config.OAuthTokenProvider != nil {
+			if serverSupportsOAuthBearer && pgConn.runtime.OAuthTokenProvider != nil {
 				if err := requireAuthPolicy.check(authMethodOAuth); err != nil {
 					return requireAuthFail(err)
 				}
+				if legacy == nil && config.ChannelBinding == "require" {
+					return requireAuthFail(errors.New("channel binding requires SCRAM-SHA-256-PLUS"))
+				}
 				err = pgConn.oauthAuth(ctx)
+				// OAuth consumes AuthenticationOk inside its exchange.
+				if err == nil {
+					authOK = true
+				}
 			} else {
 				if err := requireAuthPolicy.check(authMethodSCRAMSHA256); err != nil {
 					return requireAuthFail(err)
 				}
 				err = pgConn.scramAuth(msg.AuthMechanisms)
+				boundAuth = err == nil && config.ChannelBinding == "require"
 			}
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed SASL auth", err)
 			}
 			clientFinishedAuth = true
+			phase = "startup"
+			if authOK {
+				phase = "authenticated"
+			}
 		case *pgproto3.AuthenticationGSS:
+			phase = "authentication"
+			if legacy == nil && config.ChannelBinding == "require" {
+				return requireAuthFail(errors.New("channel binding requires SCRAM-SHA-256-PLUS"))
+			}
 			if err := requireAuthPolicy.check(authMethodGSS); err != nil {
 				return requireAuthFail(err)
 			}
@@ -501,7 +600,15 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				return nil, newPerDialConnectError("failed GSS auth", err)
 			}
 			clientFinishedAuth = true
+			phase = "startup"
+			if authOK {
+				phase = "authenticated"
+			}
 		case *pgproto3.ReadyForQuery:
+			if legacy == nil && !authOK {
+				pgConn.conn.Close()
+				return nil, newPerDialConnectError("protocol", errors.New("ReadyForQuery before AuthenticationOk"))
+			}
 			pgConn.status = connStatusIdle
 			// The connect-phase deadline-only watcher is no longer needed; replace
 			// it with the application-supplied watcher so subsequent operations
@@ -520,9 +627,14 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				}
 			}
 			return pgConn, nil
-		case *pgproto3.ParameterStatus, *pgproto3.NoticeResponse:
+		case *pgproto3.ParameterStatus, *pgproto3.NoticeResponse, *pgproto3.NotificationResponse:
 			// handled by ReceiveMessage
 		case *pgproto3.NegotiateProtocolVersion:
+			if legacy == nil && (protocolNegotiated || authOK || msg.NewestMinorProtocol >= maxProtocolVersion&0xffff || len(msg.UnrecognizedOptions) > 0) {
+				pgConn.conn.Close()
+				return nil, newPerDialConnectError("protocol", errors.New("invalid protocol negotiation"))
+			}
+			protocolNegotiated = true
 			serverVersion := pgproto3.ProtocolVersion30&0xFFFF0000 | msg.NewestMinorProtocol
 			if serverVersion < minProtocolVersion {
 				pgConn.conn.Close()
@@ -677,19 +789,22 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 		pgConn.parameterStatuses[msg.Name] = msg.Value
 	case *pgproto3.ErrorResponse:
 		err := ErrorResponseToPgError(msg)
-		if pgConn.config.OnPgError != nil && !pgConn.config.OnPgError(pgConn, err) {
+		if pgConn.runtime.OnPgError != nil && !pgConn.runtime.OnPgError(pgConn, err) {
 			pgConn.status = connStatusClosed
 			pgConn.conn.Close() // Ignore error as the connection is already broken and there is already an error to return.
 			close(pgConn.cleanupDone)
 			return nil, err
 		}
 	case *pgproto3.NoticeResponse:
-		if pgConn.config.OnNotice != nil {
-			pgConn.config.OnNotice(pgConn, noticeResponseToNotice(msg))
+		if pgConn.runtime.OnNotice != nil {
+			pgConn.runtime.OnNotice(pgConn, noticeResponseToNotice(msg))
 		}
 	case *pgproto3.NotificationResponse:
-		if pgConn.config.OnNotification != nil {
-			pgConn.config.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
+		if pgConn.runtime.OnNotification == nil && pgConn.config == nil {
+			pgConn.pendingNotifications = append(pgConn.pendingNotifications, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
+		}
+		if pgConn.runtime.OnNotification != nil {
+			pgConn.runtime.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
 		}
 	}
 
@@ -771,6 +886,16 @@ func (pgConn *PgConn) asyncClose() {
 	if pgConn.status == connStatusClosed {
 		return
 	}
+	// Connection establishment owns its failed sockets synchronously. A startup
+	// error must not launch a detached cancel connection or consume another
+	// scheduled endpoint before the scheduler decides what to do next.
+	if pgConn.config == nil && pgConn.status == connStatusConnecting {
+		pgConn.status = connStatusClosed
+		pgConn.conn.Close()
+		close(pgConn.cleanupDone)
+		return
+	}
+
 	pgConn.status = connStatusClosed
 
 	go func() {
@@ -1105,19 +1230,22 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 		// for unix sockets, RemoteAddr() calls getpeername() which returns the name the
 		// server passed to bind(). For Postgres, this is always a relative path "./.s.PGSQL.5432"
 		// so connecting to it will fail. Fall back to the config's value
-		serverNetwork, serverAddress = NetworkAddress(pgConn.config.Host, pgConn.config.Port)
+		serverNetwork, serverAddress = NetworkAddress(pgConn.runtime.Host, pgConn.runtime.Port)
 	} else {
 		serverNetwork, serverAddress = serverAddr.Network(), serverAddr.String()
 	}
-	cancelConn, err := pgConn.config.DialFunc(ctx, serverNetwork, serverAddress)
+	if pgConn.config == nil {
+		serverNetwork, serverAddress = pgConn.connectionInfo.Network, pgConn.connectionInfo.Address
+	}
+	cancelConn, err := pgConn.runtime.DialFunc(ctx, serverNetwork, serverAddress)
 	if err != nil {
 		// In case of unix sockets, RemoteAddr() returns only the file part of the path. If the
 		// first connect failed, try the config.
 		if serverAddr.Network() != "unix" {
 			return err
 		}
-		serverNetwork, serverAddr := NetworkAddress(pgConn.config.Host, pgConn.config.Port)
-		cancelConn, err = pgConn.config.DialFunc(ctx, serverNetwork, serverAddr)
+		serverNetwork, serverAddr := NetworkAddress(pgConn.runtime.Host, pgConn.runtime.Port)
+		cancelConn, err = pgConn.runtime.DialFunc(ctx, serverNetwork, serverAddr)
 		if err != nil {
 			return err
 		}
@@ -1137,9 +1265,16 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// plaintext (e.g. unix sockets or sslmode=disable).
 	if pgConn.tlsConfig != nil {
 		var tlsCancelConn net.Conn
-		if pgConn.config.SSLNegotiation == "direct" {
+		switch {
+		case pgConn.config == nil:
+			phase := "ssl-request"
+			tlsCancelConn, err = negotiateTLS(ctx, cancelConn, pgConn.tlsConfig, pgConn.runtime.SSLNegotiation, false, &phase)
+			if err != nil {
+				return fmt.Errorf("TLS cancellation: %w", err)
+			}
+		case pgConn.runtime.SSLNegotiation == "direct":
 			tlsCancelConn = tls.Client(cancelConn, pgConn.tlsConfig)
-		} else {
+		default:
 			tlsCancelConn, err = startTLS(cancelConn, pgConn.tlsConfig)
 			if err != nil {
 				return fmt.Errorf("tls error on cancel connection: %w", err)
@@ -2237,15 +2372,19 @@ func (pgConn *PgConn) CustomData() map[string]any {
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
 type HijackedConn struct {
-	Conn              net.Conn
-	TLSConfig         *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
-	PID               uint32            // backend pid
-	SecretKey         []byte            // key to use to send a cancel query message to the server
-	ParameterStatuses map[string]string // parameters that have been reported by the server
-	TxStatus          byte
-	Frontend          *pgproto3.Frontend
-	Config            *Config
-	CustomData        map[string]any
+	Conn                 net.Conn
+	TLSConfig            *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
+	PID                  uint32            // backend pid
+	SecretKey            []byte            // key to use to send a cancel query message to the server
+	ParameterStatuses    map[string]string // parameters that have been reported by the server
+	TxStatus             byte
+	Frontend             *pgproto3.Frontend
+	Config               *Config
+	CustomData           map[string]any
+	runtime              *connectionRuntime
+	info                 ConnectionInfo
+	clientOptions        map[string]string
+	pendingNotifications []*Notification
 }
 
 // Hijack extracts the internal connection data. pgConn must be in an idle state. SyncConn should be called immediately
@@ -2270,17 +2409,26 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 		Frontend:          pgConn.frontend,
 		Config:            pgConn.config,
 		CustomData:        pgConn.customData,
+		runtime:           pgConn.runtime, info: pgConn.connectionInfo, clientOptions: pgConn.clientOptions, pendingNotifications: pgConn.pendingNotifications,
 	}, nil
 }
 
 // Construct created a PgConn from an already established connection to a PostgreSQL server. This is the inverse of
 // PgConn.Hijack. The connection must be in an idle state.
 //
-// hc.Frontend is replaced by a new pgproto3.Frontend built by hc.Config.BuildFrontend.
+// hc.Frontend is replaced using the retained frontend factory. Legacy hijacks
+// use hc.Config.BuildFrontend; Connect2 hijacks preserve opaque runtime state.
 //
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
 func Construct(hc *HijackedConn) (*PgConn, error) {
+	runtime := hc.runtime
+	if hc.Config != nil {
+		runtime = legacyRuntime(hc.Config)
+	}
+	if runtime == nil {
+		return nil, errors.New("missing connection runtime")
+	}
 	pgConn := &PgConn{
 		conn:              hc.Conn,
 		tlsConfig:         hc.TLSConfig,
@@ -2290,14 +2438,15 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		txStatus:          hc.TxStatus,
 		frontend:          hc.Frontend,
 		config:            hc.Config,
-		customData:        hc.CustomData,
+		runtime:           runtime, connectionInfo: hc.info, clientOptions: hc.clientOptions, pendingNotifications: hc.pendingNotifications,
+		customData: hc.CustomData,
 
 		status: connStatusIdle,
 
 		cleanupDone: make(chan struct{}),
 	}
 
-	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(runtime.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
 		func() {
@@ -2307,9 +2456,9 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	)
 	pgConn.slowWriteTimer.Stop()
 	pgConn.bgReaderStarted = make(chan struct{})
-	pgConn.frontend = hc.Config.BuildFrontend(pgConn.bgReader, pgConn.conn)
-	if hc.Config.MaxProtocolMessageBodyLen > 0 {
-		pgConn.frontend.SetMaxBodyLen(hc.Config.MaxProtocolMessageBodyLen)
+	pgConn.frontend = runtime.BuildFrontend(pgConn.bgReader, pgConn.conn)
+	if runtime.MaxProtocolMessageBodyLen > 0 {
+		pgConn.frontend.SetMaxBodyLen(runtime.MaxProtocolMessageBodyLen)
 	}
 
 	return pgConn, nil

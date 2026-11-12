@@ -10,11 +10,11 @@ import (
 )
 
 func (c *PgConn) oauthAuth(ctx context.Context) error {
-	if c.config.OAuthTokenProvider == nil {
+	if c.runtime.OAuthTokenProvider == nil {
 		return errors.New("OAuth authentication required but no token provider configured")
 	}
 
-	token, err := c.config.OAuthTokenProvider(ctx)
+	token, err := c.runtime.OAuthTokenProvider(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to obtain OAuth token: %w", err)
 	}

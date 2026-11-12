@@ -41,21 +41,26 @@ const (
 
 // Perform SCRAM authentication.
 func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
-	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
+	sc, err := newScramClient(serverAuthMechanisms, c.runtime.Password)
 	if err != nil {
 		return err
 	}
 
 	serverHasPlus := slices.Contains(sc.serverAuthMechanisms, scramSHA256PlusName)
-	if c.config.ChannelBinding == "require" && !serverHasPlus {
+	if c.runtime.ChannelBinding == "require" && !serverHasPlus {
 		return errors.New("channel binding required but server does not support SCRAM-SHA-256-PLUS")
 	}
 
 	// If we have a TLS connection and channel binding is not disabled, attempt to
 	// extract the server certificate hash for tls-server-end-point channel binding.
-	if tlsConn, ok := c.conn.(*tls.Conn); ok && c.config.ChannelBinding != "disable" {
+	tlsConn, hasTLS := c.conn.(*tls.Conn)
+	if !hasTLS && c.config == nil {
+		tlsConn = c.negotiatedTLS
+		hasTLS = tlsConn != nil
+	}
+	if hasTLS && c.runtime.ChannelBinding != "disable" {
 		certHash, err := getTLSCertificateHash(tlsConn)
-		if err != nil && c.config.ChannelBinding == "require" {
+		if err != nil && c.runtime.ChannelBinding == "require" {
 			return fmt.Errorf("channel binding required but failed to get server certificate hash: %w", err)
 		}
 
@@ -68,7 +73,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		sc.hasTLS = true
 	}
 
-	if c.config.ChannelBinding == "require" && sc.channelBindingData == nil {
+	if c.runtime.ChannelBinding == "require" && sc.channelBindingData == nil {
 		return errors.New("channel binding required but channel binding data is not available")
 	}
 
