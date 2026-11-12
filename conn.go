@@ -66,12 +66,15 @@ func (cc *ConnConfig) ConnString() string { return cc.connString }
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
 // to multiple database connections from multiple goroutines.
 type Conn struct {
-	pgConn                  *pgconn.PgConn
-	config                  *ConnConfig // config used when establishing this connection
-	preparedStatements      map[string]*pgconn.StatementDescription
-	failedDescribeStatement string
-	statementCache          stmtcache.Cache
-	descriptionCache        stmtcache.Cache
+	pgConn                   *pgconn.PgConn
+	config                   *ConnConfig // legacy configuration, nil for factory connections
+	statementCacheCapacity   int
+	descriptionCacheCapacity int
+	defaultQueryExecMode     QueryExecMode
+	preparedStatements       map[string]*pgconn.StatementDescription
+	failedDescribeStatement  string
+	statementCache           stmtcache.Cache
+	descriptionCache         stmtcache.Cache
 
 	queryTracer    QueryTracer
 	batchTracer    BatchTracer
@@ -256,7 +259,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 
 	c = &Conn{
-		config:      config,
+		config:                 config,
+		statementCacheCapacity: config.StatementCacheCapacity, descriptionCacheCapacity: config.DescriptionCacheCapacity, defaultQueryExecMode: config.DefaultQueryExecMode,
 		typeMap:     pgtype.NewMap(),
 		queryTracer: config.Tracer,
 	}
@@ -286,12 +290,12 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
 
-	if c.config.StatementCacheCapacity > 0 {
-		c.statementCache = stmtcache.NewLRUCache(c.config.StatementCacheCapacity)
+	if c.statementCacheCapacity > 0 {
+		c.statementCache = stmtcache.NewLRUCache(c.statementCacheCapacity)
 	}
 
-	if c.config.DescriptionCacheCapacity > 0 {
-		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
+	if c.descriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.NewLRUCache(c.descriptionCacheCapacity)
 	}
 
 	return c, nil
@@ -402,11 +406,11 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 // DeallocateAll releases all previously prepared statements from the server and client, where it also resets the statement and description cache.
 func (c *Conn) DeallocateAll(ctx context.Context) error {
 	c.preparedStatements = map[string]*pgconn.StatementDescription{}
-	if c.config.StatementCacheCapacity > 0 {
-		c.statementCache = stmtcache.NewLRUCache(c.config.StatementCacheCapacity)
+	if c.statementCacheCapacity > 0 {
+		c.statementCache = stmtcache.NewLRUCache(c.statementCacheCapacity)
 	}
-	if c.config.DescriptionCacheCapacity > 0 {
-		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
+	if c.descriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.NewLRUCache(c.descriptionCacheCapacity)
 	}
 	_, err := c.pgConn.Exec(ctx, "deallocate all").ReadAll()
 	return err
@@ -471,7 +475,13 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 func (c *Conn) TypeMap() *pgtype.Map { return c.typeMap }
 
 // Config returns a copy of config that was used to establish this connection.
-func (c *Conn) Config() *ConnConfig { return c.config.Copy() }
+// Connections created by Connect2 or ConnectFunc have no legacy config and return nil.
+func (c *Conn) Config() *ConnConfig {
+	if c.config == nil {
+		return nil
+	}
+	return c.config.Copy()
+}
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
@@ -497,7 +507,7 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 }
 
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
-	mode := c.config.DefaultQueryExecMode
+	mode := c.defaultQueryExecMode
 	var queryRewriter QueryRewriter
 
 optionLoop:
@@ -771,7 +781,7 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error)
 
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
-	mode := c.config.DefaultQueryExecMode
+	mode := c.defaultQueryExecMode
 	var queryRewriter QueryRewriter
 
 optionLoop:
@@ -1009,7 +1019,7 @@ func (c *Conn) sendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 	}
 
 	// TODO: changing mode per batch? Update Batch.Queue function comment when implemented
-	mode := c.config.DefaultQueryExecMode
+	mode := c.defaultQueryExecMode
 	if mode == QueryExecModeSimpleProtocol {
 		return c.sendBatchQueryExecModeSimpleProtocol(ctx, b)
 	}

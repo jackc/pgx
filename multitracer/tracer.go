@@ -16,6 +16,7 @@ type Tracer struct {
 	CopyFromTracers    []pgx.CopyFromTracer
 	PrepareTracers     []pgx.PrepareTracer
 	ConnectTracers     []pgx.ConnectTracer
+	ConnectTracers2    []pgx.ConnectTracer2
 	PoolAcquireTracers []pgxpool.AcquireTracer
 	PoolReleaseTracers []pgxpool.ReleaseTracer
 }
@@ -26,6 +27,9 @@ func New(tracers ...pgx.QueryTracer) *Tracer {
 
 	for _, tracer := range tracers {
 		t.QueryTracers = append(t.QueryTracers, tracer)
+		if ct, ok := tracer.(pgx.ConnectTracer2); ok {
+			t.ConnectTracers2 = append(t.ConnectTracers2, ct)
+		}
 
 		if batchTracer, ok := tracer.(pgx.BatchTracer); ok {
 			t.BatchTracers = append(t.BatchTracers, batchTracer)
@@ -148,5 +152,18 @@ func (t *Tracer) TraceAcquireEnd(ctx context.Context, pool *pgxpool.Pool, data p
 func (t *Tracer) TraceRelease(pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
 	for _, tracer := range t.PoolReleaseTracers {
 		tracer.TraceRelease(pool, data)
+	}
+}
+
+func (t *Tracer) TraceConnectStart2(ctx context.Context) context.Context {
+	for _, tracer := range t.ConnectTracers2 {
+		ctx = tracer.TraceConnectStart2(ctx)
+	}
+	return ctx
+}
+
+func (t *Tracer) TraceConnectEnd2(ctx context.Context, data pgx.TraceConnectEndData2) {
+	for _, tracer := range t.ConnectTracers2 {
+		tracer.TraceConnectEnd2(ctx, data)
 	}
 }

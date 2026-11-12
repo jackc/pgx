@@ -269,7 +269,7 @@ func (c *Conn) CopyFrom(ctx context.Context, tableName Identifier, columnNames [
 		columnNames:   columnNames,
 		rowSrc:        rowSrc,
 		readerErrChan: make(chan error),
-		mode:          c.config.DefaultQueryExecMode,
+		mode:          c.defaultQueryExecMode,
 	}
 
 	return ct.run(ctx)

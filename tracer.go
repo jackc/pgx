@@ -116,3 +116,17 @@ type TraceConnectEndData struct {
 	Conn *Conn
 	Err  error
 }
+
+// ConnectTracer2 traces establishment without depending on a legacy ConnConfig.
+// Query tracers can implement both ConnectTracer and ConnectTracer2 to support
+// both constructor families. The returned context reaches the factory and hooks.
+type ConnectTracer2 interface {
+	TraceConnectStart2(context.Context) context.Context
+	TraceConnectEnd2(context.Context, TraceConnectEndData2)
+}
+
+// TraceConnectEndData2 describes factory-based connection establishment.
+type TraceConnectEndData2 struct {
+	Conn *Conn2
+	Err  error
+}
