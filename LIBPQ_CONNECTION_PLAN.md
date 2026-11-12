@@ -9,7 +9,7 @@ Preserve the existing connection APIs until callers can migrate to their replace
 
 This plan covers architecture, implementation, and migration. Names such as `Connect2` are
 placeholders. The selected direction is a separate path with private state, not a second
-publicly editable configuration system. Implementation belongs in a later session.
+publicly editable configuration system. The implementation status and resolved API choices are recorded below.
 
 ## Decision and legacy compatibility
 
@@ -367,4 +367,32 @@ The initial implementation is complete when the supported behavior matrix and in
 checks pass, old callers retain their contract, and the documented new interfaces work without
 exposing mutable parsed state. Run appropriate real-server, race/platform, formatting, and
 lint checks. Document extensions and unsupported capabilities rather than treating them as
-silent fallbacks. This branch currently contains the plan only.
+silent fallbacks. Implementation and migration details are in `CONNECTION_STRATEGY.md`.
+
+
+## Implementation record
+
+The initial implementation uses value options, private normalized inputs, and a
+shared protocol runtime independent of legacy `Config`. `pgconn.Connect2` is the
+physical entry point. `pgx.ConnectFunc` is public, with `pgx.Connect2` as its thin
+string/options wrapper. It invokes the factory once, owns handoff cleanup, and
+transfers buffered setup notifications. pgx string extensions remain supported.
+
+`Conn2` and `Pool2` wrap shared query/lifecycle implementations without promoting
+legacy `Config` getters. Explicit compatibility bridges support old concrete-type
+APIs; no legacy configuration is synthesized. Connect tracing has a separate
+config-free interface; query tracing remains shared.
+
+TLS customization is a material provider, with independent string-controlled
+verification/SNI/ALPN and additive application verification. Password providers
+override string/password-file credentials. Validation rejection advances a logical
+host; `ErrAbortConnect` stops. Pool timeout policy is a separately captured outer
+limit. Pool and standalone stdlib construction select private factories, and
+pool-backed stdlib continues acquiring/releasing through its pool.
+
+Permanent Go fixtures and an optional version-checked libpq helper cover phase
+transitions. The manual oracle workflow pins the source baseline. Additional
+libpq options remain explicitly unsupported according to the capability matrix.
+Legacy Config-based APIs are not broadly deprecated while they still expose
+customization that lacks a new-path equivalent; migration guidance identifies
+those boundaries instead of promising a mechanical rename.

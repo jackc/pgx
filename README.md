@@ -35,7 +35,7 @@ import (
 
 func main() {
 	// urlExample := "postgres://username:password@localhost:5432/database_name"
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	conn, err := pgx.Connect2(context.Background(), os.Getenv("DATABASE_URL"), pgx.ConnectOptions2{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
@@ -56,7 +56,9 @@ func main() {
 
 ### Connection Configuration
 
-`pgx.Connect` and `pgxpool.New` accept PostgreSQL connection URLs (such as `postgres://user:pass@host:5432/db?sslmode=verify-full`) as well as `key=value` strings. See [`pgconn.ParseConfig`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#ParseConfig) and the [PostgreSQL connection string documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) for supported options and environment variables.
+`pgx.Connect2` and `pgxpool.New2` accept PostgreSQL URLs and `key=value` strings plus Go options. Each new physical connection resolves current environment, service, credential, TLS, and DNS inputs. See the [connection strategy and migration guide](CONNECTION_STRATEGY.md) for supported parameters, factory composition, and differences from the legacy APIs.
+
+Existing `Connect`, `ConnectConfig`, `ParseConfig`, and pool/stdlib constructors retain their legacy behavior. Migration changes connection selection as well as API names; consult the guide before changing existing applications.
 
 For a step-by-step walkthrough, see the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx).
 

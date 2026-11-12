@@ -1,3 +1,13 @@
+# Unreleased
+
+* Add the separate `Connect2` connection strategy, opaque pgx/pool wrappers, public pgx `ConnectFunc`,
+  private pool/stdlib factories, and fresh-input `OpenDB2` / `GetConnector2` adapters. The legacy APIs remain available.
+* New-path behavior includes logical host/address scheduling, hostaddr, host/address balancing, per-host password
+  matching, phase-aware transport retries, full prefer-standby passes, selected-endpoint cancellation, strict client
+  parameter validation, and TLS/authentication policy enforcement. See [migration and capabilities](CONNECTION_STRATEGY.md).
+* Fix cleanup when a legacy `AfterNetConnect` wrapper returns an error or nil connection, and when stdlib's legacy
+  `AfterConnect` rejects a newly established connection. These fixes do not change legacy retry ordering.
+
 # 5.11.0 (September 7, 2026)
 
 This release adds direct PostgreSQL type scanning through `database/sql` on Go 1.27, improves compatibility with
