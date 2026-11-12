@@ -279,6 +279,41 @@ exported callback option, or mutable global is needed initially. Constructor sel
 evolve later without changing the pool interface; exposing application-supplied factories or
 switching a running pool's factory would require a separate public contract.
 
+### pgx constructor alternative
+
+Prototype the same separation between pgx and pgconn, potentially as a public constructor:
+
+```go
+func ConnectFunc(
+    ctx context.Context,
+    connect func(context.Context) (*pgconn.PgConn, error),
+    opts ConnOptions,
+) (*Conn, error)
+```
+
+Here `ConnOptions` contains pgx execution settings, tracing, and pgx-level initialization.
+The callback owns connection establishment and receives the constructor's context, including
+any tracing additions. Invoke it once; pgconn owns host/transport retries. Apply the ownership
+and cleanup rules above to the handoff. Changing the underlying connection entry point or
+its inputs would then require changing only the callback, while pgx-specific options and the
+established-connection contract remain explicit API dependencies.
+
+This is more than replacing a call to `pgconn.ConnectConfig`. Today pgx installs notification
+buffering before connecting and extracts query/cache settings from the connection string.
+An opaque factory cannot provide those integration points by itself. Resolve notification
+delivery across setup and handoff, including messages consumed by connection hooks; define how
+pgx string extensions reach pgx without being rejected or sent as server parameters; and
+replace config-dependent tracing/accessors as already required by the new path. Moving pgx
+settings exclusively into options is an alternative, but changes the planned string support
+and needs an explicit migration decision.
+
+Compare a factory-based primary constructor with a direct string/options constructor backed
+by a private factory. A thin string/options wrapper can coexist with the public factory if
+ordinary usage warrants it. A constructor accepting an already established `*pgconn.PgConn`
+is another composition option, but cannot surround establishment with pgx tracing or own
+cleanup during that step. Settle this choice in the API prototype rather than promising that
+any signature will never need to evolve.
+
 ## Scope beyond the scheduler
 
 The initial release must cover the matrix above, including `hostaddr`, `load_balance_hosts`,
@@ -314,7 +349,7 @@ Complete each phase in reviewable commits, recording resolved choices and capabi
 
 | Phase | Deliverable and exit condition |
 | --- | --- |
-| 1. API prototype | Compilable pgconn/pgx/pool/stdlib and third-party factory examples using one connection function with options. Resolve value versus pointer options, field presence, accessor/wrapper behavior, TLS/provider precedence, and hook rejection. No reusable parsed handle. |
+| 1. API prototype | Compilable pgconn/pgx/pool/stdlib and third-party factory examples. Compare pgx's public factory constructor with the direct string/options form, resolving notification handoff and pgx string extensions. Resolve value versus pointer options, field presence, accessor/wrapper behavior, TLS/provider precedence, and hook rejection. No reusable parsed handle. |
 | 2. Behavioral fixtures | Permanent simulator, optional pinned client, phase-aware transition table, and legacy regression cases. Reproduce the earlier audit observations before refactoring. |
 | 3. Input pipeline | Per-connection parsing/normalization, option capture, policy validation, and fresh external-input handling. No dependency on a flattened legacy configuration or adapter-specific prepared state. |
 | 4. Connection engine | Shared primitives with legacy tests passing, new scheduler and constructors, selected-destination state, cleanup, and passing core behavior comparisons. |
