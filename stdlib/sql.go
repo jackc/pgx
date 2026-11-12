@@ -217,6 +217,15 @@ func GetConnector(config pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector 
 	for _, opt := range opts {
 		opt(&c)
 	}
+	legacy := c
+	c.connect = func(ctx context.Context) (*pgx.Conn, error) {
+		config := legacy.ConnConfig
+		if err := legacy.BeforeConnect(ctx, &config); err != nil {
+			return nil, err
+		}
+		return pgx.ConnectConfig(ctx, &config)
+	}
+
 	return c
 }
 
@@ -257,6 +266,7 @@ func OpenDBFromPool(pool *pgxpool.Pool, opts ...OptionOpenDB) *sql.DB {
 type connector struct {
 	pgx.ConnConfig
 	pool          *pgxpool.Pool
+	connect       func(context.Context) (*pgx.Conn, error)
 	BeforeConnect func(context.Context, *pgx.ConnConfig) error // function to call before creation of every new connection
 	AfterConnect  func(context.Context, *pgx.Conn) error       // function to call after creation of every new connection
 	ResetSession  func(context.Context, *pgx.Conn) error       // function is called before a connection is reused
@@ -274,18 +284,13 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 	)
 
 	if c.pool == nil {
-		// Create a shallow copy of the config, so that BeforeConnect can safely modify it
 		connConfig = c.ConnConfig
-
-		if err = c.BeforeConnect(ctx, &connConfig); err != nil {
-			return nil, err
-		}
-
-		if conn, err = pgx.ConnectConfig(ctx, &connConfig); err != nil {
+		if conn, err = c.connect(ctx); err != nil {
 			return nil, err
 		}
 
 		if err = c.AfterConnect(ctx, conn); err != nil {
+			conn.Close(ctx)
 			return nil, err
 		}
 

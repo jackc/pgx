@@ -83,7 +83,7 @@ type Pool struct {
 
 	p                     *puddle.Pool[*connResource]
 	config                *Config
-	beforeConnect         func(context.Context, *pgx.ConnConfig) error
+	connect               func(context.Context) (*pgx.Conn, error)
 	afterConnect          func(context.Context, *pgx.Conn) error
 	prepareConn           func(context.Context, *pgx.Conn) (bool, error)
 	afterRelease          func(*pgx.Conn) bool
@@ -228,6 +228,23 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		panic("config must be created by ParseConfig")
 	}
 
+	beforeConnect := config.BeforeConnect
+	factory := func(ctx context.Context) (*pgx.Conn, error) {
+		connConfig := config.ConnConfig.Copy()
+		if connConfig.ConnectTimeout <= 0 {
+			connConfig.ConnectTimeout = 2 * time.Minute
+		}
+		if beforeConnect != nil {
+			if err := beforeConnect(ctx, connConfig); err != nil {
+				return nil, err
+			}
+		}
+		return pgx.ConnectConfig(ctx, connConfig)
+	}
+	return newPool(ctx, config, factory, config.ConnConfig.Tracer, true)
+}
+
+func newPool(ctx context.Context, config *Config, factory func(context.Context) (*pgx.Conn, error), tracer pgx.QueryTracer, legacy bool) (*Pool, error) {
 	prepareConn := config.PrepareConn
 	if prepareConn == nil && config.BeforeAcquire != nil {
 		prepareConn = func(ctx context.Context, conn *pgx.Conn) (bool, error) {
@@ -237,7 +254,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p := &Pool{
 		config:                config,
-		beforeConnect:         config.BeforeConnect,
+		connect:               factory,
 		afterConnect:          config.AfterConnect,
 		prepareConn:           prepareConn,
 		afterRelease:          config.AfterRelease,
@@ -254,11 +271,15 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		closeChan:             make(chan struct{}),
 	}
 
-	if t, ok := config.ConnConfig.Tracer.(AcquireTracer); ok {
+	if !legacy {
+		p.config = nil
+	}
+
+	if t, ok := tracer.(AcquireTracer); ok {
 		p.acquireTracer = t
 	}
 
-	if t, ok := config.ConnConfig.Tracer.(ReleaseTracer); ok {
+	if t, ok := tracer.(ReleaseTracer); ok {
 		p.releaseTracer = t
 	}
 
@@ -275,20 +296,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		&puddle.Config[*connResource]{
 			Constructor: func(ctx context.Context) (*connResource, error) {
 				p.newConnsCount.Add(1)
-				connConfig := p.config.ConnConfig.Copy()
-
-				// Connection will continue in background even if Acquire is canceled. Ensure that a connect won't hang forever.
-				if connConfig.ConnectTimeout <= 0 {
-					connConfig.ConnectTimeout = 2 * time.Minute
-				}
-
-				if p.beforeConnect != nil {
-					if err := p.beforeConnect(ctx, connConfig); err != nil {
-						return nil, err
-					}
-				}
-
-				conn, err := pgx.ConnectConfig(ctx, connConfig)
+				conn, err := p.connect(ctx)
 				if err != nil {
 					return nil, err
 				}
@@ -728,7 +736,13 @@ func (p *Pool) Reset() {
 }
 
 // Config returns a copy of config that was used to initialize this [Pool].
-func (p *Pool) Config() *Config { return p.config.Copy() }
+// Pools created by New2 have no legacy configuration and return nil.
+func (p *Pool) Config() *Config {
+	if p.config == nil {
+		return nil
+	}
+	return p.config.Copy()
+}
 
 // Stat returns a pgxpool.Stat struct with a snapshot of Pool statistics.
 func (p *Pool) Stat() *Stat {
