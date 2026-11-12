@@ -203,7 +203,7 @@ this conversation are not test dependencies.
 | Input handling | URL/keyword syntax, duplicate/empty values, default/environment/service precedence, negative timeout semantics, invalid SSL settings, allowed keys, and unsupported options. |
 | Lifetimes | Per-address deadlines shared by transport retries, caller cancellation, cooperative hooks, resource cleanup, and cancellation against the selected endpoint. |
 | Refresh and ownership | Default versus explicit zero/false and nil/empty options, isolation of retained inputs, concurrent connects, no exposed parsed state, and unchanged legacy edits/copies. Between connections change resolver answers, service/environment settings, password files, and TLS certificate/key/root files; check refresh through direct, pool, and stdlib paths. |
-| Integration | pgx execution settings, tracing/errors, pool creation/replenishment, stdlib reconnect/reset, hijack/reconstruction, and coexistence of old and new paths. |
+| Integration | pgx execution settings, tracing/errors, pool creation/replenishment through the selected factory, factory concurrency/context propagation, hook ordering and failure cleanup, stdlib reconnect/reset, hijack/reconstruction, and coexistence of old and new paths. |
 
 Implement a deterministic local protocol simulator recording sockets, negotiation, startup,
 authentication, validation queries, and cleanup. Use a controlled resolver and seeded ordering
@@ -240,7 +240,7 @@ Start the source audit in `pgconn/config.go`, `pgconn/pgconn.go`, `pgconn/auth_*
 | `Conn.Config()` and `Pool.Config()` | Preserve legacy contracts. The new path does not require a config getter or editable round trip. If inspection is needed, expose limited immutable values or independent diagnostic snapshots, not internal state or a misleading legacy projection. |
 | Established connection types | Prefer sharing `PgConn`, `Conn`, and `Pool`. If old config methods would acquire misleading or unexpectedly nil results, use a wrapper sharing implementation. Do not duplicate query machinery. |
 | Errors and connection tracing | New failures/events expose useful destination, phase, and wrapped cause without requiring a legacy config or leaking secrets. Preserve context error and server error discovery through `errors.Is`/`errors.As`. |
-| Pool construction and hooks | Retain the string and captured Go options; call the ordinary new connection function for each physical connection. Pool sizing/lifecycle options remain separate. Replace configuration-editing hooks with specific providers or explicit new inputs where a demonstrated use case needs them. |
+| Pool construction and hooks | Select a private connection factory at construction, as described below. Pool sizing/lifecycle options remain separate. Replace configuration-editing hooks with specific providers or explicit new inputs where a demonstrated use case needs them. |
 | stdlib | Add a typed connector accepting the new inputs. Keep `sql.Open("pgx", dsn)` and old registration tokens on the legacy path; any new DSN-only driver selection must be explicit. Pool-backed connections use their pool's path. |
 | Hijack and reconstruction | Preserve destination, TLS, cancellation data, callbacks, and connection origin without rebuilding a new connection through legacy defaults. |
 
@@ -249,6 +249,35 @@ timeouts. If a consumer needs different connection parameters for each physical 
 use a narrowly defined source of complete new inputs; do not hand it internal settings to
 edit. Introduce such a provider only for an identified migration need, and make the same
 capability available to third-party consumers rather than reserving it for built-in adapters.
+
+### Internal connection factories
+
+Give the pool a private connection function selected by its constructor. Using the existing
+established-connection type for illustration:
+
+```go
+type connectFunc func(context.Context) (*pgx.Conn, error)
+```
+
+Every resource creation, including initial fill and replacement, calls this function. The
+legacy factory preserves config copying, `BeforeConnect`, and timeout behavior; the new factory
+captures the original string and isolated Go options and calls the ordinary new pgx entry point.
+It retains inputs only, preserving the refresh contract above. This lets connection creation
+evolve without coupling the pool lifecycle to a particular public connection API.
+
+The factory must support concurrent calls, honor the supplied context, and return a fresh,
+fully connected connection whose ownership transfers to the consumer. It cleans up failed
+attempts. Pool admission hooks, resource accounting, lifetime limits, and destruction remain
+outside it; the pool closes a connection if admission fails. Assign each hook to one layer so
+connection hooks and pool hooks retain their documented order without duplicate invocation
+by the adapter.
+
+Use the same private pattern for standalone stdlib connectors. Pool-backed stdlib connectors
+continue to acquire and release through their pool, preserving ownership and avoiding a second
+creation path. Keep these functions local to their consumers; no shared factory framework,
+exported callback option, or mutable global is needed initially. Constructor selection can
+evolve later without changing the pool interface; exposing application-supplied factories or
+switching a running pool's factory would require a separate public contract.
 
 ## Scope beyond the scheduler
 
@@ -289,7 +318,7 @@ Complete each phase in reviewable commits, recording resolved choices and capabi
 | 2. Behavioral fixtures | Permanent simulator, optional pinned client, phase-aware transition table, and legacy regression cases. Reproduce the earlier audit observations before refactoring. |
 | 3. Input pipeline | Per-connection parsing/normalization, option capture, policy validation, and fresh external-input handling. No dependency on a flattened legacy configuration or adapter-specific prepared state. |
 | 4. Connection engine | Shared primitives with legacy tests passing, new scheduler and constructors, selected-destination state, cleanup, and passing core behavior comparisons. |
-| 5. Integration | Working pgx, pool, stdlib, tracing, errors, and hijack/reconstruction. All new physical connections use the same refresh contract; pool reuse and existing sessions remain distinct. |
+| 5. Integration | Working pgx, pool, stdlib, tracing, errors, and hijack/reconstruction. Private factories select the legacy or new path at consumer construction, with lifecycle and ownership tests. All physical connections on the new path use the same refresh contract; pool reuse and existing sessions remain distinct. |
 | 6. Migration | Primary examples, migration guide, capability matrix, and deprecation annotations pointing to working replacements. |
 | 7. Further parity | Independent implementations of remaining options and explicit reviews of baseline updates. |
 
