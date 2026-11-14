@@ -2549,6 +2549,12 @@ func (s *pipelineState) PendingSync() bool {
 	return !notPendingSync
 }
 
+// hasSentRequests reports whether the oldest unread request was already sent to the server.
+func (s *pipelineState) hasSentRequests() bool {
+	elem := s.requestEventQueue.Front()
+	return elem != nil && elem.Value.(pipelineRequestEvent).WasSentToServer
+}
+
 func (s *pipelineState) ExpectedReadyForQuery() int {
 	return s.expectedReadyForQueryCount
 }
@@ -2702,6 +2708,10 @@ func (p *Pipeline) Flush() error {
 	err := p.conn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		err = normalizeTimeoutError(p.ctx, err)
+		if p.state.hasSentRequests() || !p.conn.resultReader.closed {
+			// A sent request with unread or partly read results may have executed, so a retry could run it twice.
+			err = &pgconnError{msg: "pipeline flush failed after earlier requests were sent", err: err, safeToRetry: false}
+		}
 
 		p.conn.asyncClose()
 
