@@ -4833,6 +4833,87 @@ func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 	require.EqualError(t, err, "pipeline has unsynced requests")
 }
 
+type failWriteConn struct {
+	net.Conn
+	failNextWrite atomic.Bool
+}
+
+func (c *failWriteConn) Write(b []byte) (int, error) {
+	if c.failNextWrite.CompareAndSwap(true, false) {
+		return 0, errors.New("injected write error")
+	}
+	return c.Conn.Write(b)
+}
+
+// A failed flush must not be SafeToRetry when an earlier flush already sent a request whose results were not fully
+// read, because the server may have executed it. See https://github.com/jackc/pgx/issues/2716.
+func TestPipelineFlushFailureAfterSentRequestsIsNotSafeToRetry(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name  string
+		setup func(t *testing.T, pipeline *pgconn.Pipeline)
+	}{
+		{
+			name: "unread result",
+			setup: func(t *testing.T, pipeline *pgconn.Pipeline) {
+				pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+				require.NoError(t, pipeline.Sync())
+			},
+		},
+		{
+			name: "result reader not consumed",
+			setup: func(t *testing.T, pipeline *pgconn.Pipeline) {
+				pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+				pipeline.SendFlushRequest()
+				require.NoError(t, pipeline.Flush())
+
+				results, err := pipeline.GetResults()
+				require.NoError(t, err)
+				require.IsType(t, &pgconn.ResultReader{}, results)
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
+
+			config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+
+			var failConn *failWriteConn
+			config.AfterNetConnect = func(ctx context.Context, config *pgconn.Config, conn net.Conn) (net.Conn, error) {
+				failConn = &failWriteConn{Conn: conn}
+				return failConn, nil
+			}
+
+			pgConn, err := pgconn.ConnectConfig(ctx, config)
+			require.NoError(t, err)
+			defer closeConn(t, pgConn)
+
+			pipeline := pgConn.StartPipeline(ctx)
+			tt.setup(t, pipeline)
+
+			failConn.failNextWrite.Store(true)
+			pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
+			syncErr := pipeline.Sync()
+			require.Error(t, syncErr)
+			assert.False(t, pgconn.SafeToRetry(syncErr), "Sync: %v", syncErr)
+
+			results, err := pipeline.GetResults()
+			require.Error(t, err)
+			assert.Nil(t, results)
+			assert.False(t, pgconn.SafeToRetry(err), "GetResults: %v", err)
+
+			err = pipeline.Close()
+			require.Error(t, err)
+			assert.False(t, pgconn.SafeToRetry(err), "Close: %v", err)
+		})
+	}
+}
+
 func TestConnOnPgError(t *testing.T) {
 	t.Parallel()
 
