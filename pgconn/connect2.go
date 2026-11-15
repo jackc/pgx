@@ -18,14 +18,17 @@ import (
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
-// ConnectionInfo is a value snapshot of the selected destination. It contains no
-// credentials and is not a configuration for reconnecting.
+// ConnectionInfo is a snapshot of a connection candidate or selected destination.
+// It contains no connection-string credentials and is not a configuration for reconnecting.
 type ConnectionInfo struct {
 	Host             string
 	Port             uint16
 	Network, Address string
 	User, Database   string
-	TLS              bool
+	// TLS is nil before a successful TLS handshake and for plaintext connections.
+	// The state is a snapshot, but its nested slices and certificates are shared
+	// with crypto/tls and must be treated as read-only.
+	TLS *tls.ConnectionState
 }
 
 // ConnectionError identifies a failed phase and destination on the Connect2
@@ -97,35 +100,31 @@ func (o ConnectOptions2) Copy() ConnectOptions2 {
 	return o
 }
 
-// ConnectionInfo returns an independent snapshot, including the address actually
-// selected. Legacy connections also report their selected endpoint.
-func (c *PgConn) ConnectionInfo() ConnectionInfo { return c.connectionInfo }
+// ConnectionInfo returns a snapshot including the selected address and negotiated
+// TLS state. Legacy connections also report their selected endpoint. The TLS
+// state's nested slices and certificates must be treated as read-only.
+func (c *PgConn) ConnectionInfo() ConnectionInfo {
+	info := c.connectionInfo
+	info.TLS = tlsConnectionState(c.negotiatedTLS)
+	return info
+}
+
+func tlsConnectionState(conn *tls.Conn) *tls.ConnectionState {
+	if conn == nil {
+		return nil
+	}
+	state := conn.ConnectionState()
+	if !state.HandshakeComplete {
+		return nil
+	}
+	return &state
+}
 
 // ClientOption returns a pgx execution extension resolved by Connect2. These
 // options are never sent to PostgreSQL. It exposes no mutable parsed state.
 func (c *PgConn) ClientOption(name string) (string, bool) {
 	v, ok := c.clientOptions[name]
 	return v, ok
-}
-
-// SetNotificationHandler transfers notification delivery to handler and drains
-// notifications buffered by Connect2 during startup and connection hooks. It
-// must be called with exclusive ownership of c. An existing explicit handler
-// takes precedence and is not replaced. Returns whether handler was installed.
-func (c *PgConn) SetNotificationHandler(handler NotificationHandler) bool {
-	if c.runtime.OnNotification != nil || handler == nil {
-		return false
-	}
-	c.runtime.OnNotification = handler
-	if c.config != nil {
-		c.config = c.config.Copy()
-		c.config.OnNotification = handler
-	}
-	for _, n := range c.pendingNotifications {
-		handler(c, n)
-	}
-	c.pendingNotifications = nil
-	return true
 }
 
 // Connect2 establishes a physical connection from fresh string, environment,
@@ -264,7 +263,9 @@ func (s *connectSettings) connect(ctx context.Context) (*PgConn, error) {
 					if opts.AfterNetConnect != nil {
 						r.AfterNetConnect = func(ctx context.Context, conn net.Conn) (net.Conn, error) {
 							i := info
-							i.TLS = encrypted && !c.usedPlaintext
+							if tc, ok := conn.(*tls.Conn); ok {
+								i.TLS = tlsConnectionState(tc)
+							}
 							return opts.AfterNetConnect(ctx, i, conn)
 						}
 					}
@@ -274,15 +275,15 @@ func (s *connectSettings) connect(ctx context.Context) (*PgConn, error) {
 						if err = s.validateTarget(attemptCtx, conn, pass); err != nil {
 							conn.Close(attemptCtx)
 							cancel()
-							failures = append(failures, &ConnectionError{Info: conn.connectionInfo, Phase: "target", Err: err})
+							failures = append(failures, &ConnectionError{Info: conn.ConnectionInfo(), Phase: "target", Err: err})
 							continue hostLoop
 						}
 						if opts.ValidateConnect != nil {
-							err = opts.ValidateConnect(attemptCtx, conn, conn.connectionInfo)
+							err = opts.ValidateConnect(attemptCtx, conn, conn.ConnectionInfo())
 							if err != nil {
 								conn.Close(attemptCtx)
 								cancel()
-								e := &ConnectionError{Info: conn.connectionInfo, Phase: "validate", Err: err}
+								e := &ConnectionError{Info: conn.ConnectionInfo(), Phase: "validate", Err: err}
 								if errors.Is(err, ErrAbortConnect) {
 									return nil, e
 								}
@@ -303,7 +304,7 @@ func (s *connectSettings) connect(ctx context.Context) (*PgConn, error) {
 						if err != nil {
 							conn.Close(attemptCtx)
 							cancel()
-							return nil, &ConnectionError{Info: conn.connectionInfo, Phase: "after-connect", Err: err}
+							return nil, &ConnectionError{Info: conn.ConnectionInfo(), Phase: "after-connect", Err: err}
 						}
 						conn.runtime.Password = ""
 						conn.runtime.OAuthTokenProvider = nil

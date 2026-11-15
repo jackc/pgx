@@ -114,7 +114,7 @@ func TestConnect2PreferRefusalUsesSameSocket(t *testing.T) {
 		return TLSMaterial{}, nil
 	}})
 	require.NoError(t, err)
-	require.False(t, c.ConnectionInfo().TLS)
+	require.Nil(t, c.ConnectionInfo().TLS)
 	c.Close(context.Background())
 	require.Len(t, s.Calls, 1)
 }
@@ -271,10 +271,35 @@ func TestConnect2InputValidationBeforeIO(t *testing.T) {
 	require.Zero(t, s.timeout)
 }
 
-func TestConnect2NotificationHandoffAndHijack(t *testing.T) {
+func TestConnect2NotificationHandlerAndHijack(t *testing.T) {
 	connect2TestEnv(t)
-	s := connect2Fixture(t, pgmock.ConnectionScript{Run: connect2OK(&pgproto3.NotificationResponse{PID: 42, Channel: "setup", Payload: "hello"})})
-	c, err := Connect2(connect2Context(t), "host=192.0.2.1 user=test sslmode=disable", ConnectOptions2{DialFunc: s.Dial})
+	s := connect2Fixture(t, pgmock.ConnectionScript{Run: func(c net.Conn) error {
+		backend := pgproto3.NewBackend(c, c)
+		if _, err := backend.ReceiveStartupMessage(); err != nil {
+			return err
+		}
+		backend.Send(&pgproto3.AuthenticationOk{})
+		backend.Send(&pgproto3.NotificationResponse{PID: 42, Channel: "setup", Payload: "hello"})
+		backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+		if err := backend.Flush(); err != nil {
+			return err
+		}
+		if _, err := backend.Receive(); err != nil {
+			return err
+		}
+		backend.Send(&pgproto3.NotificationResponse{PID: 42, Channel: "setup", Payload: "after hijack"})
+		backend.Send(&pgproto3.CommandComplete{CommandTag: []byte("NOTIFY")})
+		backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+		if err := backend.Flush(); err != nil {
+			return err
+		}
+		return pgmock.WaitForClose().Step(backend)
+	}})
+	var got []*Notification
+	c, err := Connect2(connect2Context(t), "host=192.0.2.1 user=test sslmode=disable", ConnectOptions2{
+		DialFunc:       s.Dial,
+		OnNotification: func(_ *PgConn, n *Notification) { got = append(got, n) },
+	})
 	require.NoError(t, err)
 	require.NoError(t, c.SyncConn(context.Background()))
 	hc, err := c.Hijack()
@@ -283,10 +308,12 @@ func TestConnect2NotificationHandoffAndHijack(t *testing.T) {
 	rebuilt, err := Construct(hc)
 	require.NoError(t, err)
 	require.Equal(t, c.ConnectionInfo(), rebuilt.ConnectionInfo())
-	var got []*Notification
-	require.True(t, rebuilt.SetNotificationHandler(func(_ *PgConn, n *Notification) { got = append(got, n) }))
 	require.Len(t, got, 1)
 	require.Equal(t, "hello", got[0].Payload)
+	_, err = rebuilt.Exec(connect2Context(t), "notify setup, 'after hijack'").ReadAll()
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	require.Equal(t, "after hijack", got[1].Payload)
 	rebuilt.Close(context.Background())
 }
 

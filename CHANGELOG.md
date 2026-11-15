@@ -1,7 +1,9 @@
 # Unreleased
 
-* Add the separate `Connect2` connection strategy, opaque pgx/pool wrappers, public pgx `ConnectFunc`,
+* Add the separate `Connect2` connection strategy using existing connection and pool types,
   private pool/stdlib factories, and fresh-input `OpenDB2` / `GetConnector2` adapters. The legacy APIs remain available.
+  `Config()` returns copied constructor inputs for new-path objects, protected against legacy constructor use.
+  Connection tracing uses the existing `ConnectTracer` interface with an input snapshot.
 * New-path behavior includes logical host/address scheduling, hostaddr, host/address balancing, per-host password
   matching, phase-aware transport retries, full prefer-standby passes, selected-endpoint cancellation, strict client
   parameter validation, and TLS/authentication policy enforcement. See [migration and capabilities](CONNECTION_STRATEGY.md).

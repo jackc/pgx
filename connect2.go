@@ -19,7 +19,7 @@ type ConnOptions struct {
 	DescriptionCacheCapacity *int
 	DefaultQueryExecMode     *QueryExecMode
 	Tracer                   QueryTracer
-	AfterConnect             func(context.Context, *Conn2) error
+	AfterConnect             func(context.Context, *Conn) error
 }
 
 // Copy returns independent input values. Tracer and callback implementations
@@ -55,48 +55,21 @@ func (o ConnectOptions2) Copy() ConnectOptions2 {
 
 // Connect2 establishes a connection with fresh input resolution for each physical
 // connection. See pgconn.Connect2. Use PgConn().ConnectionInfo() for destination
-// diagnostics and retain the original string and options for reconnecting.
-func Connect2(ctx context.Context, connString string, opts ConnectOptions2) (*Conn2, error) {
+// diagnostics. Config returns captured inputs for reconnecting through Connect2;
+// it is an inspection snapshot and cannot be used with legacy constructors.
+func Connect2(ctx context.Context, connString string, opts ConnectOptions2) (c *Conn, err error) {
 	opts = opts.Copy()
-	return ConnectFunc(ctx, func(ctx context.Context) (*pgconn.PgConn, error) {
-		return pgconn.Connect2(ctx, connString, opts.ConnectOptions2)
-	}, opts.ConnOptions)
-}
-
-// ConnectFunc invokes connect exactly once with the tracing-enriched context.
-// connect owns retries and must return a fresh, idle connection, transferring
-// exclusive ownership to pgx. On error, either side may return a connection;
-// pgx closes it. Notifications buffered by pgconn.Connect2 during setup are
-// transferred before AfterConnect. An explicit notification handler wins.
-//
-// A factory using legacy pgconn.ConnectConfig must install its own notification
-// handler before connecting if its hooks consume notifications during setup.
-// The returned wrapper exposes no legacy Config getter.
-func ConnectFunc(ctx context.Context, connect func(context.Context) (*pgconn.PgConn, error), opts ConnOptions) (*Conn2, error) {
-	c, err := connectFunc(ctx, connect, opts)
-	if err != nil {
-		return nil, err
-	}
-	return c.AsConn2(), nil
-}
-
-func connectFunc(ctx context.Context, connect func(context.Context) (*pgconn.PgConn, error), opts ConnOptions) (c *Conn, err error) {
-	opts = opts.Copy()
-	if t, ok := opts.Tracer.(ConnectTracer2); ok {
-		ctx = t.TraceConnectStart2(ctx)
+	// Leave both parse-origin flags unset so neither this snapshot nor its
+	// embedded pgconn.Config can be used with legacy constructors.
+	config := &ConnConfig{Connect2String: connString, Connect2Options: &opts, Tracer: opts.Tracer}
+	if t, ok := opts.Tracer.(ConnectTracer); ok {
+		ctx = t.TraceConnectStart(ctx, TraceConnectStartData{ConnConfig: config.Copy()})
 		defer func() {
-			var view *Conn2
-			if c != nil {
-				view = c.AsConn2()
-			}
-			t.TraceConnectEnd2(ctx, TraceConnectEndData2{Conn: view, Err: err})
+			t.TraceConnectEnd(ctx, TraceConnectEndData{Conn: c, Err: err})
 		}()
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
-	}
-	if connect == nil {
-		return nil, errors.New("nil connection factory")
 	}
 	for _, n := range []*int{opts.StatementCacheCapacity, opts.DescriptionCacheCapacity} {
 		if n != nil && *n < 0 {
@@ -106,24 +79,31 @@ func connectFunc(ctx context.Context, connect func(context.Context) (*pgconn.PgC
 	if opts.DefaultQueryExecMode != nil && (*opts.DefaultQueryExecMode < QueryExecModeCacheStatement || *opts.DefaultQueryExecMode > QueryExecModeSimpleProtocol) {
 		return nil, errors.New("invalid query execution mode")
 	}
-	low, err := connect(ctx)
-	if err != nil {
-		if low != nil {
-			low.Close(ctx)
-		}
-		return nil, err
+	c = &Conn{
+		config:             config,
+		typeMap:            pgtype.NewMap(),
+		queryTracer:        opts.Tracer,
+		preparedStatements: make(map[string]*pgconn.StatementDescription),
+		doneChan:           make(chan struct{}),
+		closedChan:         make(chan error),
+		wbuf:               make([]byte, 0, 1024),
 	}
-	if low == nil {
-		return nil, errors.New("connection factory returned nil without an error")
+	// Install notification delivery before connecting so setup hooks cannot
+	// consume notifications before pgx starts buffering them. Keep the captured
+	// input options unchanged, and preserve an explicit application handler.
+	physicalOptions := opts.ConnectOptions2
+	if physicalOptions.OnNotification == nil {
+		physicalOptions.OnNotification = c.bufferNotifications
+	}
+	low, err := pgconn.Connect2(ctx, connString, physicalOptions)
+	if err != nil {
+		return nil, err
 	}
 	defer func() {
 		if err != nil {
 			low.Close(ctx)
 		}
 	}()
-	if low.IsClosed() || low.IsBusy() {
-		return nil, errors.New("connection factory returned a closed or busy connection")
-	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -153,18 +133,10 @@ func connectFunc(ctx context.Context, connect func(context.Context) (*pgconn.PgC
 	if opts.DefaultQueryExecMode != nil {
 		mode = *opts.DefaultQueryExecMode
 	}
-	c = &Conn{
-		pgConn:                   low,
-		typeMap:                  pgtype.NewMap(),
-		queryTracer:              opts.Tracer,
-		statementCacheCapacity:   statementCapacity,
-		descriptionCacheCapacity: descriptionCapacity,
-		defaultQueryExecMode:     mode,
-		preparedStatements:       make(map[string]*pgconn.StatementDescription),
-		doneChan:                 make(chan struct{}),
-		closedChan:               make(chan error),
-		wbuf:                     make([]byte, 0, 1024),
-	}
+	config.StatementCacheCapacity = statementCapacity
+	config.DescriptionCacheCapacity = descriptionCapacity
+	config.DefaultQueryExecMode = mode
+	c.pgConn = low
 	if t, ok := opts.Tracer.(BatchTracer); ok {
 		c.batchTracer = t
 	}
@@ -180,9 +152,8 @@ func connectFunc(ctx context.Context, connect func(context.Context) (*pgconn.PgC
 	if descriptionCapacity > 0 {
 		c.descriptionCache = stmtcache.NewLRUCache(descriptionCapacity)
 	}
-	low.SetNotificationHandler(c.bufferNotifications)
-	if opts.AfterConnect != nil {
-		if err = opts.AfterConnect(ctx, c.AsConn2()); err != nil {
+	if opts.ConnOptions.AfterConnect != nil {
+		if err = opts.ConnOptions.AfterConnect(ctx, c); err != nil {
 			return nil, err
 		}
 	}

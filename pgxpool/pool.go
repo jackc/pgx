@@ -116,10 +116,17 @@ type ShouldPingParams struct {
 	IdleDuration time.Duration
 }
 
-// Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
-// modified.
+// Config describes pool inputs and lifecycle settings. Configs passed to
+// [NewWithConfig] must be created by [ParseConfig]. [New2] returns an inspection
+// snapshot through [Pool.Config]; it cannot be used with NewWithConfig.
 type Config struct {
+	// For New2 snapshots, ConnConfig contains captured connection inputs, not
+	// resolved execution settings. Inspect an acquired connection's Config for those.
 	ConnConfig *pgx.ConnConfig
+
+	// New2Options captures the original New2 options, including pointer presence.
+	// It is nil for legacy configs and is ignored by NewWithConfig.
+	New2Options *Options
 
 	// BeforeConnect is called before a new connection is made. It is passed a copy of the underlying [pgx.ConnConfig] and
 	// will not impact any existing open connections.
@@ -200,14 +207,19 @@ type Config struct {
 // Copy returns a deep copy of the config that is safe to use and modify.
 // The only exception is the tls.Config:
 // according to the tls.Config docs it must not be modified after creation.
+// Callback closures and tracer implementations are shared.
 func (c *Config) Copy() *Config {
 	newConfig := new(Config)
 	*newConfig = *c
 	newConfig.ConnConfig = c.ConnConfig.Copy()
+	if c.New2Options != nil {
+		opts := c.New2Options.Copy()
+		newConfig.New2Options = &opts
+	}
 	return newConfig
 }
 
-// ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
+// ConnString returns the original string supplied to ParseConfig or New2.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
 // New creates a new Pool. See [ParseConfig] for information on connString format.
@@ -241,10 +253,10 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		}
 		return pgx.ConnectConfig(ctx, connConfig)
 	}
-	return newPool(ctx, config, factory, config.ConnConfig.Tracer, true)
+	return newPool(ctx, config, factory, config.ConnConfig.Tracer)
 }
 
-func newPool(ctx context.Context, config *Config, factory func(context.Context) (*pgx.Conn, error), tracer pgx.QueryTracer, legacy bool) (*Pool, error) {
+func newPool(ctx context.Context, config *Config, factory func(context.Context) (*pgx.Conn, error), tracer pgx.QueryTracer) (*Pool, error) {
 	prepareConn := config.PrepareConn
 	if prepareConn == nil && config.BeforeAcquire != nil {
 		prepareConn = func(ctx context.Context, conn *pgx.Conn) (bool, error) {
@@ -269,10 +281,6 @@ func newPool(ctx context.Context, config *Config, factory func(context.Context) 
 		healthCheckPeriod:     config.HealthCheckPeriod,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
-	}
-
-	if !legacy {
-		p.config = nil
 	}
 
 	if t, ok := tracer.(AcquireTracer); ok {
@@ -735,12 +743,11 @@ func (p *Pool) Reset() {
 	p.p.Reset()
 }
 
-// Config returns a copy of config that was used to initialize this [Pool].
-// Pools created by New2 have no legacy configuration and return nil.
+// Config returns an independent copy of the pool inputs and effective lifecycle settings.
+// For New2 pools, ConnString and New2Options can be passed to New2 to create another
+// pool with fresh external inputs. These snapshots cannot be used with NewWithConfig.
+// Callback closures and tracer implementations are shared.
 func (p *Pool) Config() *Config {
-	if p.config == nil {
-		return nil
-	}
 	return p.config.Copy()
 }
 

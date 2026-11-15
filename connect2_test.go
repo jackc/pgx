@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"context"
 	"errors"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -41,10 +42,15 @@ func TestConnect2Integration(t *testing.T) {
 	if input == "" {
 		t.Skip("PGX_TEST_DATABASE is not set")
 	}
-	c, err := pgx.Connect2(ctx, input, pgx.ConnectOptions2{})
+	tracer := &connect2Tracer{}
+	c, err := pgx.Connect2(ctx, input, pgx.ConnectOptions2{ConnOptions: pgx.ConnOptions{Tracer: tracer}})
 	require.NoError(t, err)
 	defer c.Close(ctx)
-	require.Nil(t, c.LegacyConn().Config())
+	require.Same(t, c, tracer.conn)
+	require.Nil(t, tracer.err)
+	require.Equal(t, input, c.Config().ConnString())
+	require.NotNil(t, c.Config().Connect2Options)
+	require.Equal(t, 512, c.Config().StatementCacheCapacity)
 	var n int
 	require.NoError(t, c.QueryRow(ctx, "select $1::int", 42).Scan(&n))
 	require.Equal(t, 42, n)
@@ -65,11 +71,12 @@ func TestConnect2Integration(t *testing.T) {
 	require.NoError(t, results.Close())
 	tx, err := c.Begin(ctx)
 	require.NoError(t, err)
+	require.Same(t, c, tx.Conn())
 	require.NoError(t, tx.QueryRow(ctx, "select 4").Scan(&n))
 	require.NoError(t, tx.Rollback(ctx))
 }
 
-func TestConnectFuncOwnershipAndNotificationHandoff(t *testing.T) {
+func TestConnect2CleanupAndSetupNotifications(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	input := newConnectionTestInput(t)
@@ -77,16 +84,16 @@ func TestConnectFuncOwnershipAndNotificationHandoff(t *testing.T) {
 		t.Skip("PGX_TEST_DATABASE is not set")
 	}
 	calls := 0
-	c, err := pgx.ConnectFunc(ctx, func(ctx context.Context) (*pgconn.PgConn, error) {
-		calls++
-		return pgconn.Connect2(ctx, input, pgconn.ConnectOptions2{AfterConnect: func(ctx context.Context, c *pgconn.PgConn) error {
+	c, err := pgx.Connect2(ctx, input, pgx.ConnectOptions2{
+		ConnectOptions2: pgconn.ConnectOptions2{AfterConnect: func(ctx context.Context, c *pgconn.PgConn) error {
+			calls++
 			if c.ParameterStatus("crdb_version") != "" {
 				return nil
 			}
 			_, err := c.Exec(ctx, "listen handoff; notify handoff, 'from setup'").ReadAll()
 			return err
-		}})
-	}, pgx.ConnOptions{})
+		}},
+	})
 	require.NoError(t, err)
 	defer c.Close(ctx)
 	require.Equal(t, 1, calls)
@@ -95,23 +102,45 @@ func TestConnectFuncOwnershipAndNotificationHandoff(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "from setup", n.Payload)
 	}
-	sentinel := errors.New("factory failure")
+	// The snapshot must retain the user's inputs, not a callback bound to c.
+	config := c.Config()
+	require.Nil(t, config.Connect2Options.OnNotification)
+	reconnected, err := pgx.Connect2(ctx, config.ConnString(), *config.Connect2Options)
+	require.NoError(t, err)
+	defer reconnected.Close(ctx)
+	if reconnected.PgConn().ParameterStatus("crdb_version") == "" {
+		n, err := reconnected.WaitForNotification(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "from setup", n.Payload)
+	}
+	var received []*pgconn.Notification
+	explicit := config.Connect2Options.Copy()
+	explicit.OnNotification = func(_ *pgconn.PgConn, n *pgconn.Notification) { received = append(received, n) }
+	withHandler, err := pgx.Connect2(ctx, input, explicit)
+	require.NoError(t, err)
+	defer withHandler.Close(ctx)
+	if withHandler.PgConn().ParameterStatus("crdb_version") == "" {
+		require.Len(t, received, 1)
+		require.Equal(t, "from setup", received[0].Payload)
+	}
+
+	sentinel := errors.New("hook failure")
 	var low *pgconn.PgConn
-	_, err = pgx.ConnectFunc(ctx, func(ctx context.Context) (*pgconn.PgConn, error) {
-		var err error
-		low, err = pgconn.Connect2(ctx, input, pgconn.ConnectOptions2{})
-		if err != nil {
-			return nil, err
-		}
-		return low, sentinel
-	}, pgx.ConnOptions{})
+	_, err = pgx.Connect2(ctx, input, pgx.ConnectOptions2{
+		ConnectOptions2: pgconn.ConnectOptions2{AfterConnect: func(_ context.Context, c *pgconn.PgConn) error {
+			low = c
+			return sentinel
+		}},
+	})
 	require.ErrorIs(t, err, sentinel)
+	require.NotNil(t, low)
 	require.True(t, low.IsClosed())
-	_, err = pgx.ConnectFunc(ctx, func(ctx context.Context) (*pgconn.PgConn, error) {
-		var err error
-		low, err = pgconn.Connect2(ctx, input, pgconn.ConnectOptions2{})
-		return low, err
-	}, pgx.ConnOptions{AfterConnect: func(context.Context, *pgx.Conn2) error { return sentinel }})
+	_, err = pgx.Connect2(ctx, input, pgx.ConnectOptions2{
+		ConnOptions: pgx.ConnOptions{AfterConnect: func(_ context.Context, c *pgx.Conn) error {
+			low = c.PgConn()
+			return sentinel
+		}},
+	})
 	require.ErrorIs(t, err, sentinel)
 	require.True(t, low.IsClosed())
 }
@@ -125,12 +154,13 @@ func TestConnect2PoolAndStdlibRefresh(t *testing.T) {
 	}
 	var maxConns int32 = 1
 	var zero int
-	opts := pgxpool.Options{MaxConns: &maxConns, Connection: pgx.ConnectOptions2{ConnOptions: pgx.ConnOptions{StatementCacheCapacity: &zero}}}
+	opts := pgxpool.Options{MaxConns: maxConns, Connection: pgx.ConnectOptions2{ConnOptions: pgx.ConnOptions{StatementCacheCapacity: &zero}}}
 	t.Setenv("PGAPPNAME", "first")
 	pool, err := pgxpool.New2(ctx, input, opts)
 	require.NoError(t, err)
 	defer pool.Close()
-	require.Nil(t, pool.LegacyPool().Config())
+	require.Equal(t, input, pool.Config().ConnString())
+	require.NotNil(t, pool.Config().New2Options)
 	// The captured zero must survive caller mutation. Cache-statement queries
 	// fail with the captured zero capacity, whereas Exec still works.
 	zero = 512
@@ -162,7 +192,7 @@ func TestConnect2PoolAndStdlibRefresh(t *testing.T) {
 	require.NoError(t, db.QueryRowContext(ctx, "show application_name").Scan(&app))
 	require.Equal(t, "third", app)
 	// Pool-backed stdlib retains pool ownership and its selected factory.
-	pooledDB := stdlib.OpenDBFromPool2(pool)
+	pooledDB := stdlib.OpenDBFromPool(pool)
 	defer pooledDB.Close()
 	require.NoError(t, pooledDB.PingContext(ctx))
 }
@@ -190,41 +220,60 @@ func TestConnect2ConcurrentFactory(t *testing.T) {
 }
 
 type (
-	factoryTraceKey struct{}
-	factoryTracer   struct{ started, ended bool }
+	connect2TraceKey struct{}
+	connect2Tracer   struct {
+		started, ended bool
+		conn           *pgx.Conn
+		err            error
+		config         *pgx.ConnConfig
+		onStart        func(*pgx.ConnConfig)
+	}
 )
 
-func (t *factoryTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, _ pgx.TraceQueryStartData) context.Context {
+func (t *connect2Tracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, _ pgx.TraceQueryStartData) context.Context {
 	return ctx
 }
-func (t *factoryTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
-func (t *factoryTracer) TraceConnectStart2(ctx context.Context) context.Context {
+func (t *connect2Tracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+func (t *connect2Tracer) TraceConnectStart(ctx context.Context, data pgx.TraceConnectStartData) context.Context {
 	t.started = true
-	return context.WithValue(ctx, factoryTraceKey{}, "traced")
+	t.config = data.ConnConfig.Copy()
+	if t.onStart != nil {
+		t.onStart(data.ConnConfig)
+	}
+	return context.WithValue(ctx, connect2TraceKey{}, "traced")
 }
 
-func (t *factoryTracer) TraceConnectEnd2(_ context.Context, data pgx.TraceConnectEndData2) {
+func (t *connect2Tracer) TraceConnectEnd(_ context.Context, data pgx.TraceConnectEndData) {
 	t.ended = true
+	t.conn = data.Conn
+	t.err = data.Err
 }
 
-func TestConnectFuncContextAndValidation(t *testing.T) {
-	tracer := &factoryTracer{}
+func TestConnect2ContextAndValidation(t *testing.T) {
+	tracer := &connect2Tracer{}
 	sentinel := errors.New("test")
-	_, err := pgx.ConnectFunc(context.Background(), func(ctx context.Context) (*pgconn.PgConn, error) {
-		require.Equal(t, "traced", ctx.Value(factoryTraceKey{}))
-		return nil, sentinel
-	}, pgx.ConnOptions{Tracer: tracer})
+	input := "host=127.0.0.1 sslmode=disable"
+	_, err := pgx.Connect2(context.Background(), input, pgx.ConnectOptions2{
+		ConnectOptions2: pgconn.ConnectOptions2{DialFunc: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			require.Equal(t, "traced", ctx.Value(connect2TraceKey{}))
+			return nil, sentinel
+		}},
+		ConnOptions: pgx.ConnOptions{Tracer: tracer},
+	})
 	require.ErrorIs(t, err, sentinel)
 	require.True(t, tracer.started)
 	require.True(t, tracer.ended)
-	_, err = pgx.ConnectFunc(context.Background(), func(context.Context) (*pgconn.PgConn, error) { return nil, nil }, pgx.ConnOptions{})
-	require.ErrorContains(t, err, "nil without an error")
+	require.Nil(t, tracer.conn)
+	require.ErrorIs(t, tracer.err, sentinel)
 	negative := -1
-	_, err = pgx.ConnectFunc(context.Background(), func(context.Context) (*pgconn.PgConn, error) {
-		t.Fatal("invalid options reached factory")
-		return nil, nil
-	}, pgx.ConnOptions{StatementCacheCapacity: &negative})
-	require.Error(t, err)
+	_, err = pgx.Connect2(context.Background(), input, pgx.ConnectOptions2{
+		ConnectOptions2: pgconn.ConnectOptions2{DialFunc: func(context.Context, string, string) (net.Conn, error) {
+			t.Fatal("invalid options reached dialer")
+			return nil, nil
+		}},
+		ConnOptions: pgx.ConnOptions{StatementCacheCapacity: &negative},
+	})
+	require.ErrorContains(t, err, "negative cache capacity")
 }
 
 func TestConnect2RealAuthentication(t *testing.T) {
@@ -251,7 +300,7 @@ func TestConnect2RealAuthentication(t *testing.T) {
 		c, err := pgx.Connect2(ctx, input+" sslsni=0", pgx.ConnectOptions2{})
 		require.NoError(t, err)
 		defer c.Close(ctx)
-		require.True(t, c.PgConn().ConnectionInfo().TLS)
+		require.NotNil(t, c.PgConn().ConnectionInfo().TLS)
 	})
 	t.Run("direct-TLS", func(t *testing.T) {
 		ctx := context.Background()
@@ -267,7 +316,7 @@ func TestConnect2RealAuthentication(t *testing.T) {
 		c, err := pgx.Connect2(ctx, input+" sslnegotiation=direct", pgx.ConnectOptions2{})
 		require.NoError(t, err)
 		defer c.Close(ctx)
-		require.True(t, c.PgConn().ConnectionInfo().TLS)
+		require.NotNil(t, c.PgConn().ConnectionInfo().TLS)
 	})
 }
 
@@ -284,7 +333,7 @@ func TestConnect2PoolHookOrderAndAdmissionCleanup(t *testing.T) {
 	pool, err := pgxpool.New2(ctx, input, pgxpool.Options{
 		Connection: pgx.ConnectOptions2{
 			ConnectOptions2: pgconn.ConnectOptions2{AfterConnect: func(context.Context, *pgconn.PgConn) error { order = append(order, "pgconn"); return nil }},
-			ConnOptions:     pgx.ConnOptions{AfterConnect: func(context.Context, *pgx.Conn2) error { order = append(order, "pgx"); return nil }},
+			ConnOptions:     pgx.ConnOptions{AfterConnect: func(context.Context, *pgx.Conn) error { order = append(order, "pgx"); return nil }},
 		},
 		AfterConnect: func(_ context.Context, c *pgx.Conn) error {
 			order = append(order, "pool")

@@ -56,7 +56,7 @@ func main() {
 
 ### Connection Configuration
 
-`pgx.Connect2` and `pgxpool.New2` accept PostgreSQL URLs and `key=value` strings plus Go options. Each new physical connection resolves current environment, service, credential, TLS, and DNS inputs. See the [connection strategy and migration guide](CONNECTION_STRATEGY.md) for supported parameters, factory composition, and differences from the legacy APIs.
+`pgx.Connect2` and `pgxpool.New2` accept PostgreSQL URLs and `key=value` strings plus Go options. Each new physical connection resolves current environment, service, credential, TLS, and DNS inputs. See the [connection strategy and migration guide](CONNECTION_STRATEGY.md) for supported parameters, configuration snapshots, and differences from the legacy APIs.
 
 Existing `Connect`, `ConnectConfig`, `ParseConfig`, and pool/stdlib constructors retain their legacy behavior. Migration changes connection selection as well as API names; consult the guide before changing existing applications.
 

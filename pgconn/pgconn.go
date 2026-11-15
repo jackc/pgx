@@ -76,7 +76,9 @@ type NotificationHandler func(*PgConn, *Notification)
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
-	conn              net.Conn
+	conn net.Conn
+	// negotiatedTLS retains the TLS session for connection information and SCRAM
+	// channel binding when AfterNetConnect wraps conn and hides its concrete type.
 	negotiatedTLS     *tls.Conn
 	tlsConfig         *tls.Config       // tls.Config that conn was negotiated with; nil if conn is not TLS
 	pid               uint32            // backend pid
@@ -90,11 +92,10 @@ type PgConn struct {
 
 	customData map[string]any
 
-	config               *Config
-	runtime              *connectionRuntime
-	connectionInfo       ConnectionInfo
-	clientOptions        map[string]string
-	pendingNotifications []*Notification
+	config         *Config
+	runtime        *connectionRuntime
+	connectionInfo ConnectionInfo
+	clientOptions  map[string]string
 
 	status byte // One of connStatus* constants
 
@@ -352,7 +353,7 @@ func connectAttempt(ctx context.Context, config *connectionRuntime, connectConfi
 			} else {
 				err = fmt.Errorf("%s: %w", msg, normalizeTimeoutError(ctx, err))
 			}
-			return &ConnectionError{Info: pgConn.connectionInfo, Phase: phase, Err: err}
+			return &ConnectionError{Info: pgConn.ConnectionInfo(), Phase: phase, Err: err}
 		}
 		err = normalizeTimeoutError(ctx, err)
 		e := &perDialConnectError{address: connectConfig.address, originalHostname: connectConfig.originalHostname, err: fmt.Errorf("%s: %w", msg, err)}
@@ -396,7 +397,6 @@ func connectAttempt(ctx context.Context, config *connectionRuntime, connectConfi
 		if tc, ok := tlsConn.(*tls.Conn); ok {
 			pgConn.negotiatedTLS = tc
 			pgConn.tlsConfig = connectConfig.tlsConfig
-			pgConn.connectionInfo.TLS = true
 		} else {
 			connectConfig.usedPlaintext = true
 		}
@@ -420,7 +420,7 @@ func connectAttempt(ctx context.Context, config *connectionRuntime, connectConfi
 
 		pgConn.conn = tlsConn
 		pgConn.tlsConfig = connectConfig.tlsConfig
-		pgConn.connectionInfo.TLS = true
+		pgConn.negotiatedTLS, _ = tlsConn.(*tls.Conn)
 	}
 
 	if config.AfterNetConnect != nil {
@@ -800,9 +800,6 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 			pgConn.runtime.OnNotice(pgConn, noticeResponseToNotice(msg))
 		}
 	case *pgproto3.NotificationResponse:
-		if pgConn.runtime.OnNotification == nil && pgConn.config == nil {
-			pgConn.pendingNotifications = append(pgConn.pendingNotifications, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
-		}
 		if pgConn.runtime.OnNotification != nil {
 			pgConn.runtime.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
 		}
@@ -2372,19 +2369,19 @@ func (pgConn *PgConn) CustomData() map[string]any {
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
 type HijackedConn struct {
-	Conn                 net.Conn
-	TLSConfig            *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
-	PID                  uint32            // backend pid
-	SecretKey            []byte            // key to use to send a cancel query message to the server
-	ParameterStatuses    map[string]string // parameters that have been reported by the server
-	TxStatus             byte
-	Frontend             *pgproto3.Frontend
-	Config               *Config
-	CustomData           map[string]any
-	runtime              *connectionRuntime
-	info                 ConnectionInfo
-	clientOptions        map[string]string
-	pendingNotifications []*Notification
+	Conn              net.Conn
+	TLSConfig         *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
+	PID               uint32            // backend pid
+	SecretKey         []byte            // key to use to send a cancel query message to the server
+	ParameterStatuses map[string]string // parameters that have been reported by the server
+	TxStatus          byte
+	Frontend          *pgproto3.Frontend
+	Config            *Config
+	CustomData        map[string]any
+	runtime           *connectionRuntime
+	info              ConnectionInfo
+	clientOptions     map[string]string
+	negotiatedTLS     *tls.Conn
 }
 
 // Hijack extracts the internal connection data. pgConn must be in an idle state. SyncConn should be called immediately
@@ -2402,6 +2399,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 	return &HijackedConn{
 		Conn:              pgConn.conn,
 		TLSConfig:         pgConn.tlsConfig,
+		negotiatedTLS:     pgConn.negotiatedTLS,
 		PID:               pgConn.pid,
 		SecretKey:         pgConn.secretKey,
 		ParameterStatuses: pgConn.parameterStatuses,
@@ -2409,7 +2407,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 		Frontend:          pgConn.frontend,
 		Config:            pgConn.config,
 		CustomData:        pgConn.customData,
-		runtime:           pgConn.runtime, info: pgConn.connectionInfo, clientOptions: pgConn.clientOptions, pendingNotifications: pgConn.pendingNotifications,
+		runtime:           pgConn.runtime, info: pgConn.connectionInfo, clientOptions: pgConn.clientOptions,
 	}, nil
 }
 
@@ -2431,6 +2429,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	}
 	pgConn := &PgConn{
 		conn:              hc.Conn,
+		negotiatedTLS:     hc.negotiatedTLS,
 		tlsConfig:         hc.TLSConfig,
 		pid:               hc.PID,
 		secretKey:         hc.SecretKey,
@@ -2438,7 +2437,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		txStatus:          hc.TxStatus,
 		frontend:          hc.Frontend,
 		config:            hc.Config,
-		runtime:           runtime, connectionInfo: hc.info, clientOptions: hc.clientOptions, pendingNotifications: hc.pendingNotifications,
+		runtime:           runtime, connectionInfo: hc.info, clientOptions: hc.clientOptions,
 		customData: hc.CustomData,
 
 		status: connStatusIdle,
@@ -2446,6 +2445,9 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		cleanupDone: make(chan struct{}),
 	}
 
+	if pgConn.negotiatedTLS == nil {
+		pgConn.negotiatedTLS, _ = hc.Conn.(*tls.Conn)
+	}
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(runtime.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),

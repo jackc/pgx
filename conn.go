@@ -17,12 +17,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// ConnConfig contains all the options used to establish a connection. It must be created by [ParseConfig] and
-// then it can be modified. A manually initialized ConnConfig will cause [ConnectConfig] to panic.
+// ConnConfig describes connection inputs and pgx execution settings. Configs used
+// with [ConnectConfig] must be created by [ParseConfig]. [Connect2] returns an
+// inspection snapshot through [Conn.Config]; it cannot be used with ConnectConfig.
 type ConnConfig struct {
 	pgconn.Config
 
 	Tracer QueryTracer
+
+	// Connect2String and Connect2Options capture the arguments supplied to Connect2.
+	// Connect2Options is nil for legacy configs. The embedded pgconn.Config is empty
+	// for Connect2 snapshots; use PgConn().ConnectionInfo() for the selected endpoint.
+	// Legacy constructors ignore these fields and reject snapshots returned by Connect2.
+	Connect2String  string
+	Connect2Options *ConnectOptions2
 
 	// Original connection string that was parsed into config.
 	connString string
@@ -53,28 +61,35 @@ type ParseConfigOptions struct {
 // Copy returns a deep copy of the config that is safe to use and modify.
 // The only exception is the tls.Config:
 // according to the tls.Config docs it must not be modified after creation.
+// Callback closures and tracer implementations are shared.
 func (cc *ConnConfig) Copy() *ConnConfig {
 	newConfig := new(ConnConfig)
 	*newConfig = *cc
 	newConfig.Config = *newConfig.Config.Copy()
+	if cc.Connect2Options != nil {
+		opts := cc.Connect2Options.Copy()
+		newConfig.Connect2Options = &opts
+	}
 	return newConfig
 }
 
-// ConnString returns the connection string as parsed by pgx.ParseConfig into pgx.ConnConfig.
-func (cc *ConnConfig) ConnString() string { return cc.connString }
+// ConnString returns the original string supplied to ParseConfig or Connect2.
+func (cc *ConnConfig) ConnString() string {
+	if !cc.createdByParseConfig {
+		return cc.Connect2String
+	}
+	return cc.connString
+}
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
 // to multiple database connections from multiple goroutines.
 type Conn struct {
-	pgConn                   *pgconn.PgConn
-	config                   *ConnConfig // legacy configuration, nil for factory connections
-	statementCacheCapacity   int
-	descriptionCacheCapacity int
-	defaultQueryExecMode     QueryExecMode
-	preparedStatements       map[string]*pgconn.StatementDescription
-	failedDescribeStatement  string
-	statementCache           stmtcache.Cache
-	descriptionCache         stmtcache.Cache
+	pgConn                  *pgconn.PgConn
+	config                  *ConnConfig // legacy configuration or Connect2 input snapshot
+	preparedStatements      map[string]*pgconn.StatementDescription
+	failedDescribeStatement string
+	statementCache          stmtcache.Cache
+	descriptionCache        stmtcache.Cache
 
 	queryTracer    QueryTracer
 	batchTracer    BatchTracer
@@ -245,6 +260,12 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 
 // connect connects to a database. connect takes ownership of config. The caller must not use or access it again.
 func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
+	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
+	// zero values.
+	if !config.createdByParseConfig {
+		panic("config must be created by ParseConfig")
+	}
+
 	if connectTracer, ok := config.Tracer.(ConnectTracer); ok {
 		ctx = connectTracer.TraceConnectStart(ctx, TraceConnectStartData{ConnConfig: config})
 		defer func() {
@@ -252,15 +273,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		}()
 	}
 
-	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
-	// zero values.
-	if !config.createdByParseConfig {
-		panic("config must be created by ParseConfig")
-	}
-
 	c = &Conn{
-		config:                 config,
-		statementCacheCapacity: config.StatementCacheCapacity, descriptionCacheCapacity: config.DescriptionCacheCapacity, defaultQueryExecMode: config.DefaultQueryExecMode,
+		config:      config,
 		typeMap:     pgtype.NewMap(),
 		queryTracer: config.Tracer,
 	}
@@ -290,12 +304,12 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
 
-	if c.statementCacheCapacity > 0 {
-		c.statementCache = stmtcache.NewLRUCache(c.statementCacheCapacity)
+	if c.config.StatementCacheCapacity > 0 {
+		c.statementCache = stmtcache.NewLRUCache(c.config.StatementCacheCapacity)
 	}
 
-	if c.descriptionCacheCapacity > 0 {
-		c.descriptionCache = stmtcache.NewLRUCache(c.descriptionCacheCapacity)
+	if c.config.DescriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
 	}
 
 	return c, nil
@@ -406,11 +420,11 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 // DeallocateAll releases all previously prepared statements from the server and client, where it also resets the statement and description cache.
 func (c *Conn) DeallocateAll(ctx context.Context) error {
 	c.preparedStatements = map[string]*pgconn.StatementDescription{}
-	if c.statementCacheCapacity > 0 {
-		c.statementCache = stmtcache.NewLRUCache(c.statementCacheCapacity)
+	if c.config.StatementCacheCapacity > 0 {
+		c.statementCache = stmtcache.NewLRUCache(c.config.StatementCacheCapacity)
 	}
-	if c.descriptionCacheCapacity > 0 {
-		c.descriptionCache = stmtcache.NewLRUCache(c.descriptionCacheCapacity)
+	if c.config.DescriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
 	}
 	_, err := c.pgConn.Exec(ctx, "deallocate all").ReadAll()
 	return err
@@ -474,12 +488,14 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 // TypeMap returns the connection info used for this connection.
 func (c *Conn) TypeMap() *pgtype.Map { return c.typeMap }
 
-// Config returns a copy of config that was used to establish this connection.
-// Connections created by Connect2 or ConnectFunc have no legacy config and return nil.
+// Config returns an independent copy of the connection inputs and execution settings.
+// For Connect2, Connect2String and Connect2Options contain captured inputs, and the
+// cache capacities and query mode contain effective values. The embedded pgconn.Config
+// is empty. This snapshot cannot be passed to legacy config-based constructors.
+// To reconnect with fresh external inputs, call Connect2 with a context,
+// config.ConnString(), and *config.Connect2Options. Callback closures and tracer
+// implementations are shared.
 func (c *Conn) Config() *ConnConfig {
-	if c.config == nil {
-		return nil
-	}
 	return c.config.Copy()
 }
 
@@ -507,7 +523,7 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 }
 
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
-	mode := c.defaultQueryExecMode
+	mode := c.config.DefaultQueryExecMode
 	var queryRewriter QueryRewriter
 
 optionLoop:
@@ -781,7 +797,7 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error)
 
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
-	mode := c.defaultQueryExecMode
+	mode := c.config.DefaultQueryExecMode
 	var queryRewriter QueryRewriter
 
 optionLoop:
@@ -1019,7 +1035,7 @@ func (c *Conn) sendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 	}
 
 	// TODO: changing mode per batch? Update Batch.Queue function comment when implemented
-	mode := c.defaultQueryExecMode
+	mode := c.config.DefaultQueryExecMode
 	if mode == QueryExecModeSimpleProtocol {
 		return c.sendBatchQueryExecModeSimpleProtocol(ctx, b)
 	}

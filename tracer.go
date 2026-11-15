@@ -99,9 +99,9 @@ type TracePrepareEndData struct {
 	Err             error
 }
 
-// ConnectTracer traces Connect and ConnectConfig.
+// ConnectTracer traces Connect, ConnectConfig, and Connect2.
 type ConnectTracer interface {
-	// TraceConnectStart is called at the beginning of Connect and ConnectConfig calls. The returned context is used for
+	// TraceConnectStart is called at the beginning of Connect, ConnectConfig, and Connect2 calls. The returned context is used for
 	// the rest of the call and will be passed to TraceConnectEnd.
 	TraceConnectStart(ctx context.Context, data TraceConnectStartData) context.Context
 
@@ -109,24 +109,13 @@ type ConnectTracer interface {
 }
 
 type TraceConnectStartData struct {
+	// For Connect2, this is an independent input snapshot with Connect2String and
+	// Connect2Options populated. Legacy connection fields are empty and execution
+	// settings are not resolved yet. Mutations do not affect connection establishment.
 	ConnConfig *ConnConfig
 }
 
 type TraceConnectEndData struct {
 	Conn *Conn
-	Err  error
-}
-
-// ConnectTracer2 traces establishment without depending on a legacy ConnConfig.
-// Query tracers can implement both ConnectTracer and ConnectTracer2 to support
-// both constructor families. The returned context reaches the factory and hooks.
-type ConnectTracer2 interface {
-	TraceConnectStart2(context.Context) context.Context
-	TraceConnectEnd2(context.Context, TraceConnectEndData2)
-}
-
-// TraceConnectEndData2 describes factory-based connection establishment.
-type TraceConnectEndData2 struct {
-	Conn *Conn2
 	Err  error
 }

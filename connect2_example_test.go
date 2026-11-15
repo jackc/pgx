@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 )
@@ -21,20 +20,6 @@ func ExampleConnect2() {
 	_ = conn.QueryRow(ctx, "select 'hello'").Scan(&greeting)
 }
 
-func ExampleConnectFunc() {
-	ctx := context.Background()
-	// A third-party factory uses the same public physical entry point as built-in
-	// adapters. Every invocation re-resolves external inputs.
-	input := os.Getenv("DATABASE_URL")
-	physical := pgconn.ConnectOptions2{}.Copy()
-	factory := func(ctx context.Context) (*pgconn.PgConn, error) { return pgconn.Connect2(ctx, input, physical) }
-	conn, err := pgx.ConnectFunc(ctx, factory, pgx.ConnOptions{})
-	if err != nil {
-		return
-	}
-	defer conn.Close(ctx)
-}
-
 func ExampleConnect2_adapters() {
 	ctx := context.Background()
 	input := os.Getenv("DATABASE_URL")
@@ -45,6 +30,23 @@ func ExampleConnect2_adapters() {
 	defer pool.Close()
 	db := stdlib.OpenDB2(input, stdlib.Options2{})
 	defer db.Close()
-	pooledDB := stdlib.OpenDBFromPool2(pool)
+	pooledDB := stdlib.OpenDBFromPool(pool)
 	defer pooledDB.Close()
+}
+
+func ExampleConn_Config_connect2() {
+	ctx := context.Background()
+	conn, err := pgx.Connect2(ctx, os.Getenv("DATABASE_URL"), pgx.ConnectOptions2{})
+	if err != nil {
+		return
+	}
+	defer conn.Close(ctx)
+	config := conn.Config()
+	// Repeat input resolution with the captured arguments. The snapshot cannot
+	// be passed to ConnectConfig.
+	replacement, err := pgx.Connect2(ctx, config.ConnString(), *config.Connect2Options)
+	if err != nil {
+		return
+	}
+	defer replacement.Close(ctx)
 }

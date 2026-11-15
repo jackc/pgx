@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -301,6 +302,34 @@ func (tl *TraceLog) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEn
 	endTime := time.Now()
 	interval := endTime.Sub(connectData.startTime)
 
+	if connectData.connConfig.Connect2Options != nil {
+		fields := map[string]any{tl.Config.TimeKey: interval}
+		level := LogLevelInfo
+		if data.Err != nil {
+			level = LogLevelError
+			fields["err"] = data.Err
+		}
+		var info pgconn.ConnectionInfo
+		if data.Conn != nil {
+			info = data.Conn.PgConn().ConnectionInfo()
+		} else {
+			var ce *pgconn.ConnectionError
+			if errors.As(data.Err, &ce) {
+				info = ce.Info
+			}
+		}
+		if info.Address != "" {
+			fields["host"] = info.Host
+			fields["port"] = info.Port
+			fields["database"] = info.Database
+			fields["address"] = info.Address
+		}
+		if tl.shouldLog(level) {
+			tl.Logger.Log(ctx, level, "Connect", fields)
+		}
+		return
+	}
+
 	if data.Err != nil {
 		if tl.shouldLog(LogLevelError) {
 			tl.Logger.Log(ctx, LogLevelError, "Connect", map[string]any{
@@ -323,31 +352,6 @@ func (tl *TraceLog) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEn
 				tl.Config.TimeKey: interval,
 			})
 		}
-	}
-}
-
-func (tl *TraceLog) TraceConnectStart2(ctx context.Context) context.Context {
-	return context.WithValue(ctx, tracelogConnectCtxKey, &traceConnectData{startTime: time.Now()})
-}
-
-func (tl *TraceLog) TraceConnectEnd2(ctx context.Context, data pgx.TraceConnectEndData2) {
-	tl.ensureConfig()
-	start := ctx.Value(tracelogConnectCtxKey).(*traceConnectData).startTime
-	fields := map[string]any{tl.Config.TimeKey: time.Since(start)}
-	level := LogLevelInfo
-	if data.Err != nil {
-		level = LogLevelError
-		fields["err"] = data.Err
-	}
-	if data.Conn != nil {
-		info := data.Conn.PgConn().ConnectionInfo()
-		fields["host"] = info.Host
-		fields["port"] = info.Port
-		fields["database"] = info.Database
-		fields["address"] = info.Address
-	}
-	if tl.shouldLog(level) {
-		tl.Logger.Log(ctx, level, "Connect", fields)
 	}
 }
 
