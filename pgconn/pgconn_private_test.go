@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,8 +114,20 @@ func TestBuildConnectOneConfigsCarriesPerHostPasswords(t *testing.T) {
 // TestBuildConnectOneConfigsPasswordInheritance covers the password model of #2708: a password resolved from a
 // .pgpass entry for a host is authoritative for that host, even when the entry is missing, while any other host
 // inherits Config.Password as it stands at connect time.
+// clearPgEnvvars empties the PG* environment variables that ParseConfig consults, so a value set
+// in the environment (as on the Windows CI runners, where PGPASSWORD is set) cannot leak into a
+// parse and override the password a test sets up.
+func clearPgEnvvars(t *testing.T) {
+	t.Helper()
+	for _, envvar := range []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"} {
+		t.Setenv(envvar, "")
+	}
+}
+
 func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
-	t.Parallel()
+	// Not parallel: clearPgEnvvars uses t.Setenv, which a parallel test cannot call. The subtests
+	// are still parallel.
+	clearPgEnvvars(t)
 
 	resolveLocalhost := func(ctx context.Context, host string) ([]string, error) {
 		return []string{"127.0.0.1"}, nil
@@ -185,7 +198,9 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 		err := os.WriteFile(tfName, []byte("db-primary:5432:app:app:primary-secret\ndb-replica:5432:app:app:replica-secret\n"), 0o600)
 		require.NoError(t, err)
 
-		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		// Escape backslashes in the path for the keyword/value parser: on Windows the
+		// temp path contains them and each would otherwise escape the next character.
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 		require.NoError(t, err)
 		config.Password = "refreshed-password"
 		config.LookupFunc = resolveLocalhost
@@ -208,7 +223,9 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 
 		// db-replica has no entry, so it must send no password even though Config.Password holds the
 		// primary host's entry.
-		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		// Escape backslashes in the path for the keyword/value parser: on Windows the
+		// temp path contains them and each would otherwise escape the next character.
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 		require.NoError(t, err)
 		config.LookupFunc = resolveLocalhost
 
@@ -229,7 +246,9 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 		// A single host with sslmode=prefer has a second entry for the same host with TLS disabled. It
 		// is the primary host itself, so a password refreshed after parsing must apply to it, not the
 		// .pgpass entry resolved at parse time.
-		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		// Escape backslashes in the path for the keyword/value parser: on Windows the
+		// temp path contains them and each would otherwise escape the next character.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 		require.NoError(t, err)
 		config.Password = "refreshed-password"
 		config.LookupFunc = resolveLocalhost
@@ -253,7 +272,9 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 
 		// The .pgpass file is readable but has no entry for this host. The plaintext retry must not send
 		// the empty password it was resolved to once Config.Password is refreshed.
-		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		// Escape backslashes in the path for the keyword/value parser: on Windows the
+		// temp path contains them and each would otherwise escape the next character.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 		require.NoError(t, err)
 		config.Password = "refreshed-password"
 		config.LookupFunc = resolveLocalhost
@@ -299,7 +320,9 @@ func TestBuildConnectOneConfigsPasswordInheritance(t *testing.T) {
 		// Rotate the primary into the fallback list as RandomizeHostOrderFunc does, promoting the
 		// replica (which becomes the config password, as RandomizeHostOrderFunc sets it). The demoted
 		// host keeps the password its own .pgpass entry resolved to.
-		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+		// Escape backslashes in the path for the keyword/value parser: on Windows the
+		// temp path contains them and each would otherwise escape the next character.
+		config, err := ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 		require.NoError(t, err)
 		demoted := config.PrimaryFallback()
 		config.Host = "db-replica"

@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1286,12 +1287,26 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 	require.Fail(t, "did not get all hosts as primaries after many randomizations")
 }
 
+// clearPgEnvvars empties the PG* environment variables that ParseConfig consults, so a value set
+// in the environment (as on the Windows CI runners, where PGPASSWORD is set) cannot leak into a
+// parse and override the password a test sets up.
+func clearPgEnvvars(t *testing.T) {
+	t.Helper()
+	for _, envvar := range []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI", "PGTZ", "PGOPTIONS"} {
+		t.Setenv(envvar, "")
+	}
+}
+
 func TestRandomizeHostOrderFuncPreservesPerHostPasswords(t *testing.T) {
+	clearPgEnvvars(t)
+
 	tfName := filepath.Join(t.TempDir(), "pgpass")
 	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost2:5432:db:user:secret2\nhost3:5432:db:user:secret3\n"), 0o600)
 	require.NoError(t, err)
 
-	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", tfName))
+	// Escape backslashes in the path for the keyword/value parser: on Windows the
+	// temp path contains them and each would otherwise escape the next character.
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 	require.NoError(t, err)
 
 	passwordByHost := map[string]string{
@@ -1317,11 +1332,15 @@ func TestRandomizeHostOrderFuncPreservesPerHostPasswords(t *testing.T) {
 // .pgpass file has no entry for: shuffling must not give it another host's
 // password, whichever host becomes the primary.
 func TestRandomizeHostOrderFuncPreservesMissingPgpassEntry(t *testing.T) {
+	clearPgEnvvars(t)
+
 	tfName := filepath.Join(t.TempDir(), "pgpass")
 	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost3:5432:db:user:secret3\n"), 0o600)
 	require.NoError(t, err)
 
-	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", tfName))
+	// Escape backslashes in the path for the keyword/value parser: on Windows the
+	// temp path contains them and each would otherwise escape the next character.
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2,host3 dbname=db user=user sslmode=disable passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 	require.NoError(t, err)
 
 	passwordByHost := map[string]string{
@@ -1368,12 +1387,65 @@ func TestRandomizeHostOrderFuncPreservesSharedPasswordRefresh(t *testing.T) {
 // randomizing must not restore the .pgpass entry when the same host's plaintext fallback becomes the
 // primary. The plaintext retry is the primary host itself, so the password as it stands now is already
 // that host's password.
+func TestRandomizeHostOrderFuncPreservesPgpassPasswordOnPlaintextFallback(t *testing.T) {
+	clearPgEnvvars(t)
+
+	tfName := filepath.Join(t.TempDir(), "pgpass")
+	err := os.WriteFile(tfName, []byte("host1:5432:db:user:secret1\nhost2:5432:db:user:secret2\n"), 0o600)
+	require.NoError(t, err)
+
+	// Escape backslashes in the path for the keyword/value parser: on Windows the
+	// temp path contains them and each would otherwise escape the next character.
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=host1,host2 dbname=db user=user sslmode=prefer passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
+	require.NoError(t, err)
+	require.Equal(t, "secret1", config.Password)
+
+	// With sslmode=prefer each host has a plaintext retry entry next to its TLS entry. Whichever
+	// host is promoted, every entry for a host must keep that host's own .pgpass password. The
+	// demoted primary's plaintext retry is the interesting one: it holds no password of its own
+	// (it was resolved through the primary at parse time), so it must not lose host1's password
+	// when host2 is promoted and Config.Password becomes host2's.
+	hostPasswords := map[string]string{"host1": "secret1", "host2": "secret2"}
+	sawHost1Primary := false
+	sawHost2Primary := false
+	for range 100 {
+		connCopy := *config
+		err := stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
+		require.NoError(t, err)
+		require.Equal(t, hostPasswords[connCopy.Host], connCopy.Password)
+
+		for _, fb := range connCopy.Fallbacks {
+			want := hostPasswords[fb.Host]
+			if fb.TLSConfig == nil && fb.Host == "host1" && connCopy.Host == "host1" {
+				// host1 was the primary at parse time, so its plaintext retry holds no password of
+				// its own and keeps inheriting Config.Password — which is still host1's password
+				// while host1 is primary.
+				want = ""
+			}
+			assert.Equal(t, want, fb.Password, "fallback host=%s tls=%v with primary %s", fb.Host, fb.TLSConfig != nil, connCopy.Host)
+		}
+
+		switch connCopy.Host {
+		case "host1":
+			sawHost1Primary = true
+		case "host2":
+			sawHost2Primary = true
+		}
+	}
+	require.True(t, sawHost1Primary, "host1 was never primary")
+	require.True(t, sawHost2Primary, "host2 was never primary")
+}
+
 func TestRandomizeHostOrderFuncPreservesRefreshedPasswordForPreferFallback(t *testing.T) {
+	clearPgEnvvars(t)
+
 	tfName := filepath.Join(t.TempDir(), "pgpass")
 	err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
 	require.NoError(t, err)
 
-	config, err := pgx.ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+	// Escape backslashes in the path for the keyword/value parser: on Windows the
+	// temp path contains them and each would otherwise escape the next character.
+	config, err := pgx.ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", strings.ReplaceAll(tfName, "\\", "\\\\")))
 	require.NoError(t, err)
 	config.Password = "refreshed-password"
 

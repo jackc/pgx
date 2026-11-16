@@ -233,6 +233,23 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 					}
 				}
 			}
+			// A fallback for the old primary's own host (its sslmode=prefer plaintext retry) holds no
+			// password of its own: passwordFor resolves it through Config.Password because it shares
+			// the primary host. Once a different host's password overwrites Config.Password, that
+			// resolution would return the new host's password — or nothing at all, when the new
+			// primary's .pgpass entry is missing — so preserve the old primary's password on the
+			// retry. The demoted primary itself is not pinned: it carries its own .pgpass entry, or
+			// keeps inheriting a shared password so a later refresh still applies to it. Clone
+			// before mutating, as above.
+			if oldPassword := connConfig.Password; oldPassword != "" {
+				for i, fb := range newFallbacks[:len(newFallbacks)-1] {
+					if fb != demotedPrimary && fb.Host == oldHost && fb.Port == oldPort && fb.Password == "" && !fb.PasswordFromPassfile() {
+						preserved := *fb
+						preserved.Password = oldPassword
+						newFallbacks[i] = &preserved
+					}
+				}
+			}
 			connConfig.Password = newPrimary.Password
 		}
 	}
