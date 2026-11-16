@@ -182,6 +182,33 @@ func ConnectConfig(ctx context.Context, config *Config) (*PgConn, error) {
 	return pgConn, nil
 }
 
+// passwordFor returns the password to send when connecting to fb. A password resolved from a .pgpass entry for
+// this host is authoritative, even when empty: a missing entry means this host has no password. Otherwise an
+// explicitly set password is used, and when there is none the password is inherited from Config.Password as it
+// stands at connect time, so a password set in the connection string or refreshed after parsing (e.g. in
+// BeforeConnect) applies. When Config.Password is itself another host's .pgpass entry there is no shared password
+// to inherit, so an empty password is used.
+//
+// A fallback for the same host and port as the primary is the primary host itself (e.g. the sslmode=prefer
+// plaintext retry), so it follows Config.Password as it stands at connect time, just like the primary: a .pgpass
+// entry resolved for that host at parse time is the primary's entry, not a separate per-host password, and must
+// not pin the plaintext retry to the parsed value.
+func passwordFor(fb *FallbackConfig, config *Config) string {
+	if fb.Password != "" && !fb.passwordFromPassfile {
+		return fb.Password
+	}
+	if fb.Host == config.Host && fb.Port == config.Port {
+		return config.Password
+	}
+	if fb.passwordFromPassfile {
+		return fb.Password
+	}
+	if config.passwordFromPassfile {
+		return ""
+	}
+	return config.Password
+}
+
 // buildConnectOneConfigs resolves hostnames and builds a list of connectOneConfigs to try connecting to. It returns a
 // slice of successfully resolved connectOneConfigs and a slice of errors. It is possible for both slices to contain
 // values if some hosts were successfully resolved and others were not.
@@ -189,9 +216,11 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 	// Simplify usage by treating primary config and fallbacks the same.
 	fallbackConfigs := []*FallbackConfig{
 		{
-			Host:      config.Host,
-			Port:      config.Port,
-			TLSConfig: config.TLSConfig,
+			Host:                 config.Host,
+			Port:                 config.Port,
+			TLSConfig:            config.TLSConfig,
+			Password:             config.Password,
+			passwordFromPassfile: config.passwordFromPassfile,
 		},
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
@@ -209,6 +238,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 				address:          address,
 				originalHostname: fb.Host,
 				tlsConfig:        fb.TLSConfig,
+				password:         passwordFor(fb, config),
 			})
 
 			continue
@@ -233,6 +263,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
+					password:         passwordFor(fb, config),
 				})
 			} else {
 				network, address := NetworkAddress(ip, fb.Port)
@@ -241,6 +272,7 @@ func buildConnectOneConfigs(ctx context.Context, config *Config) ([]*connectOneC
 					address:          address,
 					originalHostname: fb.Host,
 					tlsConfig:        fb.TLSConfig,
+					password:         passwordFor(fb, config),
 				})
 			}
 		}
@@ -493,7 +525,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			if err := requireAuthPolicy.check(authMethodPassword); err != nil {
 				return requireAuthFail(err)
 			}
-			err = pgConn.txPasswordMessage(pgConn.config.Password)
+			err = pgConn.txPasswordMessage(connectConfig.password)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("failed to write password message", err)
@@ -503,7 +535,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			if err := requireAuthPolicy.check(authMethodMD5); err != nil {
 				return requireAuthFail(err)
 			}
-			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
+			digestedPassword := "md5" + hexMD5(hexMD5(connectConfig.password+pgConn.config.User)+string(msg.Salt[:]))
 			err = pgConn.txPasswordMessage(digestedPassword)
 			if err != nil {
 				pgConn.conn.Close()
@@ -526,7 +558,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				if err := requireAuthPolicy.check(authMethodSCRAMSHA256); err != nil {
 					return requireAuthFail(err)
 				}
-				channelBound, err = pgConn.scramAuth(msg.AuthMechanisms)
+				channelBound, err = pgConn.scramAuth(msg.AuthMechanisms, connectConfig.password)
 			}
 			if err != nil {
 				pgConn.conn.Close()

@@ -186,11 +186,20 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 		return nil
 	}
 
-	newFallbacks := append([]*pgconn.FallbackConfig{{
-		Host:      connConfig.Host,
-		Port:      connConfig.Port,
-		TLSConfig: connConfig.TLSConfig,
-	}}, connConfig.Fallbacks...)
+	demotedPrimary := connConfig.PrimaryFallback()
+
+	// The password the other hosts inherit, if Config.Password is a shared password (from the connection
+	// string or set after parsing). PrimaryFallback copies the password only when it is the primary host's
+	// own .pgpass entry, so a non-empty password there means Config.Password is not shared; when
+	// Config.Password is itself a .pgpass entry there is no shared password to preserve.
+	sharedPassword := connConfig.Password
+	if demotedPrimary.Password != "" {
+		sharedPassword = ""
+	}
+
+	oldHost, oldPort := connConfig.Host, connConfig.Port
+
+	newFallbacks := append([]*pgconn.FallbackConfig{demotedPrimary}, connConfig.Fallbacks...)
 
 	rand.Shuffle(len(newFallbacks), func(i, j int) {
 		newFallbacks[i], newFallbacks[j] = newFallbacks[j], newFallbacks[i]
@@ -201,6 +210,49 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 	connConfig.Host = newPrimary.Host
 	connConfig.Port = newPrimary.Port
 	connConfig.TLSConfig = newPrimary.TLSConfig
+	// Only a host with its own password becomes the config password. A host that inherits Config.Password
+	// leaves it unchanged, so the shared password is not clobbered with an empty value.
+	// A fallback for the same host and port as the current primary is the primary host itself, so a .pgpass
+	// entry resolved for it at parse time must not overwrite the password as it stands now (e.g. after a
+	// refresh): the current Config.Password already is that host's password. An explicitly set password on
+	// such a fallback is not from the passfile, so it still becomes the primary password.
+	if newPrimary.Password != "" || newPrimary.PasswordFromPassfile() {
+		if newPrimary.Host != oldHost || newPrimary.Port != oldPort || !newPrimary.PasswordFromPassfile() {
+			// The new primary brings its own password, so the shared password the other hosts inherit
+			// would be lost when Config.Password is overwritten. Pin it onto the hosts that inherit it,
+			// leaving a host with its own password alone, and a fallback for the same host as the new
+			// primary alone: the latter follows the new primary password. Clone before mutating: the
+			// fallback structs are shared with the caller's config, so mutating them in place would leak
+			// the pinned password into later connections.
+			if sharedPassword != "" {
+				for i, fb := range newFallbacks[:len(newFallbacks)-1] {
+					if fb.Password == "" && !fb.PasswordFromPassfile() && (fb.Host != newPrimary.Host || fb.Port != newPrimary.Port) {
+						pinned := *fb
+						pinned.Password = sharedPassword
+						newFallbacks[i] = &pinned
+					}
+				}
+			}
+			// A fallback for the old primary's own host (its sslmode=prefer plaintext retry) holds no
+			// password of its own: passwordFor resolves it through Config.Password because it shares
+			// the primary host. Once a different host's password overwrites Config.Password, that
+			// resolution would return the new host's password — or nothing at all, when the new
+			// primary's .pgpass entry is missing — so preserve the old primary's password on the
+			// retry. The demoted primary itself is not pinned: it carries its own .pgpass entry, or
+			// keeps inheriting a shared password so a later refresh still applies to it. Clone
+			// before mutating, as above.
+			if oldPassword := connConfig.Password; oldPassword != "" {
+				for i, fb := range newFallbacks[:len(newFallbacks)-1] {
+					if fb != demotedPrimary && fb.Host == oldHost && fb.Port == oldPort && fb.Password == "" && !fb.PasswordFromPassfile() {
+						preserved := *fb
+						preserved.Password = oldPassword
+						newFallbacks[i] = &preserved
+					}
+				}
+			}
+			connConfig.Password = newPrimary.Password
+		}
+	}
 	connConfig.Fallbacks = newFallbacks[:len(newFallbacks)-1]
 	return nil
 }
