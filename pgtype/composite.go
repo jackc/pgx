@@ -181,14 +181,17 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 	scanner := NewCompositeTextScanner(plan.m, src)
 	for i, field := range plan.cc.Fields {
 		if scanner.Next() {
-			fieldTarget := targetScanner.ScanIndex(i)
+			fieldTarget, err := compositeFieldTarget(targetScanner, i)
+			if err != nil {
+				return err
+			}
 			if fieldTarget != nil {
 				fieldPlan := plan.m.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
 				if fieldPlan == nil {
 					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.Type.OID)
 				}
 
-				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
+				err = fieldPlan.Scan(scanner.Bytes(), fieldTarget)
 				if err != nil {
 					return err
 				}
