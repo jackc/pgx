@@ -124,6 +124,37 @@ func TestCompositeScanUndersizedCompositeFieldsReturnsError(t *testing.T) {
 	}
 }
 
+// The text format scan plan (used by QueryExecModeSimpleProtocol) must report
+// the same mismatch instead of indexing past the end of CompositeFields.
+func TestCompositeTextScanUndersizedCompositeFieldsReturnsError(t *testing.T) {
+	m := pgtype.NewMap()
+	int4Type, ok := m.TypeForOID(pgtype.Int4OID)
+	if !ok {
+		t.Fatal("no type registered for int4 OID")
+	}
+
+	const compositeOID = 100_000
+	m.RegisterType(&pgtype.Type{
+		Name: "test_composite",
+		OID:  compositeOID,
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{Name: "a", Type: int4Type},
+				{Name: "b", Type: int4Type},
+			},
+		},
+	})
+
+	var a int32
+	dst := pgtype.CompositeFields{&a}
+
+	plan := m.PlanScan(compositeOID, pgtype.TextFormatCode, dst)
+	// A panic here (pre-fix) fails the test.
+	if err := plan.Scan([]byte("(1,2)"), dst); err == nil {
+		t.Error("Scan into undersized CompositeFields = nil error, want an error")
+	}
+}
+
 // Well-formed records still decode after the guards were added.
 func TestRecordBinaryDecodeValid(t *testing.T) {
 	m := pgtype.NewMap()
