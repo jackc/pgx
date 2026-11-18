@@ -78,6 +78,7 @@ type NotificationHandler func(*PgConn, *Notification)
 type PgConn struct {
 	conn              net.Conn
 	tlsConfig         *tls.Config       // tls.Config that conn was negotiated with; nil if conn is not TLS
+	protocolVersion   uint32            // negotiated protocol version
 	pid               uint32            // backend pid
 	secretKey         []byte            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
@@ -417,6 +418,9 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 		Parameters:      make(map[string]string),
 	}
 
+	// The server uses the requested version unless it sends NegotiateProtocolVersion.
+	pgConn.protocolVersion = maxProtocolVersion
+
 	// Copy default run-time params
 	maps.Copy(startupMsg.Parameters, config.RuntimeParams)
 
@@ -584,6 +588,16 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("server protocol version too low", nil)
 			}
+			if serverVersion > maxProtocolVersion {
+				pgConn.conn.Close()
+				return nil, newPerDialConnectError("server protocol version higher than requested", nil)
+			}
+			// Protocol version 3.1 was never released; 3.0 was followed by 3.2.
+			if serverVersion == pgproto3.ProtocolVersion30+1 {
+				pgConn.conn.Close()
+				return nil, newPerDialConnectError("server requested non-existent protocol version 3.1", nil)
+			}
+			pgConn.protocolVersion = serverVersion
 		case *pgproto3.ErrorResponse:
 			pgConn.conn.Close()
 			return nil, newPerDialConnectError("server error", ErrorResponseToPgError(msg))
@@ -762,6 +776,12 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 // writing then SyncConn should usually be called before Conn.
 func (pgConn *PgConn) Conn() net.Conn {
 	return pgConn.conn
+}
+
+// ProtocolVersion returns the protocol version negotiated with the server. It is encoded as in the startup message, with
+// the major version in the high 16 bits and the minor version in the low 16 bits (e.g. pgproto3.ProtocolVersion32).
+func (pgConn *PgConn) ProtocolVersion() uint32 {
+	return pgConn.protocolVersion
 }
 
 // PID returns the backend PID.
@@ -2306,6 +2326,7 @@ func (pgConn *PgConn) CustomData() map[string]any {
 type HijackedConn struct {
 	Conn              net.Conn
 	TLSConfig         *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
+	ProtocolVersion   uint32            // negotiated protocol version
 	PID               uint32            // backend pid
 	SecretKey         []byte            // key to use to send a cancel query message to the server
 	ParameterStatuses map[string]string // parameters that have been reported by the server
@@ -2330,6 +2351,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 	return &HijackedConn{
 		Conn:              pgConn.conn,
 		TLSConfig:         pgConn.tlsConfig,
+		ProtocolVersion:   pgConn.protocolVersion,
 		PID:               pgConn.pid,
 		SecretKey:         pgConn.secretKey,
 		ParameterStatuses: pgConn.parameterStatuses,
@@ -2351,6 +2373,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn := &PgConn{
 		conn:              hc.Conn,
 		tlsConfig:         hc.TLSConfig,
+		protocolVersion:   hc.ProtocolVersion,
 		pid:               hc.PID,
 		secretKey:         hc.SecretKey,
 		parameterStatuses: hc.ParameterStatuses,
@@ -2362,6 +2385,10 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		status: connStatusIdle,
 
 		cleanupDone: make(chan struct{}),
+	}
+
+	if pgConn.protocolVersion == 0 {
+		pgConn.protocolVersion = pgproto3.ProtocolVersion30
 	}
 
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))

@@ -3394,6 +3394,8 @@ func TestHijackAndConstruct(t *testing.T) {
 	err = origConn.SyncConn(ctx)
 	require.NoError(t, err)
 
+	protocolVersion := origConn.ProtocolVersion()
+
 	hc, err := origConn.Hijack()
 	require.NoError(t, err)
 
@@ -3404,6 +3406,9 @@ func TestHijackAndConstruct(t *testing.T) {
 	require.NoError(t, err)
 
 	defer closeConn(t, newConn)
+
+	assert.Equal(t, protocolVersion, hc.ProtocolVersion)
+	assert.Equal(t, protocolVersion, newConn.ProtocolVersion())
 
 	results, err := newConn.Exec(ctx, "select 'Hello, world'").ReadAll()
 	assert.NoError(t, err)
@@ -6087,7 +6092,107 @@ func TestConnectProtocolVersion32(t *testing.T) {
 
 	if pgVersion < 180000 {
 		assert.Len(t, secretKey, 4)
+		assert.Equal(t, uint32(pgproto3.ProtocolVersion30), pgConn.ProtocolVersion())
 	} else {
 		assert.Len(t, secretKey, 32)
+		assert.Equal(t, uint32(pgproto3.ProtocolVersion32), pgConn.ProtocolVersion())
+	}
+}
+
+func TestConnectNegotiateProtocolVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                      string
+		clientMinProtocolVersion  string
+		serverNewestMinorProtocol uint32
+		err                       string
+	}{
+		{
+			name:                      "client accepts 3.0 to 3.2 and server negotiates 3.0",
+			clientMinProtocolVersion:  "3.0",
+			serverNewestMinorProtocol: 0,
+		},
+		{
+			name:                      "client accepts only 3.2 and server negotiates 3.0",
+			clientMinProtocolVersion:  "3.2",
+			serverNewestMinorProtocol: 0,
+			err:                       "server protocol version too low",
+		},
+		{
+			name:                      "client accepts 3.0 to 3.2 and server negotiates 3.3",
+			clientMinProtocolVersion:  "3.0",
+			serverNewestMinorProtocol: 3,
+			err:                       "server protocol version higher than requested",
+		},
+		{
+			name:                      "client accepts 3.0 to 3.2 and server negotiates 3.1",
+			clientMinProtocolVersion:  "3.0",
+			serverNewestMinorProtocol: 1,
+			err:                       "server requested non-existent protocol version 3.1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			steps := []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion32, Parameters: map[string]string{}}),
+				pgmock.SendMessage(&pgproto3.NegotiateProtocolVersion{NewestMinorProtocol: tt.serverNewestMinorProtocol}),
+			}
+			if tt.err == "" {
+				steps = append(steps,
+					pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+					pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}}),
+					pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+				)
+			}
+			steps = append(steps, pgmock.WaitForClose())
+			script := &pgmock.Script{Steps: steps}
+
+			ln, err := net.Listen("tcp", "127.0.0.1:")
+			require.NoError(t, err)
+			defer ln.Close()
+
+			serverErrChan := make(chan error, 1)
+			go func() {
+				defer close(serverErrChan)
+
+				conn, err := ln.Accept()
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+				defer conn.Close()
+
+				err = conn.SetDeadline(time.Now().Add(time.Second * 5))
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+
+				err = script.Run(pgproto3.NewBackend(conn, conn))
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+			}()
+
+			host, port, _ := strings.Cut(ln.Addr().String(), ":")
+			connStr := fmt.Sprintf("sslmode=disable host=%s port=%s min_protocol_version=%s max_protocol_version=3.2", host, port, tt.clientMinProtocolVersion)
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
+			pgConn, err := pgconn.Connect(ctx, connStr)
+			if tt.err != "" {
+				require.ErrorContains(t, err, tt.err)
+				return
+			}
+			require.NoError(t, err)
+			defer closeConn(t, pgConn)
+
+			assert.Equal(t, uint32(pgproto3.ProtocolVersion30), pgConn.ProtocolVersion())
+		})
 	}
 }
