@@ -231,3 +231,7 @@ Simplifies working with the pgx library, providing convenient scanning of nested
 ### [https://github.com/KoNekoD/pgx-colon-query-rewriter](https://github.com/KoNekoD/pgx-colon-query-rewriter)
 
 Implementation of the pgx query rewriter to use ':' instead of '@' in named query parameters.
+
+### [github.com/kirimatt/goncordia](https://github.com/kirimatt/goncordia)
+
+Background job queue for Go. Its pgx v5 driver enqueues jobs inside a `pgx.Tx`, so a job is committed or rolled back together with the business data.
