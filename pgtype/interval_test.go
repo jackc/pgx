@@ -130,6 +130,11 @@ func TestIntervalCodec(t *testing.T) {
 		},
 		{Param: time.Hour, Result: new(time.Duration), Test: isExpectedEq(time.Hour)},
 		{
+			Param:  time.Duration(math.MaxInt64 / 1000 * 1000),
+			Result: new(time.Duration),
+			Test:   isExpectedEq(time.Duration(math.MaxInt64 / 1000 * 1000)),
+		},
+		{
 			Param:  pgtype.Interval{Months: 1, Days: 1, Valid: true},
 			Result: new(time.Duration),
 			Test:   isExpectedEq(time.Duration(2_678_400_000_000_000)),
@@ -213,5 +218,29 @@ func TestIntervalScanMalformedFractionReturnsError(t *testing.T) {
 				t.Errorf("Scan(%q): expected error, got %+v", src, v)
 			}
 		})
+	}
+}
+
+// Scanning an interval that does not fit in time.Duration (about 292 years)
+// must return an error instead of silently overflowing into a wrong value.
+func TestIntervalScanDurationOverflowReturnsError(t *testing.T) {
+	m := pgtype.NewMap()
+	for _, iv := range []pgtype.Interval{
+		{Microseconds: math.MaxInt64/1000 + 1, Valid: true},
+		{Months: 3600, Valid: true},
+		{Months: -3600, Valid: true},
+		{Months: math.MaxInt32, Valid: true},
+	} {
+		for _, format := range []int16{pgtype.TextFormatCode, pgtype.BinaryFormatCode} {
+			src, err := m.Encode(pgtype.IntervalOID, format, iv, nil)
+			if err != nil {
+				t.Fatalf("Encode(%+v): %v", iv, err)
+			}
+			var d time.Duration
+			err = m.Scan(pgtype.IntervalOID, format, src, &d)
+			if err == nil {
+				t.Errorf("format %d, interval %+v: expected error, got %v", format, iv, d)
+			}
+		}
 	}
 }

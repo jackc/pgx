@@ -501,12 +501,43 @@ func (w durationWrapper) SkipUnderlyingTypePlan() {}
 
 func (w *durationWrapper) ScanInterval(v Interval) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *time.Interval")
+		return fmt.Errorf("cannot scan NULL into *time.Duration")
 	}
 
-	us := int64(v.Months)*microsecondsPerMonth + int64(v.Days)*microsecondsPerDay + v.Microseconds
+	us, ok := intervalToMicroseconds(v)
+	if !ok || us > math.MaxInt64/int64(time.Microsecond) || us < math.MinInt64/int64(time.Microsecond) {
+		return fmt.Errorf("interval of %d months, %d days and %d microseconds is out of range for time.Duration", v.Months, v.Days, v.Microseconds)
+	}
+
 	*w = durationWrapper(time.Duration(us) * time.Microsecond)
 	return nil
+}
+
+// intervalToMicroseconds converts v to microseconds, counting a month as 30 days.
+// ok is false if the result does not fit in an int64.
+func intervalToMicroseconds(v Interval) (us int64, ok bool) {
+	months, days := int64(v.Months), int64(v.Days)
+	if months > math.MaxInt64/microsecondsPerMonth || months < math.MinInt64/microsecondsPerMonth {
+		return 0, false
+	}
+	if days > math.MaxInt64/microsecondsPerDay || days < math.MinInt64/microsecondsPerDay {
+		return 0, false
+	}
+
+	us, ok = addInt64(months*microsecondsPerMonth, days*microsecondsPerDay)
+	if !ok {
+		return 0, false
+	}
+	return addInt64(us, v.Microseconds)
+}
+
+// addInt64 returns a + b, and ok is false if the sum overflows.
+func addInt64(a, b int64) (sum int64, ok bool) {
+	sum = a + b
+	if (b > 0 && sum < a) || (b < 0 && sum > a) {
+		return 0, false
+	}
+	return sum, true
 }
 
 func (w durationWrapper) IntervalValue() (Interval, error) {
