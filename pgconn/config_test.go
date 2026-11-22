@@ -1383,6 +1383,67 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	assertConfigsEqual(t, expected, actual, "passfile")
 }
 
+func TestParseConfigReadsPgPassfilePerHost(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	tfName := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tfName, []byte("db-primary:5432:app:app:primary-secret\ndb-replica:5432:app:app:replica-secret\nonly-replica:5432:app:app:only-secret\n"), 0o600)
+	require.NoError(t, err)
+
+	// Each host gets the password from its own .pgpass entry.
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+	assert.Equal(t, "primary-secret", config.Password)
+	if assert.Len(t, config.Fallbacks, 1) {
+		assert.Equal(t, "db-replica", config.Fallbacks[0].Host)
+		assert.Equal(t, "replica-secret", config.Fallbacks[0].Password)
+	}
+
+	// A host without a .pgpass entry gets no password, even when a fallback host has one.
+	config, err = pgconn.ParseConfig(fmt.Sprintf("host=no-entry,only-replica dbname=app user=app sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+	assert.Equal(t, "", config.Password)
+	if assert.Len(t, config.Fallbacks, 1) {
+		assert.Equal(t, "only-replica", config.Fallbacks[0].Host)
+		assert.Equal(t, "only-secret", config.Fallbacks[0].Password)
+	}
+
+	// A password from the connection string applies to every host and the .pgpass file is not consulted. The
+	// fallback keeps an empty password so it inherits Config.Password at connect time; a password refreshed
+	// after parsing then applies to it as well.
+	config, err = pgconn.ParseConfig(fmt.Sprintf("host=db-primary,db-replica dbname=app user=app password=explicit sslmode=disable passfile=%s", tfName))
+	require.NoError(t, err)
+	assert.Equal(t, "explicit", config.Password)
+	if assert.Len(t, config.Fallbacks, 1) {
+		assert.Equal(t, "", config.Fallbacks[0].Password)
+		assert.False(t, config.Fallbacks[0].PasswordFromPassfile())
+	}
+}
+
+func TestParseConfigPreferPlaintextFallbackDoesNotResolvePgPassfile(t *testing.T) {
+	skipOnWindows(t)
+	clearPgEnvvars(t)
+
+	tfName := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+	require.NoError(t, err)
+
+	// A single host with sslmode=prefer has a second entry for the same host with TLS disabled. It is the
+	// primary host itself, so no separate .pgpass entry may be resolved for it at parse time: that entry
+	// would pin the retry to the parsed value instead of following Config.Password, and would make an
+	// explicitly assigned password on the retry unreachable. It keeps an empty password so it inherits
+	// Config.Password at connect time.
+	config, err := pgconn.ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+	require.NoError(t, err)
+	assert.Equal(t, "pgpass-password", config.Password)
+	if assert.Len(t, config.Fallbacks, 1) {
+		assert.Equal(t, "primary.example.com", config.Fallbacks[0].Host)
+		assert.Equal(t, "", config.Fallbacks[0].Password)
+		assert.False(t, config.Fallbacks[0].PasswordFromPassfile())
+	}
+}
+
 func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	skipOnWindows(t)
 	clearPgEnvvars(t)

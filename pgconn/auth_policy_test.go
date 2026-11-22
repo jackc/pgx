@@ -11,11 +11,15 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgproto3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,6 +69,171 @@ func connectAuthTest(t *testing.T, config *Config, serve func(*pgproto3.Backend)
 	}
 	require.NoError(t, <-done)
 	return err
+}
+
+// connectWithFailingFirstAttempt runs the real startup loop against a scripted server. The first connection
+// attempt fails before speaking, so the next host is tried; the scripted server requests a cleartext password
+// from that attempt and records the password it sent. It returns the recorded password.
+func connectWithFailingFirstAttempt(t *testing.T, config *Config) (string, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var dials atomic.Int32
+	observed := make(chan string, 1)
+	serveDone := make(chan struct{})
+
+	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+		client, server := net.Pipe()
+		if dials.Add(1) == 1 {
+			// The first attempt fails before speaking.
+			server.Close()
+			return client, nil
+		}
+		go func() {
+			defer server.Close()
+			defer close(serveDone)
+			_ = server.SetDeadline(time.Now().Add(5 * time.Second))
+			backend := pgproto3.NewBackend(server, server)
+			if _, err := backend.ReceiveStartupMessage(); err != nil {
+				return
+			}
+			backend.Send(&pgproto3.AuthenticationCleartextPassword{})
+			if err := backend.Flush(); err != nil {
+				return
+			}
+			msg, err := backend.Receive()
+			if err != nil {
+				return
+			}
+			pwMsg, ok := msg.(*pgproto3.PasswordMessage)
+			if !ok {
+				return
+			}
+			observed <- pwMsg.Password
+			backend.Send(&pgproto3.AuthenticationOk{})
+			backend.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+			if err := backend.Flush(); err != nil {
+				return
+			}
+			// The client sends Terminate when the test closes the connection.
+			_, _ = backend.Receive()
+		}()
+		return client, nil
+	}
+
+	conn, err := ConnectConfig(ctx, config)
+	if conn != nil {
+		// The scripted server closes after Terminate without a TLS close_notify.
+		_ = conn.Close(ctx)
+	}
+	if err != nil {
+		return "", err
+	}
+	select {
+	case <-serveDone:
+	case <-ctx.Done():
+		return "", fmt.Errorf("scripted server did not finish")
+	}
+	select {
+	case pw := <-observed:
+		return pw, nil
+	default:
+		return "", fmt.Errorf("scripted server did not receive a password")
+	}
+}
+
+// TestConnectFallbackSendsRefreshedPassword covers the password model of #2708 at the wire level: a password
+// refreshed after parsing must be the password the fallback host is sent, not the password parsed earlier.
+func TestConnectFallbackSendsRefreshedPassword(t *testing.T) {
+	resolveLocalhost := func(ctx context.Context, host string) ([]string, error) {
+		return []string{"127.0.0.1"}, nil
+	}
+
+	t.Run("multi-host fallback", func(t *testing.T) {
+		config, err := ParseConfig("host=primary.example.com,fallback.example.com user=app password=old-password sslmode=disable")
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
+	})
+
+	t.Run("sslmode prefer plaintext fallback", func(t *testing.T) {
+		config, err := ParseConfig("host=primary.example.com user=app password=old-password sslmode=prefer")
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
+	})
+
+	t.Run("fallback constructed without a password", func(t *testing.T) {
+		config, err := ParseConfig("host=primary.example.com user=app password=shared-password sslmode=disable")
+		require.NoError(t, err)
+		config.LookupFunc = resolveLocalhost
+		config.Fallbacks = append(config.Fallbacks, &FallbackConfig{Host: "fallback.example.com", Port: 5432})
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "shared-password", sent)
+	})
+
+	t.Run("sslmode prefer plaintext fallback with pgpass entry", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The plaintext retry is the same host as the primary, so it must send the refreshed password,
+		// not the .pgpass entry resolved at parse time.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
+	})
+
+	t.Run("explicit password on sslmode prefer plaintext fallback", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("primary.example.com:5432:app:app:pgpass-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The plaintext retry is the same host as the primary, so a password assigned to it after
+		// parsing is an explicit override for that host and must be sent, not the .pgpass entry
+		// resolved at parse time or Config.Password.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Fallbacks[0].Password = "explicit-override"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "explicit-override", sent)
+	})
+
+	t.Run("sslmode prefer plaintext fallback with missing pgpass entry", func(t *testing.T) {
+		tfName := filepath.Join(t.TempDir(), "pgpass")
+		err := os.WriteFile(tfName, []byte("other.example.com:5432:app:app:someone-elses-password\n"), 0o600)
+		require.NoError(t, err)
+
+		// The .pgpass file is readable but has no entry for this host. The plaintext retry must not
+		// send the empty password it was resolved to once Config.Password is refreshed.
+		config, err := ParseConfig(fmt.Sprintf("host=primary.example.com dbname=app user=app sslmode=prefer passfile=%s", tfName))
+		require.NoError(t, err)
+		config.Password = "refreshed-password"
+		config.LookupFunc = resolveLocalhost
+
+		sent, err := connectWithFailingFirstAttempt(t, config)
+		require.NoError(t, err)
+		assert.Equal(t, "refreshed-password", sent)
+	})
 }
 
 func TestConnectRequireAuthCompletion(t *testing.T) {
