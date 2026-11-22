@@ -174,6 +174,13 @@ func (encodePlanDateCodecBinary) Encode(value any, buf []byte) (newBuf []byte, e
 	return pgio.AppendInt32(buf, daysSinceDateEpoch), nil
 }
 
+// encodeTime encodes t as a finite date, for wrapTimeEncodePlan.
+func (encodePlanDateCodecBinary) encodeTime(t time.Time, buf []byte) []byte {
+	tUnix := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix()
+	dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+	return pgio.AppendInt32(buf, int32((tUnix-dateEpoch)/86400))
+}
+
 type encodePlanDateCodecText struct{}
 
 func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
@@ -196,6 +203,11 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 	}
 
 	return buf, nil
+}
+
+// encodeTime encodes t as a finite date, for wrapTimeEncodePlan.
+func (encodePlanDateCodecText) encodeTime(t time.Time, buf []byte) []byte {
+	return pgdatetime.AppendDate(buf, t)
 }
 
 func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {

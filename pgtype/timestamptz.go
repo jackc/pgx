@@ -183,6 +183,12 @@ func (encodePlanTimestamptzCodecBinary) Encode(value any, buf []byte) (newBuf []
 	return buf, nil
 }
 
+// encodeTime encodes t as a finite timestamptz, for wrapTimeEncodePlan.
+func (encodePlanTimestamptzCodecBinary) encodeTime(t time.Time, buf []byte) []byte {
+	microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
+	return pgio.AppendInt64(buf, microsecSinceUnixEpoch-microsecFromUnixEpochToY2K)
+}
+
 type encodePlanTimestamptzCodecText struct{}
 
 func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
@@ -205,6 +211,11 @@ func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []by
 	}
 
 	return buf, nil
+}
+
+// encodeTime encodes t as a finite timestamptz, for wrapTimeEncodePlan.
+func (encodePlanTimestamptzCodecText) encodeTime(t time.Time, buf []byte) []byte {
+	return pgdatetime.AppendTimestamp(buf, t.UTC(), "Z")
 }
 
 func (c *TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
