@@ -1688,7 +1688,15 @@ type wrapTimeEncodePlan struct {
 
 func (plan *wrapTimeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
+// timeEncodePlan is an EncodePlan that can encode a time.Time without a timeWrapper.
+type timeEncodePlan interface {
+	encodeTime(t time.Time, buf []byte) []byte
+}
+
 func (plan *wrapTimeEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	if p, ok := plan.next.(timeEncodePlan); ok {
+		return p.encodeTime(value.(time.Time), buf), nil
+	}
 	return plan.next.Encode(timeWrapper(value.(time.Time)), buf)
 }
 
