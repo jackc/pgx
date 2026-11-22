@@ -833,7 +833,9 @@ func (pgConn *PgConn) asyncClose() {
 	if pgConn.status == connStatusClosed {
 		return
 	}
-	sendCancelRequest := pgConn.status != connStatusConnecting
+	// A server that did not send BackendKeyData gave pgx no key to cancel with.
+	// See https://github.com/jackc/pgx/issues/2726
+	sendCancelRequest := pgConn.status != connStatusConnecting && len(pgConn.secretKey) != 0
 	pgConn.status = connStatusClosed
 
 	go func() {
@@ -1157,9 +1159,14 @@ func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
 
 // CancelRequest sends a cancel request to the PostgreSQL server. It returns an error if unable to deliver the cancel
 // request, but lack of an error does not ensure that the query was canceled. As specified in the documentation, there
-// is no way to be sure a query was canceled.
+// is no way to be sure a query was canceled. It also returns an error without dialling the server if the server did
+// not send BackendKeyData during startup, as there is no secret key to cancel with.
 // See https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-CANCELING-REQUESTS
 func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
+	if len(pgConn.secretKey) == 0 {
+		return errors.New("no cancel key: server sent no BackendKeyData")
+	}
+
 	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.

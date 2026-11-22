@@ -5804,6 +5804,75 @@ func TestConnectFailureDoesNotSendCancelRequest(t *testing.T) {
 	require.EqualValues(t, 1, dialCount.Load(), "a cancel request was sent for a connection that never finished starting up")
 }
 
+// A server that completes startup without sending BackendKeyData gave pgx no
+// key to cancel with, so neither an explicit CancelRequest nor the asyncClose
+// of an interrupted query may dial the server to send a cancel request.
+// See https://github.com/jackc/pgx/issues/2726
+func TestNoCancelRequestWithoutBackendKeyData(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		clientConn.Close()
+		serverConn.Close()
+	})
+	require.NoError(t, serverConn.SetDeadline(time.Now().Add(30*time.Second)))
+
+	// Complete startup without BackendKeyData.
+	script := &pgmock.Script{Steps: []pgmock.Step{
+		pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersion30, Parameters: map[string]string{}}),
+		pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+	}}
+	serverErrChan := make(chan error, 1)
+	go func() {
+		err := script.Run(pgproto3.NewBackend(serverConn, serverConn))
+		serverErrChan <- err
+	}()
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable")
+	require.NoError(t, err)
+
+	conn := &closeNotifyConn{Conn: clientConn, closed: make(chan struct{}, 8)}
+	var dialCount atomic.Int32
+	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+		if dialCount.Add(1) > 1 {
+			return nil, errors.New("unexpected dial")
+		}
+		return conn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	require.NoError(t, <-serverErrChan)
+	require.Empty(t, pgConn.SecretKey())
+
+	// An explicit cancel request must fail before dialling.
+	err = pgConn.CancelRequest(ctx)
+	require.ErrorContains(t, err, "no cancel key")
+	require.EqualValues(t, 1, dialCount.Load(), "CancelRequest dialled the server without a cancel key")
+
+	// An interrupted query must not dial either: closing the server side makes
+	// the query fail and go through asyncClose.
+	serverConn.Close()
+	_, err = pgConn.Exec(ctx, "select 1").ReadAll()
+	require.Error(t, err)
+	require.True(t, pgConn.IsClosed())
+
+	// asyncClose closes the conn after any cancel request, so once it has, the
+	// dial count is final.
+	select {
+	case <-conn.closed:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the connection to be closed")
+	}
+
+	require.EqualValues(t, 1, dialCount.Load(), "asyncClose dialled the server to cancel a query without a cancel key")
+}
+
 func TestDeadlineContextWatcherHandler(t *testing.T) {
 	t.Parallel()
 
