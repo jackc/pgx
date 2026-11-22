@@ -333,7 +333,6 @@ func (p *hstoreParser) consumeDoubleQuoted() (string, error) {
 	nextDoubleQuote += p.pos
 	if p.nextBackslash == -1 || p.nextBackslash > nextDoubleQuote {
 		// clone the string from the source string to ensure it can be garbage collected separately
-		// TODO: use strings.Clone on Go 1.20; this could get optimized away
 		s := strings.Clone(p.str[p.pos:nextDoubleQuote])
 		p.pos = nextDoubleQuote + 1
 		return s, nil
