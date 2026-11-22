@@ -275,7 +275,25 @@ func rawState(l *sqlLexer) stateFn {
 				return nil
 			}
 		}
+
+		// Dollar signs within an unquoted identifier are part of the name.
+		if isSQLIdentifierStart(r) {
+			for l.pos < len(l.src) {
+				next, width := utf8.DecodeRuneInString(l.src[l.pos:])
+				if next == utf8.RuneError && width != replacementcharacterwidth {
+					break
+				}
+				if !(isSQLIdentifierStart(next) || next >= '0' && next <= '9' || next == '$') {
+					break
+				}
+				l.pos += width
+			}
+		}
 	}
+}
+
+func isSQLIdentifierStart(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_' || r >= 0x80
 }
 
 func singleQuoteState(l *sqlLexer) stateFn {
