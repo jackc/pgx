@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -300,6 +301,21 @@ func TestTimestamptzMarshalJSON(t *testing.T) {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
 		}
 	}
+}
+
+func TestTimestamptzJSONPreservesSecondPrecisionZoneOffset(t *testing.T) {
+	paris := time.FixedZone("Paris mean time", 9*60+21)
+	original := pgtype.Timestamptz{
+		Time:  time.Date(1900, time.January, 1, 12, 0, 0, 0, paris),
+		Valid: true,
+	}
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var decoded pgtype.Timestamptz
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	require.True(t, decoded.Valid)
+	require.Truef(t, original.Time.Equal(decoded.Time), "original: %v, decoded: %v, JSON: %s", original.Time, decoded.Time, data)
 }
 
 func TestTimestamptzUnmarshalJSON(t *testing.T) {

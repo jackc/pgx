@@ -85,7 +85,12 @@ func (tstz Timestamptz) MarshalJSON() ([]byte, error) {
 
 	switch tstz.InfinityModifier {
 	case Finite:
-		s = tstz.Time.Format(time.RFC3339Nano)
+		t := tstz.Time
+		if _, offset := t.Zone(); offset%60 != 0 {
+			// RFC 3339 offsets have minute precision; UTC preserves the instant.
+			t = t.UTC()
+		}
+		s = t.Format(time.RFC3339Nano)
 	case Infinity:
 		s = "infinity"
 	case NegativeInfinity:
