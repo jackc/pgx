@@ -113,6 +113,10 @@ func (encodePlanBitsCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 		return nil, nil
 	}
 
+	if int64(bits.Len) > int64(len(bits.Bytes))*8 {
+		return nil, fmt.Errorf("invalid Bits: Len %d requires %d bytes, have %d", bits.Len, (int64(bits.Len)+7)/8, len(bits.Bytes))
+	}
+
 	for i := int32(0); i < bits.Len; i++ {
 		byteIdx := i / 8
 		bitMask := byte(128 >> byte(i%8))

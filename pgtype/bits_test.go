@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/require"
 )
 
 func isExpectedEqBits(a any) func(any) bool {
@@ -54,4 +55,14 @@ func TestBitsCodecVarbit(t *testing.T) {
 		{Param: pgtype.Bits{}, Result: new(pgtype.Bits), Test: isExpectedEqBits(pgtype.Bits{})},
 		{Param: nil, Result: new(pgtype.Bits), Test: isExpectedEqBits(pgtype.Bits{})},
 	})
+}
+
+func TestBitsLenExceedsBytes(t *testing.T) {
+	bits := pgtype.Bits{Bytes: []byte{0xff}, Len: 9, Valid: true}
+
+	_, err := bits.Value()
+	require.Error(t, err)
+
+	_, err = pgtype.NewMap().Encode(pgtype.VarbitOID, pgtype.TextFormatCode, bits, nil)
+	require.Error(t, err)
 }
