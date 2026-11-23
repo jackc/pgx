@@ -35,6 +35,9 @@ func (b UUID) UUIDValue() (UUID, error) {
 func parseUUID(src string) (dst [16]byte, err error) {
 	switch len(src) {
 	case 36:
+		if src[8] != '-' || src[13] != '-' || src[18] != '-' || src[23] != '-' {
+			return dst, fmt.Errorf("cannot parse UUID %v", src)
+		}
 		src = src[0:8] + src[9:13] + src[14:18] + src[19:23] + src[24:]
 	case 32:
 		// dashes already stripped, assume valid
