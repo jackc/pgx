@@ -174,3 +174,14 @@ func TestUUID_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestUUIDRejectsMisplacedHyphens(t *testing.T) {
+	for _, s := range []string{
+		"a0eebc99X9c0bX4ef8Xbb6dX6bb9bd380a11",
+		"a0eebc999c0b4ef8bb6d6bb9bd380a11abcd",
+	} {
+		var u pgtype.UUID
+		require.Errorf(t, u.Scan(s), "Scan(%q)", s)
+		require.Errorf(t, u.UnmarshalJSON([]byte(`"`+s+`"`)), "UnmarshalJSON(%q)", s)
+	}
+}
