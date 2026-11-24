@@ -173,6 +173,7 @@ func TestNumericCodec(t *testing.T) {
 		{Param: uint(math.MaxUint), Result: new(uint), Test: isExpectedEq(uint(math.MaxUint))},
 		{Param: uint(100), Result: new(uint), Test: isExpectedEq(uint(100))},
 		{Param: "1.23", Result: new(string), Test: isExpectedEq("1.23")},
+		{Param: "0.00", Result: new(string), Test: isExpectedEq("0.00")},
 		{Param: pgtype.Numeric{}, Result: new(pgtype.Numeric), Test: isExpectedEq(pgtype.Numeric{})},
 		{Param: nil, Result: new(pgtype.Numeric), Test: isExpectedEq(pgtype.Numeric{})},
 		{Param: mustParseNumeric(t, "1"), Result: new(string), Test: isExpectedEq("1")},

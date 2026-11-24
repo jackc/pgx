@@ -698,7 +698,8 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	}
 
 	if ndigits == 0 {
-		return scanner.ScanNumeric(Numeric{Int: big.NewInt(0), Valid: true})
+		// Keep the display scale so 0.00 does not come back as 0, as for non-zero values.
+		return scanner.ScanNumeric(Numeric{Int: big.NewInt(0), Exp: -int32(max(dscale, 0)), Valid: true})
 	}
 
 	if r.Remaining() < int(ndigits)*2 {
