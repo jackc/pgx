@@ -2,6 +2,7 @@ package pgproto3
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -35,8 +36,26 @@ func (dst *SASLInitialResponse) Decode(src []byte) error {
 	if len(src[rp:]) < 4 {
 		return errors.New("invalid SASLInitialResponse")
 	}
-	rp += 4 // The rest of the message is data so we can just skip the size
-	dst.Data = src[rp:]
+
+	// The initial response length must be validated against the remaining
+	// message size: -1 means the mechanism sends no initial response and
+	// the message ends here, and any other value is the exact number of
+	// data bytes that follow. Skipping the field without reading it would
+	// silently accept truncated data and trailing bytes as SASL data.
+	dataLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
+	rp += 4
+
+	switch {
+	case dataLen == -1:
+		if len(src[rp:]) != 0 {
+			return errors.New("invalid SASLInitialResponse")
+		}
+		dst.Data = nil
+	case dataLen < 0 || len(src[rp:]) != dataLen:
+		return errors.New("invalid SASLInitialResponse")
+	default:
+		dst.Data = src[rp : rp+dataLen]
+	}
 
 	return nil
 }
