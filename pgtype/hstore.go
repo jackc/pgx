@@ -129,7 +129,10 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 		if hstore == nil {
 			return nil, nil
 		}
-		return []byte{}, nil
+		if buf == nil {
+			return []byte{}, nil
+		}
+		return buf, nil
 	}
 
 	firstPair := true
