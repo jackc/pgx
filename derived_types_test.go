@@ -225,3 +225,11 @@ func TestLoadTypesLoadsArrayDelimiter(t *testing.T) {
 		require.True(t, found)
 	})
 }
+
+func TestNormalizeLoadTypeName(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "color", normalizeLoadTypeName("COLOR"))
+	require.Equal(t, "public.color", normalizeLoadTypeName("PUBLIC.COLOR"))
+	require.Equal(t, `"COLOR"`, normalizeLoadTypeName(`"COLOR"`))
+}

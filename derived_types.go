@@ -158,6 +158,16 @@ SELECT typname,
 	return strings.Join(parts, "")
 }
 
+
+// normalizeLoadTypeName applies PostgreSQL's unquoted identifier folding to a
+// type name. Quoted identifiers are case-sensitive and are left unchanged.
+func normalizeLoadTypeName(typeName string) string {
+	if strings.Contains(typeName, `"`) {
+		return typeName
+	}
+	return strings.ToLower(typeName)
+}
+
 type derivedTypeInfo struct {
 	Oid, Typbasetype, Typelem, Rngsubtype, Rngtypid uint32
 	TypeName, Typtype, NspName, Typdelim            string
@@ -180,6 +190,11 @@ func (c *Conn) LoadTypes(ctx context.Context, typeNames []string) ([]*pgtype.Typ
 	m := c.TypeMap()
 	if len(typeNames) == 0 {
 		return nil, fmt.Errorf("No type names were supplied.")
+	}
+
+	typeNames = append([]string(nil), typeNames...)
+	for i, typeName := range typeNames {
+		typeNames[i] = normalizeLoadTypeName(typeName)
 	}
 
 	// Disregard server version errors. This will result in
