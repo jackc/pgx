@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
 )
@@ -434,4 +435,90 @@ func TestHstoreScanMorePairsThanEstimateClamp(t *testing.T) {
 	if len(h) != n {
 		t.Fatalf("len(h) = %d, want %d", len(h), n)
 	}
+}
+
+func TestHstoreTextEncodeEmptyPreservesBuf(t *testing.T) {
+	t.Parallel()
+
+	const hstoreOID = 999901
+
+	m := pgtype.NewMap()
+	m.RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
+	m.RegisterDefaultPgType(pgtype.Hstore{}, "hstore")
+
+	t.Run("nil hstore returns nil", func(t *testing.T) {
+		buf, err := m.Encode(hstoreOID, pgtype.TextFormatCode, pgtype.Hstore(nil), []byte("prefix:"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if buf != nil {
+			t.Fatalf("got %q, want nil", buf)
+		}
+	})
+
+	t.Run("empty hstore with nil buf returns non-nil empty slice", func(t *testing.T) {
+		buf, err := m.Encode(hstoreOID, pgtype.TextFormatCode, pgtype.Hstore{}, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if buf == nil || len(buf) != 0 {
+			t.Fatalf("got %#v, want non-nil empty slice", buf)
+		}
+	})
+
+	t.Run("empty hstore appends to existing buf", func(t *testing.T) {
+		for _, val := range []any{
+			pgtype.Hstore{},
+			map[string]string{},
+			map[string]*string{},
+		} {
+			buf, err := m.Encode(hstoreOID, pgtype.TextFormatCode, val, []byte("prefix:"))
+			if err != nil {
+				t.Fatalf("%T: unexpected error: %v", val, err)
+			}
+			if string(buf) != "prefix:" {
+				t.Fatalf("%T: got %q, want %q", val, string(buf), "prefix:")
+			}
+		}
+	})
+
+	t.Run("ExtendedQueryBuilder exec mode after non-empty param", func(t *testing.T) {
+		var eqb pgx.ExtendedQueryBuilder
+		if err := eqb.Build(m, nil, []any{"alice", pgtype.Hstore{}}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(eqb.ParamValues) != 2 {
+			t.Fatalf("len(ParamValues) = %d, want 2", len(eqb.ParamValues))
+		}
+		if string(eqb.ParamValues[0]) != "alice" {
+			t.Fatalf("ParamValues[0] = %q, want %q", eqb.ParamValues[0], "alice")
+		}
+		if eqb.ParamValues[1] == nil || len(eqb.ParamValues[1]) != 0 {
+			t.Fatalf("ParamValues[1] = %#v, want non-nil empty slice", eqb.ParamValues[1])
+		}
+	})
+
+	t.Run("ExtendedQueryBuilder text-only codec after non-empty param", func(t *testing.T) {
+		mTextOnly := pgtype.NewMap()
+		mTextOnly.RegisterType(&pgtype.Type{
+			Name:  "hstore",
+			OID:   hstoreOID,
+			Codec: &pgtype.TextFormatOnlyCodec{Codec: pgtype.HstoreCodec{}},
+		})
+		sd := &pgconn.StatementDescription{ParamOIDs: []uint32{pgtype.TextOID, hstoreOID}}
+
+		var eqb pgx.ExtendedQueryBuilder
+		if err := eqb.Build(mTextOnly, sd, []any{"alice", map[string]string{}}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(eqb.ParamValues) != 2 {
+			t.Fatalf("len(ParamValues) = %d, want 2", len(eqb.ParamValues))
+		}
+		if string(eqb.ParamValues[0]) != "alice" {
+			t.Fatalf("ParamValues[0] = %q, want %q", eqb.ParamValues[0], "alice")
+		}
+		if eqb.ParamValues[1] == nil || len(eqb.ParamValues[1]) != 0 {
+			t.Fatalf("ParamValues[1] = %#v, want non-nil empty slice", eqb.ParamValues[1])
+		}
+	})
 }
