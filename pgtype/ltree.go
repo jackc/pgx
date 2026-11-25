@@ -92,6 +92,10 @@ func (scanPlanBinaryLtreeToString) Scan(src []byte, target any) error {
 		return fmt.Errorf("cannot scan NULL into %T", target)
 	}
 
+	if len(src) == 0 {
+		return fmt.Errorf("ltree too short")
+	}
+
 	version := src[0]
 	if version != 1 {
 		return fmt.Errorf("unsupported ltree version %d", version)
@@ -112,6 +116,10 @@ func (scanPlanBinaryLtreeToTextScanner) Scan(src []byte, target any) error {
 		return scanner.ScanText(Text{})
 	}
 
+	if len(src) == 0 {
+		return fmt.Errorf("ltree too short")
+	}
+
 	version := src[0]
 	if version != 1 {
 		return fmt.Errorf("unsupported ltree version %d", version)
@@ -122,10 +130,19 @@ func (scanPlanBinaryLtreeToTextScanner) Scan(src []byte, target any) error {
 
 // DecodeDatabaseSQLValue returns src decoded into a value compatible with the sql.Scanner interface.
 func (l LtreeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return TextCodec(l).DecodeDatabaseSQLValue(m, oid, format, src)
+	return l.DecodeValue(m, oid, format, src)
 }
 
 // DecodeValue returns src decoded into its default format.
 func (l LtreeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
-	return TextCodec(l).DecodeValue(m, oid, format, src)
+	if src == nil {
+		return nil, nil
+	}
+
+	var s string
+	err := codecScan(l, m, oid, format, src, &s)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
