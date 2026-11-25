@@ -5008,6 +5008,83 @@ func TestConnOnPgErrorClosesConnection(t *testing.T) {
 	require.NoError(t, <-serverErrChan)
 }
 
+func TestConnProtocolVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		negotiateTo     *pgproto3.NegotiateProtocolVersion // nil means the server accepts 3.2
+		expectedVersion uint32
+	}{
+		{
+			name:            "server accepts requested 3.2",
+			negotiateTo:     nil,
+			expectedVersion: pgproto3.ProtocolVersion32,
+		},
+		{
+			name:            "server negotiates down to 3.0",
+			negotiateTo:     &pgproto3.NegotiateProtocolVersion{NewestMinorProtocol: 0},
+			expectedVersion: pgproto3.ProtocolVersion30,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			clientConn, serverConn := net.Pipe()
+			t.Cleanup(func() {
+				clientConn.Close()
+				serverConn.Close()
+			})
+			require.NoError(t, serverConn.SetDeadline(time.Now().Add(5*time.Second)))
+
+			steps := []pgmock.Step{
+				pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{}),
+			}
+			if tt.negotiateTo != nil {
+				steps = append(steps, pgmock.SendMessage(tt.negotiateTo))
+			}
+			steps = append(steps,
+				pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+				pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: []byte{0, 0, 0, 0}}),
+				pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+				pgmock.ExpectAnyMessage(&pgproto3.Terminate{}),
+			)
+			script := &pgmock.Script{Steps: steps}
+			serverErrChan := make(chan error, 1)
+			go func() {
+				serverErrChan <- script.Run(pgproto3.NewBackend(serverConn, serverConn))
+			}()
+
+			config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable max_protocol_version=latest")
+			require.NoError(t, err)
+			config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+				return clientConn, nil
+			}
+
+			pgConn, err := pgconn.ConnectConfig(ctx, config)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedVersion, pgConn.ProtocolVersion())
+
+			// The negotiated version is carried through Hijack / Construct.
+			hc, err := pgConn.Hijack()
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedVersion, hc.ProtocolVersion)
+
+			reconstructed, err := pgconn.Construct(hc)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedVersion, reconstructed.ProtocolVersion())
+			require.NoError(t, reconstructed.Close(ctx))
+
+			require.NoError(t, <-serverErrChan)
+		})
+	}
+}
+
 func TestConnCustomData(t *testing.T) {
 	t.Parallel()
 

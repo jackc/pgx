@@ -80,6 +80,7 @@ type PgConn struct {
 	tlsConfig         *tls.Config       // tls.Config that conn was negotiated with; nil if conn is not TLS
 	pid               uint32            // backend pid
 	secretKey         []byte            // key to use to send a cancel query message to the server
+	protocolVersion   uint32            // PostgreSQL protocol version negotiated with the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	txStatus          byte
 	frontend          *pgproto3.Frontend
@@ -397,6 +398,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 	defer pgConn.contextWatcher.Unwatch()
 
 	pgConn.parameterStatuses = make(map[string]string)
+	pgConn.protocolVersion = maxProtocolVersion
 	pgConn.status = connStatusConnecting
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
@@ -580,6 +582,7 @@ func connectOne(ctx context.Context, config *Config, connectConfig *connectOneCo
 			// handled by ReceiveMessage
 		case *pgproto3.NegotiateProtocolVersion:
 			serverVersion := pgproto3.ProtocolVersion30&0xFFFF0000 | msg.NewestMinorProtocol
+			pgConn.protocolVersion = serverVersion
 			if serverVersion < minProtocolVersion {
 				pgConn.conn.Close()
 				return nil, newPerDialConnectError("server protocol version too low", nil)
@@ -785,6 +788,14 @@ func (pgConn *PgConn) TxStatus() byte {
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
 func (pgConn *PgConn) SecretKey() []byte {
 	return pgConn.secretKey
+}
+
+// ProtocolVersion returns the PostgreSQL protocol version negotiated with the server, in pgproto3
+// encoding (e.g. pgproto3.ProtocolVersion30 or pgproto3.ProtocolVersion32). It is the requested
+// MaxProtocolVersion unless the server replied with NegotiateProtocolVersion to select a lower
+// version, like libpq's PQfullProtocolVersion.
+func (pgConn *PgConn) ProtocolVersion() uint32 {
+	return pgConn.protocolVersion
 }
 
 // Frontend returns the underlying *pgproto3.Frontend. This rarely necessary.
@@ -2308,6 +2319,7 @@ type HijackedConn struct {
 	TLSConfig         *tls.Config       // tls.Config that Conn was negotiated with; nil if Conn is not TLS
 	PID               uint32            // backend pid
 	SecretKey         []byte            // key to use to send a cancel query message to the server
+	ProtocolVersion   uint32            // PostgreSQL protocol version negotiated with the server (e.g. pgproto3.ProtocolVersion30)
 	ParameterStatuses map[string]string // parameters that have been reported by the server
 	TxStatus          byte
 	Frontend          *pgproto3.Frontend
@@ -2332,6 +2344,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 		TLSConfig:         pgConn.tlsConfig,
 		PID:               pgConn.pid,
 		SecretKey:         pgConn.secretKey,
+		ProtocolVersion:   pgConn.protocolVersion,
 		ParameterStatuses: pgConn.parameterStatuses,
 		TxStatus:          pgConn.txStatus,
 		Frontend:          pgConn.frontend,
@@ -2348,11 +2361,20 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
 func Construct(hc *HijackedConn) (*PgConn, error) {
+	protocolVersion := hc.ProtocolVersion
+	if protocolVersion == 0 {
+		// HijackedConn values constructed by hand (or by an older pgx) do not
+		// carry a protocol version. 3.0 is the only version such a connection
+		// could have negotiated before NegotiateProtocolVersion existed.
+		protocolVersion = pgproto3.ProtocolVersion30
+	}
+
 	pgConn := &PgConn{
 		conn:              hc.Conn,
 		tlsConfig:         hc.TLSConfig,
 		pid:               hc.PID,
 		secretKey:         hc.SecretKey,
+		protocolVersion:   protocolVersion,
 		parameterStatuses: hc.ParameterStatuses,
 		txStatus:          hc.TxStatus,
 		frontend:          hc.Frontend,
