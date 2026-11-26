@@ -2502,6 +2502,12 @@ func (s *pipelineState) ExtractFrontRequestType() pipelineRequestType {
 		if s.pgErr == nil {
 			return val.RequestType
 		}
+		// The request is skipped because of an earlier error. A skipped QueryStatement request must also
+		// discard its statement data, otherwise subsequent QueryStatement results would be misaligned with
+		// their statement descriptions.
+		if val.RequestType == pipelineQueryStatement {
+			s.ExtractFrontStatementData()
+		}
 	}
 }
 

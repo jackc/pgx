@@ -4267,6 +4267,119 @@ func TestPipelineGetResultsNilResultsOnError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/2738
+func TestPipelineQueryStatementSkippedAfterError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		clientConn.Close()
+		serverConn.Close()
+	})
+	require.NoError(t, serverConn.SetDeadline(time.Now().Add(30*time.Second)))
+
+	sdA := &pgconn.StatementDescription{
+		Name:   "ps_a",
+		Fields: []pgconn.FieldDescription{{Name: "a", DataTypeOID: pgtype.Int4OID}},
+	}
+	sdB := &pgconn.StatementDescription{
+		Name:   "ps_b",
+		Fields: []pgconn.FieldDescription{{Name: "b", DataTypeOID: pgtype.Int4OID}},
+	}
+	sdC := &pgconn.StatementDescription{
+		Name:   "ps_c",
+		Fields: []pgconn.FieldDescription{{Name: "c", DataTypeOID: pgtype.Int4OID}},
+	}
+
+	steps := pgmock.AcceptUnauthenticatedConnRequestSteps()
+	steps = append(steps,
+		// First sync: sdA fails on the server (division by zero) and sdB is skipped by the server.
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Sync{}),
+		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.SendMessage(&pgproto3.ErrorResponse{
+			Severity: "ERROR",
+			Code:     "22012",
+			Message:  "division by zero",
+		}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		// Second sync: sdC.
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Sync{}),
+		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		pgmock.ExpectAnyMessage(&pgproto3.Terminate{}),
+	)
+	script := &pgmock.Script{Steps: steps}
+	serverErrChan := make(chan error, 1)
+	go func() {
+		serverErrChan <- script.Run(pgproto3.NewBackend(serverConn, serverConn))
+	}()
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable")
+	require.NoError(t, err)
+	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+		return clientConn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+
+	pipeline := pgConn.StartPipeline(ctx)
+
+	pipeline.SendQueryStatement(sdA, nil, nil, nil)
+	pipeline.SendQueryStatement(sdB, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "22012", pgErr.Code)
+	require.Nil(t, results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok := results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	// The statement data of the skipped sdB must have been discarded, so this query must be described with
+	// sdC's fields, not sdB's.
+	pipeline.SendQueryStatement(sdC, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	fds := rr.FieldDescriptions()
+	require.Len(t, fds, 1)
+	require.Equal(t, "c", fds[0].Name)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	// Close the connection before checking the script result: the script waits for the Terminate message
+	// that closing sends.
+	closeConn(t, pgConn)
+
+	require.NoError(t, <-serverErrChan)
+}
+
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 
