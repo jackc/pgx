@@ -4156,6 +4156,117 @@ func TestPipelineQueryStatementBindError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// After an error the server skips the rest of the requests up to the next Sync. The statement data of a skipped
+// QueryStatement must be discarded too, or it is misaligned with the QueryStatement results after the Sync.
+func TestPipelineQueryStatementSkippedAfterError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		clientConn.Close()
+		serverConn.Close()
+	})
+	require.NoError(t, serverConn.SetDeadline(time.Now().Add(5*time.Second)))
+
+	steps := pgmock.AcceptUnauthenticatedConnRequestSteps()
+	steps = append(steps,
+		// First sync segment: the first query fails, so the server skips the second one.
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Sync{}),
+		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.SendMessage(&pgproto3.ErrorResponse{Severity: "ERROR", Code: "22012", Message: "division by zero"}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		// Second sync segment.
+		pgmock.ExpectAnyMessage(&pgproto3.Bind{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Execute{}),
+		pgmock.ExpectAnyMessage(&pgproto3.Sync{}),
+		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.SendMessage(&pgproto3.DataRow{Values: [][]byte{[]byte("hello")}}),
+		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		pgmock.ExpectAnyMessage(&pgproto3.Terminate{}),
+	)
+	script := &pgmock.Script{Steps: steps}
+	serverErrChan := make(chan error, 1)
+	go func() {
+		serverErrChan <- script.Run(pgproto3.NewBackend(serverConn, serverConn))
+	}()
+
+	config, err := pgconn.ParseConfig("host=127.0.0.1 sslmode=disable")
+	require.NoError(t, err)
+	config.DialFunc = func(context.Context, string, string) (net.Conn, error) {
+		return clientConn, nil
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+
+	sdA := &pgconn.StatementDescription{
+		Name:   "ps_a",
+		SQL:    "select 1/$1::int4",
+		Fields: []pgconn.FieldDescription{{Name: "a", DataTypeOID: pgtype.Int4OID, DataTypeSize: 4}},
+	}
+	sdB := &pgconn.StatementDescription{
+		Name:   "ps_b",
+		SQL:    "select 2::int8 as b",
+		Fields: []pgconn.FieldDescription{{Name: "b", DataTypeOID: pgtype.Int8OID, DataTypeSize: 8}},
+	}
+	sdC := &pgconn.StatementDescription{
+		Name:   "ps_c",
+		SQL:    "select 'hello'::text as c",
+		Fields: []pgconn.FieldDescription{{Name: "c", DataTypeOID: pgtype.TextOID, DataTypeSize: -1}},
+	}
+
+	pipeline := pgConn.StartPipeline(ctx)
+
+	pipeline.SendQueryStatement(sdA, [][]byte{[]byte("0")}, nil, []int16{pgtype.BinaryFormatCode})
+	pipeline.SendQueryStatement(sdB, nil, nil, []int16{pgtype.BinaryFormatCode})
+	require.NoError(t, pipeline.Sync())
+
+	results, err := pipeline.GetResults()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "22012", pgErr.Code)
+	require.Nil(t, results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok := results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	pipeline.SendQueryStatement(sdC, nil, nil, []int16{pgtype.TextFormatCode})
+	require.NoError(t, pipeline.Sync())
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	fds := rr.FieldDescriptions()
+	require.Len(t, fds, 1)
+	require.Equal(t, "c", fds[0].Name)
+	require.Equal(t, uint32(pgtype.TextOID), fds[0].DataTypeOID)
+	require.Equal(t, int16(pgtype.TextFormatCode), fds[0].Format)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Equal(t, "hello", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	require.NoError(t, pipeline.Close())
+	require.NoError(t, pgConn.Close(ctx))
+	require.NoError(t, <-serverErrChan)
+}
+
 // https://github.com/jackc/pgx/issues/2626
 func TestPipelineQueryStatementCursorFetch(t *testing.T) {
 	t.Parallel()
